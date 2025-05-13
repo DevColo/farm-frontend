@@ -4,31 +4,178 @@ export default [
     name: 'Dashboard',
     to: '/dashboard',
     icon: 'cil-speedometer',
-    badge: {
-      color: 'primary',
-      text: 'NEW',
-    },
+    // badge: {
+    //   color: 'primary',
+    //   text: 'NEW',
+    // },
   },
+  // {
+  //   component: 'CNavTitle',
+  //   name: 'Theme',
+  // },
+  // {
+  //   component: 'CNavItem',
+  //   name: 'Colors',
+  //   to: '/theme/colors',
+  //   icon: 'cil-drop',
+  // },
+  // {
+  //   component: 'CNavItem',
+  //   name: 'Typography',
+  //   to: '/theme/typography',
+  //   icon: 'cil-pencil',
+  // },
+  // Farm Management
   {
     component: 'CNavTitle',
-    name: 'Theme',
+    name: 'Farm Management',
   },
+  // Farm
   {
-    component: 'CNavItem',
-    name: 'Colors',
-    to: '/theme/colors',
-    icon: 'cil-drop',
+    component: 'CNavGroup',
+    name: 'Farm',
+    to: '/base',
+    icon: 'cil-notes',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'Add Farm',
+        to: '/base/accordion',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Farm List',
+        to: '/base/breadcrumbs',
+      },
+    ],
   },
+  // Block
   {
-    component: 'CNavItem',
-    name: 'Typography',
-    to: '/theme/typography',
-    icon: 'cil-pencil',
+    component: 'CNavGroup',
+    name: 'Block',
+    to: '/base',
+    icon: 'cil-layers',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'Add Block',
+        to: '/base/accordion',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Block List',
+        to: '/base/breadcrumbs',
+      },
+    ],
   },
+  // Parcel
+  {
+    component: 'CNavGroup',
+    name: 'Parcel',
+    to: '/base',
+    icon: 'cil-puzzle',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'Add Parcel',
+        to: '/base/accordion',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Parcel List',
+        to: '/base/breadcrumbs',
+      },
+    ],
+  },
+
+  // Cattle Management
   {
     component: 'CNavTitle',
-    name: 'Components',
+    name: 'Cattle Management',
   },
+  // Cow
+  {
+    component: 'CNavGroup',
+    name: 'Cow',
+    to: '/base',
+    icon: 'cil-notes',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'Add Cow',
+        to: '/base/accordion',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Cow List',
+        to: '/base/breadcrumbs',
+      },
+    ],
+  },
+  // Cattle Log
+  {
+    component: 'CNavGroup',
+    name: 'Cattle Log',
+    to: '/base',
+    icon: 'cil-layers',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'Add Cattle Log',
+        to: '/base/accordion',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Cattle Log List',
+        to: '/base/breadcrumbs',
+      },
+    ],
+  },
+  // Pasture
+  {
+    component: 'CNavGroup',
+    name: 'Pasture',
+    //to: '/base',
+    icon: 'cil-puzzle',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'Add Pasture',
+        to: '/add-pasture',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Parcel List',
+        to: '/base/breadcrumbs',
+      },
+    ],
+  },
+
+  // Milk Management
+  {
+    component: 'CNavTitle',
+    name: 'Milk Management',
+  },
+  // Milk Record
+  {
+    component: 'CNavGroup',
+    name: 'Milk Record',
+    to: '/base',
+    icon: 'cil-notes',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'Add Dialy Record',
+        to: '/base/accordion',
+      },
+      {
+        component: 'CNavItem',
+        name: 'DIaly Record List',
+        to: '/base/breadcrumbs',
+      },
+    ],
+  },
+
   {
     component: 'CNavGroup',
     name: 'Base',
@@ -148,7 +295,7 @@ export default [
           color: 'danger',
           text: 'PRO',
         },
-      }
+      },
     ],
   },
   {
