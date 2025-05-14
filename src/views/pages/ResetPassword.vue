@@ -7,7 +7,7 @@
             <CCard class="p-4">
               <CCardBody>
                 <CForm>
-                  <h1>Login</h1>
+                  <h1>Enter your email</h1>
                   <p class="text-body-secondary">Sign In to your account</p>
                   <CInputGroup class="mb-3">
                     <CInputGroupText>
@@ -18,36 +18,14 @@
                       autocomplete="username"
                     />
                   </CInputGroup>
-                  <CInputGroup class="mb-4">
-                    <CInputGroupText>
-                      <CIcon icon="cil-lock-locked" />
-                    </CInputGroupText>
-                    <CFormInput
-                      type="password"
-                      placeholder="Password"
-                      autocomplete="current-password"
-                    />
-                  </CInputGroup>
-                  <CRow>
-                    <CCol :xs="6">
-                      <CButton color="primary" class="px-4"> Login </CButton>
-                    </CCol>
-                    <CCol :xs="6" class="text-right">
-                      <CButton color="link" class="px-0">
-                        Forgot password?
-                      </CButton>
-                    </CCol>
-                  </CRow>
                 </CForm>
               </CCardBody>
             </CCard>
             <CCard class="text-white bg-primary py-5" style="width: 44%">
               <CCardBody class="text-center">
                 <div>
-                  <h2>Sign up</h2>
-
                   <CButton color="light" variant="outline" class="mt-3">
-                    Login!
+                    Send email
                   </CButton>
                 </div>
               </CCardBody>

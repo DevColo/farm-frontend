@@ -48,10 +48,9 @@ const handleSubmitTooltip01 = (event) => {
               :validated="validatedCustom01"
               @submit="handleSubmitCustom01"
             >
-            <CCol :md="4">
-                <CFormLabel for="validationCustomUsername">Parcel Name</CFormLabel>
+            <CCol :md="12">
+                <CFormLabel for="validationCustomUsername">Block Name</CFormLabel>
                 <CInputGroup class="has-validation">
-                  <CInputGroupText id="inputGroupPrepend">@</CInputGroupText>
                   <CFormInput
                     id="validationCustomUsername"
                     value=""
@@ -61,45 +60,30 @@ const handleSubmitTooltip01 = (event) => {
                   <CFormFeedback invalid> Please choose a username. </CFormFeedback>
                 </CInputGroup>
               </CCol>
-              <CCol :md="4">
-                <CFormLabel for="validationCustom01">Block name</CFormLabel>
-                <CFormInput id="validationCustom01" value="Mark" required />
-                <CFormFeedback valid> Looks good! </CFormFeedback>
-              </CCol>
-              <CCol :md="4">
-                <CFormLabel for="validationCustom02">farm name</CFormLabel>
-                <CFormInput id="validationCustom02" value="Otto" required />
-                <CFormFeedback valid> Looks good! </CFormFeedback>
-              </CCol>
-              <CCol :md="6">
-                <CFormLabel for="validationCustom03">City</CFormLabel>
-                <CFormInput id="validationCustom03" required />
-                <CFormFeedback invalid> Please provide a valid city. </CFormFeedback>
-              </CCol>
-              <CCol :md="3">
-                <CFormLabel for="validationCustom04">City</CFormLabel>
+              <CCol :md="12">
+                <CFormLabel for="validationCustom04">Farm</CFormLabel>
                 <CFormSelect id="validationCustom04">
-                  <option disabled>Choose...</option>
-                  <option>...</option>
+                  <option disabled>Choose a farm</option>
+                  <option>Farm 1</option>
+                   <option>Farm 2</option>
+                    <option>Farm 3</option>
+                     <option>Farm 4</option>
+                     <option>Farm 5</option>
+                     <option>Farm 6</option>
                 </CFormSelect>
                 <CFormFeedback invalid> Please provide a valid city. </CFormFeedback>
-              </CCol>
-              <CCol :md="3">
-                <CFormLabel for="validationCustom05">City</CFormLabel>
-                <CFormInput id="validationCustom05" required />
-                <CFormFeedback invalid> Please provide a valid zip. </CFormFeedback>
               </CCol>
               <CCol :xs="12">
                 <CFormCheck
                   id="invalidCheck"
                   type="checkbox"
-                  label="Active parcel"
+                  label="Active block"
                   required
                 />
                 <CFormFeedback invalid> You must agree before submitting. </CFormFeedback>
               </CCol>
               <CCol :xs="12">
-                <CButton color="primary" type="submit">Submit form</CButton>
+                <CButton color="primary" type="submit">Submit</CButton>
               </CCol>
             </CForm>
           </DocsExample>
@@ -108,3 +92,4 @@ const handleSubmitTooltip01 = (event) => {
     </CCol>
   </CRow>
 </template>
+

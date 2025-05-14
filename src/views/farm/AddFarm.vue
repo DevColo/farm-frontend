@@ -48,10 +48,9 @@ const handleSubmitTooltip01 = (event) => {
               :validated="validatedCustom01"
               @submit="handleSubmitCustom01"
             >
-            <CCol :md="4">
-                <CFormLabel for="validationCustomUsername">Parcel Name</CFormLabel>
+            <CCol :md="12">
+                <CFormLabel for="validationCustomUsername">Farm Name</CFormLabel>
                 <CInputGroup class="has-validation">
-                  <CInputGroupText id="inputGroupPrepend">@</CInputGroupText>
                   <CFormInput
                     id="validationCustomUsername"
                     value=""
@@ -61,33 +60,16 @@ const handleSubmitTooltip01 = (event) => {
                   <CFormFeedback invalid> Please choose a username. </CFormFeedback>
                 </CInputGroup>
               </CCol>
-              <CCol :md="4">
-                <CFormLabel for="validationCustom01">Block name</CFormLabel>
-                <CFormInput id="validationCustom01" value="Mark" required />
-                <CFormFeedback valid> Looks good! </CFormFeedback>
-              </CCol>
-              <CCol :md="4">
-                <CFormLabel for="validationCustom02">farm name</CFormLabel>
-                <CFormInput id="validationCustom02" value="Otto" required />
-                <CFormFeedback valid> Looks good! </CFormFeedback>
-              </CCol>
-              <CCol :md="6">
-                <CFormLabel for="validationCustom03">City</CFormLabel>
-                <CFormInput id="validationCustom03" required />
-                <CFormFeedback invalid> Please provide a valid city. </CFormFeedback>
-              </CCol>
-              <CCol :md="3">
-                <CFormLabel for="validationCustom04">City</CFormLabel>
+              <CCol :md="12">
+                <CFormLabel for="validationCustom04">Country</CFormLabel>
                 <CFormSelect id="validationCustom04">
-                  <option disabled>Choose...</option>
-                  <option>...</option>
+                  <option disabled>Choose a country</option>
+                  <option>Rwanda</option>
+                   <option>DR Congo</option>
+                    <option>Uganda</option>
+                     <option>Burundi</option>
                 </CFormSelect>
                 <CFormFeedback invalid> Please provide a valid city. </CFormFeedback>
-              </CCol>
-              <CCol :md="3">
-                <CFormLabel for="validationCustom05">City</CFormLabel>
-                <CFormInput id="validationCustom05" required />
-                <CFormFeedback invalid> Please provide a valid zip. </CFormFeedback>
               </CCol>
               <CCol :xs="12">
                 <CFormCheck
@@ -99,7 +81,7 @@ const handleSubmitTooltip01 = (event) => {
                 <CFormFeedback invalid> You must agree before submitting. </CFormFeedback>
               </CCol>
               <CCol :xs="12">
-                <CButton color="primary" type="submit">Submit form</CButton>
+                <CButton color="primary" type="submit">Submit</CButton>
               </CCol>
             </CForm>
           </DocsExample>

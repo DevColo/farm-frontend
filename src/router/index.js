@@ -19,10 +19,47 @@ const routes = [
         component: () =>
           import(/* webpackChunkName: "dashboard" */ '@/views/dashboard/Dashboard.vue'),
       },
+      // Add Pasture
       {
         path: '/add-pasture',
         name: 'Add Pasture',
         component: () => import('@/views/pasture/AddPasture.vue'),
+      },
+      // Add Farm
+       {
+        path: '/add-farm',
+        name: 'Add Farm',
+        component: () => import('@/views/farm/AddFarm.vue'),
+      },
+      // Firm List
+      {
+        path: '/farm-list',
+        name: 'Farm List',
+        component: () => import('@/views/farm/FarmList.vue'),
+      },
+      // Add Block
+       {
+        path: '/add-block',
+        name: 'Add Block',
+        component: () => import('@/views/blocks/AddBlock.vue'),
+      },
+      // Block List
+      {
+        path: '/block-list',
+        name: 'Block List',
+        component: () => import('@/views/blocks/BlockList.vue'),
+      },
+       // Add Parcel
+       {
+        path: '/add-parcel',
+        name: 'Add Parcel',
+        component: () => import('@/views/parcel/AddParcel.vue'),
+      },
+      // parcel List
+      {
+        path: '/parcel-list',
+        name: 'Parcel List',
+        component: () => import('@/views/parcel/ParcelList.vue'),
       },
       {
         path: '/theme',
@@ -278,7 +315,7 @@ const routes = [
   },
   {
     path: '/pages',
-    redirect: '/pages/404',
+    redirect: '/pages/Login',
     name: 'Pages',
     component: {
       render() {
@@ -286,26 +323,21 @@ const routes = [
       },
     },
     children: [
-      {
-        path: '404',
-        name: 'Page404',
-        component: () => import('@/views/pages/Page404'),
-      },
-      {
-        path: '500',
-        name: 'Page500',
-        component: () => import('@/views/pages/Page500'),
-      },
-      {
+     {
         path: 'login',
         name: 'Login',
         component: () => import('@/views/pages/Login'),
       },
       {
-        path: 'register',
-        name: 'Register',
-        component: () => import('@/views/pages/Register'),
+        path: 'reset-password',
+        name: 'Reset Password',
+        component: () => import('@/views/pages/ResetPassword'),
       },
+      {
+        path: 'confirm-password',
+        name: 'Confirm Password',
+        component: () => import('@/views/pages/ConfirmPassword'),
+      }, 
     ],
   },
 ]
