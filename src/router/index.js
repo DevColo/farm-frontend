@@ -61,6 +61,12 @@ const routes = [
         name: 'Parcel List',
         component: () => import('@/views/parcel/ParcelList.vue'),
       },
+      // add daily record
+      {
+        path: '/add-daily-record',
+        name: 'Add Daily Record',
+        component: () => import('@/views/milk/AddDailyRecord.vue'),
+      },
       {
         path: '/theme',
         name: 'Theme',

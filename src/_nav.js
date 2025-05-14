@@ -160,13 +160,13 @@ export default [
   {
     component: 'CNavGroup',
     name: 'Milk Record',
-    to: '/base',
+    to: '/milk',
     icon: 'cil-notes',
     items: [
       {
         component: 'CNavItem',
         name: 'Add Dialy Record',
-        to: '/base/accordion',
+        to: '/add-daily-record',
       },
       {
         component: 'CNavItem',
