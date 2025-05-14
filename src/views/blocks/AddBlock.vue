@@ -39,7 +39,7 @@ const handleSubmitTooltip01 = (event) => {
   <CRow>
     <CCol :xs="12">
       <CCard class="mb-4">
-        <CCardHeader> <strong>Validation</strong> <small>Custom styles</small> </CCardHeader>
+        <CCardHeader> <strong>Add</strong> <small>a block</small> </CCardHeader>
         <CCardBody>
           <DocsExample href="forms/validation.html">
             <CForm
@@ -49,7 +49,7 @@ const handleSubmitTooltip01 = (event) => {
               @submit="handleSubmitCustom01"
             >
             <CCol :md="12">
-                <CFormLabel for="validationCustomUsername">Block Name</CFormLabel>
+                <CFormLabel for="validationCustomUsername"><strong>Block Name</strong></CFormLabel>
                 <CInputGroup class="has-validation">
                   <CFormInput
                     id="validationCustomUsername"
@@ -61,7 +61,7 @@ const handleSubmitTooltip01 = (event) => {
                 </CInputGroup>
               </CCol>
               <CCol :md="12">
-                <CFormLabel for="validationCustom04">Farm</CFormLabel>
+                <CFormLabel for="validationCustom04"><strong>Farm</strong></CFormLabel>
                 <CFormSelect id="validationCustom04">
                   <option disabled>Choose a farm</option>
                   <option>Farm 1</option>

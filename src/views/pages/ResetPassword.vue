@@ -2,32 +2,31 @@
   <div class="wrapper min-vh-100 d-flex flex-row align-items-center">
     <CContainer>
       <CRow class="justify-content-center">
-        <CCol :md="8">
+        <CCol class="mx-auto" style="max-width: 400px;">
           <CCardGroup>
-            <CCard class="p-4">
+            <CCard class="p-4 w-100">
               <CCardBody>
                 <CForm>
                   <h1>Enter your email</h1>
-                  <p class="text-body-secondary">Sign In to your account</p>
+                  <p class="text-body-secondary">Enter Your Email to Reset Your Password</p>
                   <CInputGroup class="mb-3">
                     <CInputGroupText>
-                      <CIcon icon="cil-user" />
+                      <CIcon icon="cil-envelope-closed" />
                     </CInputGroupText>
                     <CFormInput
-                      placeholder="Username"
-                      autocomplete="username"
+                      placeholder="Email"
+                      type="email"
+                      autocomplete="email"
                     />
                   </CInputGroup>
+
+                  <!-- Send email button below the email field -->
+                  <div class="d-grid">
+                    <CButton color="primary" class="mt-3">
+                      Send Email
+                    </CButton>
+                  </div>
                 </CForm>
-              </CCardBody>
-            </CCard>
-            <CCard class="text-white bg-primary py-5" style="width: 44%">
-              <CCardBody class="text-center">
-                <div>
-                  <CButton color="light" variant="outline" class="mt-3">
-                    Send email
-                  </CButton>
-                </div>
               </CCardBody>
             </CCard>
           </CCardGroup>

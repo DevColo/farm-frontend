@@ -2,9 +2,9 @@
   <div class="wrapper min-vh-100 d-flex flex-row align-items-center">
     <CContainer>
       <CRow class="justify-content-center">
-        <CCol :md="8">
+        <CCol class="mx-auto" style="max-width: 400px;">
           <CCardGroup>
-            <CCard class="p-4">
+            <CCard class="p-4 w-100">
               <CCardBody>
                 <CForm>
                   <h1>Login</h1>
@@ -33,23 +33,12 @@
                       <CButton color="primary" class="px-4"> Login </CButton>
                     </CCol>
                     <CCol :xs="6" class="text-right">
-                      <CButton color="link" class="px-0">
+                      <CButton color="link" class="px-0" @click="$router.push('/pages/reset-password')">
                         Forgot password?
                       </CButton>
                     </CCol>
                   </CRow>
                 </CForm>
-              </CCardBody>
-            </CCard>
-            <CCard class="text-white bg-primary py-5" style="width: 44%">
-              <CCardBody class="text-center">
-                <div>
-                  <h2>Sign up</h2>
-
-                  <CButton color="light" variant="outline" class="mt-3">
-                    Login!
-                  </CButton>
-                </div>
               </CCardBody>
             </CCard>
           </CCardGroup>

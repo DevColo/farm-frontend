@@ -2,13 +2,14 @@
   <div class="wrapper min-vh-100 d-flex flex-row align-items-center">
     <CContainer>
       <CRow class="justify-content-center">
-        <CCol :md="8">
+        <CCol class="mx-auto" style="max-width: 400px;">
           <CCardGroup>
-            <CCard class="p-4">
+            <CCard class="p-4 w-100">
               <CCardBody>
                 <CForm>
                   <h1>Login</h1>
-                  <p class="text-body-secondary">Sign In to your account</p>
+                  <p class="text-body-secondary">Create New Password</p>
+
                   <CInputGroup class="mb-4">
                     <CInputGroupText>
                       <CIcon icon="cil-lock-locked" />
@@ -16,29 +17,27 @@
                     <CFormInput
                       type="password"
                       placeholder="New Password"
-                      autocomplete="current-password"
+                      autocomplete="new-password"
                     />
                   </CInputGroup>
+
                   <CInputGroup class="mb-4">
                     <CInputGroupText>
                       <CIcon icon="cil-lock-locked" />
                     </CInputGroupText>
                     <CFormInput
                       type="password"
-                      placeholder=" Confirm Password"
-                      autocomplete="current-password"
+                      placeholder="Confirm Password"
+                      autocomplete="new-password"
                     />
                   </CInputGroup>
+
+                  <div class="d-flex justify-content-center mt-3">
+                    <CButton color="primary" class="w-50">
+                      Login
+                    </CButton>
+                  </div>
                 </CForm>
-              </CCardBody>
-            </CCard>
-            <CCard class="text-white bg-primary py-5" style="width: 44%">
-              <CCardBody class="text-center">
-                <div>
-                  <CButton color="light" variant="outline" class="mt-3">
-                    Login!
-                  </CButton>
-                </div>
               </CCardBody>
             </CCard>
           </CCardGroup>
