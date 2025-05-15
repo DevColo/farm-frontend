@@ -170,8 +170,8 @@ export default [
       },
       {
         component: 'CNavItem',
-        name: 'DIaly Record List',
-        to: '/base/breadcrumbs',
+        name: 'Dialy Record List',
+        to: '/daily-record-list',
       },
     ],
   },

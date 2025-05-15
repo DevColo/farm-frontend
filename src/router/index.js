@@ -67,6 +67,12 @@ const routes = [
         name: 'Add Daily Record',
         component: () => import('@/views/milk/AddDailyRecord.vue'),
       },
+        // add daily record
+      {
+        path: '/daily-record-list',
+        name: 'Daily Record List',
+        component: () => import('@/views/milk/DailyRecordList.vue'),
+      },
       {
         path: '/theme',
         name: 'Theme',
