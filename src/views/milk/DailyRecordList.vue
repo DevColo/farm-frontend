@@ -3,10 +3,27 @@
     <h4 class="mb-4">Daily Record List</h4>
 
     <!-- Search -->
-    <CFormInput
-      v-model="searchQuery"
-      placeholder="Search by cow name..."
-      class="mb-3"
+       <!-- Search Bar and Pagination Control -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <!-- Search Bar -->
+            <input
+              type="text"
+              v-model="searchQuery"
+              class="form-control w-50"
+              placeholder="Search by cow name..."
+            />
+            <!-- Items per page selection -->
+            <div class="d-flex align-items-center">
+              <label class="me-2">Show:</label>
+              <select v-model="itemsPerPage" class="form-select">
+                <option :value="10">10</option>
+                <option :value="25">25</option>
+                <option :value="50">50</option>
+                <option :value="100">100</option>
+              </select>
+            </div>
+          </div>
+
     />
 
     <!-- Table -->
