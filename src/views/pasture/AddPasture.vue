@@ -49,7 +49,7 @@ const handleSubmitTooltip01 = (event) => {
               @submit="handleSubmitCustom01"
             >
               <CCol :md="4">
-                <CFormLabel for="validationCustom01">Email</CFormLabel>
+                <CFormLabel for="validationCustom01">Pasture</CFormLabel>
                 <CFormInput id="validationCustom01" value="Mark" required />
                 <CFormFeedback valid> Looks good! </CFormFeedback>
               </CCol>
