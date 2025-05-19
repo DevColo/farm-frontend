@@ -8,36 +8,35 @@
               <CCardBody>
                 <CForm>
                   <h1>Login</h1>
-                  <p class="text-body-secondary">Sign In to your account</p>
-                  <CInputGroup class="mb-3">
-                    <CInputGroupText>
-                      <CIcon icon="cil-user" />
-                    </CInputGroupText>
-                    <CFormInput
-                      placeholder="Username"
-                      autocomplete="username"
-                    />
-                  </CInputGroup>
+                  <p class="text-body-secondary">Create New Password</p>
+
                   <CInputGroup class="mb-4">
                     <CInputGroupText>
                       <CIcon icon="cil-lock-locked" />
                     </CInputGroupText>
                     <CFormInput
                       type="password"
-                      placeholder="Password"
-                      autocomplete="current-password"
+                      placeholder="New Password"
+                      autocomplete="new-password"
                     />
                   </CInputGroup>
-                  <CRow>
-                    <CCol :xs="6">
-                      <CButton color="primary" class="px-4"> Login </CButton>
-                    </CCol>
-                    <CCol :xs="6" class="text-right">
-                      <CButton color="link" class="px-0" @click="$router.push('/pages/reset-password')">
-                        Forgot password?
-                      </CButton>
-                    </CCol>
-                  </CRow>
+
+                  <CInputGroup class="mb-4">
+                    <CInputGroupText>
+                      <CIcon icon="cil-lock-locked" />
+                    </CInputGroupText>
+                    <CFormInput
+                      type="password"
+                      placeholder="Confirm Password"
+                      autocomplete="new-password"
+                    />
+                  </CInputGroup>
+
+                  <div class="d-flex justify-content-center mt-3">
+                    <CButton color="primary" class="w-50">
+                      Login
+                    </CButton>
+                  </div>
                 </CForm>
               </CCardBody>
             </CCard>

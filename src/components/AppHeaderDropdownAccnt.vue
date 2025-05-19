@@ -1,7 +1,11 @@
 <script setup>
+import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 import avatar from '@/assets/images/avatars/8.jpg'
 
 const itemsCount = 42
+const authStore = useAuthStore()
+const router = useRouter()
 </script>
 
 <template>
@@ -14,7 +18,8 @@ const itemsCount = 42
         component="h6"
         class="bg-body-secondary text-body-secondary fw-semibold mb-2 rounded-top"
       >
-        Account
+        {{ authStore.user?.first_name }} {{ authStore.user?.other_name }}
+        {{ authStore.user?.last_name }}
       </CDropdownHeader>
       <CDropdownItem>
         <CIcon icon="cil-bell" /> Updates
@@ -49,8 +54,9 @@ const itemsCount = 42
         <CBadge color="primary" class="ms-auto">{{ itemsCount }}</CBadge>
       </CDropdownItem>
       <CDropdownDivider />
-      <CDropdownItem> <CIcon icon="cil-shield-alt" /> Lock Account </CDropdownItem>
-      <CDropdownItem> <CIcon icon="cil-lock-locked" /> Logout </CDropdownItem>
+      <CDropdownItem @click="authStore.logout(router)">
+        <CIcon icon="cil-lock-locked" /> Logout
+      </CDropdownItem>
     </CDropdownMenu>
   </CDropdown>
 </template>

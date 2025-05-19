@@ -34,18 +34,18 @@ export default [
   {
     component: 'CNavGroup',
     name: 'Farm',
-    to: '/base',
+    to: '/farm',
     icon: 'cil-notes',
     items: [
       {
         component: 'CNavItem',
         name: 'Add Farm',
-        to: '/base/accordion',
+        to: '/add-farm',
       },
       {
         component: 'CNavItem',
         name: 'Farm List',
-        to: '/base/breadcrumbs',
+        to: '/farm-list',
       },
     ],
   },
@@ -53,18 +53,18 @@ export default [
   {
     component: 'CNavGroup',
     name: 'Block',
-    to: '/base',
+    to: '/blocks',
     icon: 'cil-layers',
     items: [
       {
         component: 'CNavItem',
         name: 'Add Block',
-        to: '/base/accordion',
+        to: '/add-block',
       },
       {
         component: 'CNavItem',
         name: 'Block List',
-        to: '/base/breadcrumbs',
+        to: '/block-list',
       },
     ],
   },
@@ -72,18 +72,18 @@ export default [
   {
     component: 'CNavGroup',
     name: 'Parcel',
-    to: '/base',
+    to: '/parcel',
     icon: 'cil-puzzle',
     items: [
       {
         component: 'CNavItem',
         name: 'Add Parcel',
-        to: '/base/accordion',
+        to: '/add-parcel',
       },
       {
         component: 'CNavItem',
         name: 'Parcel List',
-        to: '/base/breadcrumbs',
+        to: '/parcel-list',
       },
     ],
   },
@@ -160,18 +160,18 @@ export default [
   {
     component: 'CNavGroup',
     name: 'Milk Record',
-    to: '/base',
+    to: '/milk',
     icon: 'cil-notes',
     items: [
       {
         component: 'CNavItem',
         name: 'Add Dialy Record',
-        to: '/base/accordion',
+        to: '/add-daily-record',
       },
       {
         component: 'CNavItem',
-        name: 'DIaly Record List',
-        to: '/base/breadcrumbs',
+        name: 'Dialy Record List',
+        to: '/daily-record-list',
       },
     ],
   },
@@ -517,18 +517,13 @@ export default [
       },
       {
         component: 'CNavItem',
-        name: 'Register',
-        to: '/pages/register',
+        name: 'Reset Password',
+        to: '/pages/reset-password',
       },
       {
         component: 'CNavItem',
-        name: 'Error 404',
-        to: '/pages/404',
-      },
-      {
-        component: 'CNavItem',
-        name: 'Error 500',
-        to: '/pages/500',
+        name: 'Confirm Password',
+        to: '/pages/confirm-password',
       },
     ],
   },

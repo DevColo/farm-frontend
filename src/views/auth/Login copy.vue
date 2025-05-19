@@ -2,7 +2,7 @@
   <div class="wrapper min-vh-100 d-flex flex-row align-items-center">
     <CContainer>
       <CRow class="justify-content-center">
-        <CCol class="mx-auto" style="max-width: 400px;">
+        <CCol class="mx-auto" style="max-width: 400px">
           <CCardGroup>
             <CCard class="p-4 w-100">
               <CCardBody>
@@ -13,10 +13,7 @@
                     <CInputGroupText>
                       <CIcon icon="cil-user" />
                     </CInputGroupText>
-                    <CFormInput
-                      placeholder="Username"
-                      autocomplete="username"
-                    />
+                    <CFormInput placeholder="Username" autocomplete="username" />
                   </CInputGroup>
                   <CInputGroup class="mb-4">
                     <CInputGroupText>
@@ -33,7 +30,7 @@
                       <CButton color="primary" class="px-4"> Login </CButton>
                     </CCol>
                     <CCol :xs="6" class="text-right">
-                      <CButton color="link" class="px-0" @click="$router.push('/pages/reset-password')">
+                      <CButton color="link" class="px-0" @click="$router.push('/reset-password')">
                         Forgot password?
                       </CButton>
                     </CCol>
