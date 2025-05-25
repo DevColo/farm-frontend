@@ -45,12 +45,12 @@ export default defineConfig(() => {
     //   ],
     //   extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.vue', '.scss'],
     // },
-    server: {
-      port: 3000,
-      proxy: {
-        // https://vitejs.dev/config/server-options.html
-      },
-    },
+    // server: {
+    //   port: 3000,
+    //   proxy: {
+    //     // https://vitejs.dev/config/server-options.html
+    //   },
+    // },
     server: {
       proxy: {
         '/api': 'http://localhost:5000',

@@ -7,6 +7,7 @@ const pastureStore = usePastureStore()
 const validated = ref(false)
 const pastureName = ref('')
 const country = ref('')
+const description = ref('')
 const isActive = ref(true)
 
 const handleSubmit = async (event) => {
@@ -23,7 +24,8 @@ const handleSubmit = async (event) => {
   await pastureStore.createPasture({
     pasture: pastureName.value,
     country: country.value,
-    status: isActive.value ? 'active' : 'inactive',
+    description: description.value,
+    status: isActive.value ? '1' : '0',
   })
 }
 </script>
@@ -49,18 +51,28 @@ const handleSubmit = async (event) => {
             </CCol>
             <CCol :md="6">
               <CFormLabel for="country">Country</CFormLabel>
-              <CFormSelect id="country" v-model="country" required>
-                <option disabled value="">Choose a country</option>
-                <option>Rwanda</option>
-                <option>DR Congo</option>
-                <option>Uganda</option>
-                <option>Burundi</option>
+              <CFormSelect
+                id="country"
+                v-model="country"
+                required
+                :options="[
+                  { label: 'Choose a country', value: '', disabled: true },
+                  { label: 'Rwanda', value: 'Rwanda' },
+                  { label: 'Uganda', value: 'Uganda' },
+                  { label: 'Burundi', value: 'Burundi' },
+                  { label: 'DR Congo', value: 'DR Congo' },
+                ]"
+              >
               </CFormSelect>
               <CFormFeedback invalid> Please select country. </CFormFeedback>
             </CCol>
             <CCol :xs="12">
               <CFormLabel for="exampleFormControlTextarea1">Description</CFormLabel>
-              <CFormTextarea id="exampleFormControlTextarea1" rows="3"></CFormTextarea>
+              <CFormTextarea
+                id="exampleFormControlTextarea1"
+                rows="3"
+                v-model="description"
+              ></CFormTextarea>
             </CCol>
             <CCol :xs="12">
               <CFormCheck v-model="isActive" type="checkbox" label=" Active" />
