@@ -16,14 +16,14 @@ const routes = [
         component: () => import('@/views/dashboard/Dashboard.vue'),
       },
       {
-        path: 'add-pasture',
-        name: 'Add Pasture',
-        component: () => import('@/views/pasture/AddPasture.vue'),
+        path: 'pastures',
+        name: 'Pastures',
+        component: () => import('@/views/pasture/PastureList.vue'),
       },
       {
-        path: 'add-farm',
-        name: 'Add Farm',
-        component: () => import('@/views/farm/AddFarm.vue'),
+        path: 'cows',
+        name: 'Cows',
+        component: () => import('@/views/cow/CowList.vue'),
       },
       {
         path: 'farm-list',

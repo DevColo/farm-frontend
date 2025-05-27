@@ -6,7 +6,7 @@ const pastureStore = usePastureStore()
 
 const validated = ref(false)
 const pastureName = ref('')
-const country = ref('')
+const country = ref('Rwanda')
 const description = ref('')
 const isActive = ref(true)
 
@@ -27,6 +27,12 @@ const handleSubmit = async (event) => {
     description: description.value,
     status: isActive.value ? '1' : '0',
   })
+  // Reset the form
+  pastureName.value = ''
+  country.value = 'Rwanda'
+  description.value = ''
+  isActive.value = true
+  validated.value = false
 }
 </script>
 
