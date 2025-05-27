@@ -145,7 +145,7 @@ export default [
       },
       {
         component: 'CNavItem',
-        name: 'Parcel List',
+        name: 'Pasture List',
         to: '/base/breadcrumbs',
       },
     ],

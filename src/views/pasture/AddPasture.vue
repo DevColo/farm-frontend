@@ -1,37 +1,30 @@
 <script setup>
 import { ref } from 'vue'
-const validatedCustom01 = ref(false)
-const validatedDefault01 = ref(false)
-const validatedTooltip01 = ref(false)
+import { usePastureStore } from '@/stores/pasture.store'
 
-const handleSubmitCustom01 = (event) => {
+const pastureStore = usePastureStore()
+
+const validated = ref(false)
+const pastureName = ref('')
+const country = ref('')
+const isActive = ref(true)
+
+const handleSubmit = async (event) => {
   const form = event.currentTarget
-  if (form.checkValidity() === false) {
+  if (!form.checkValidity()) {
     event.preventDefault()
     event.stopPropagation()
+    validated.value = true
+    return
   }
 
-  validatedCustom01.value = true
-}
+  event.preventDefault()
 
-const handleSubmitDefault01 = (event) => {
-  const form = event.currentTarget
-  if (form.checkValidity() === false) {
-    event.preventDefault()
-    event.stopPropagation()
-  }
-
-  validatedDefault01.value = true
-}
-
-const handleSubmitTooltip01 = (event) => {
-  const form = event.currentTarget
-  if (form.checkValidity() === false) {
-    event.preventDefault()
-    event.stopPropagation()
-  }
-
-  validatedTooltip01.value = true
+  await pastureStore.createPasture({
+    pasture: pastureName.value,
+    country: country.value,
+    status: isActive.value ? 'active' : 'inactive',
+  })
 }
 </script>
 
@@ -39,70 +32,43 @@ const handleSubmitTooltip01 = (event) => {
   <CRow>
     <CCol :xs="12">
       <CCard class="mb-4">
-        <CCardHeader> <strong>Validation</strong> <small>Custom styles</small> </CCardHeader>
+        <CCardHeader> <strong>Create New Pasture</strong></CCardHeader>
         <CCardBody>
-          <DocsExample href="forms/validation.html">
-            <CForm
-              class="row g-3 needs-validation"
-              novalidate
-              :validated="validatedCustom01"
-              @submit="handleSubmitCustom01"
-            >
-            <CCol :md="4">
-                <CFormLabel for="validationCustomUsername">Parcel Name</CFormLabel>
-                <CInputGroup class="has-validation">
-                  <CInputGroupText id="inputGroupPrepend">@</CInputGroupText>
-                  <CFormInput
-                    id="validationCustomUsername"
-                    value=""
-                    aria-describedby="inputGroupPrepend"
-                    required
-                  />
-                  <CFormFeedback invalid> Please choose a username. </CFormFeedback>
-                </CInputGroup>
-              </CCol>
-              <CCol :md="4">
-                <CFormLabel for="validationCustom01">Block name</CFormLabel>
-                <CFormInput id="validationCustom01" value="Mark" required />
-                <CFormFeedback valid> Looks good! </CFormFeedback>
-              </CCol>
-              <CCol :md="4">
-                <CFormLabel for="validationCustom02">farm name</CFormLabel>
-                <CFormInput id="validationCustom02" value="Otto" required />
-                <CFormFeedback valid> Looks good! </CFormFeedback>
-              </CCol>
-              <CCol :md="6">
-                <CFormLabel for="validationCustom03">City</CFormLabel>
-                <CFormInput id="validationCustom03" required />
-                <CFormFeedback invalid> Please provide a valid city. </CFormFeedback>
-              </CCol>
-              <CCol :md="3">
-                <CFormLabel for="validationCustom04">City</CFormLabel>
-                <CFormSelect id="validationCustom04">
-                  <option disabled>Choose...</option>
-                  <option>...</option>
-                </CFormSelect>
-                <CFormFeedback invalid> Please provide a valid city. </CFormFeedback>
-              </CCol>
-              <CCol :md="3">
-                <CFormLabel for="validationCustom05">City</CFormLabel>
-                <CFormInput id="validationCustom05" required />
-                <CFormFeedback invalid> Please provide a valid zip. </CFormFeedback>
-              </CCol>
-              <CCol :xs="12">
-                <CFormCheck
-                  id="invalidCheck"
-                  type="checkbox"
-                  label="Active parcel"
-                  required
-                />
-                <CFormFeedback invalid> You must agree before submitting. </CFormFeedback>
-              </CCol>
-              <CCol :xs="12">
-                <CButton color="primary" type="submit">Submit form</CButton>
-              </CCol>
-            </CForm>
-          </DocsExample>
+          <CForm
+            class="row g-3 needs-validation"
+            novalidate
+            :validated="validated"
+            @submit="handleSubmit"
+          >
+            <CCol :md="6">
+              <CFormLabel for="pastureName">Pasture Name</CFormLabel>
+              <CInputGroup class="has-validation">
+                <CFormInput id="pastureName" v-model="pastureName" required />
+                <CFormFeedback invalid> Please enter pasture. </CFormFeedback>
+              </CInputGroup>
+            </CCol>
+            <CCol :md="6">
+              <CFormLabel for="country">Country</CFormLabel>
+              <CFormSelect id="country" v-model="country" required>
+                <option disabled value="">Choose a country</option>
+                <option>Rwanda</option>
+                <option>DR Congo</option>
+                <option>Uganda</option>
+                <option>Burundi</option>
+              </CFormSelect>
+              <CFormFeedback invalid> Please select country. </CFormFeedback>
+            </CCol>
+            <CCol :xs="12">
+              <CFormLabel for="exampleFormControlTextarea1">Description</CFormLabel>
+              <CFormTextarea id="exampleFormControlTextarea1" rows="3"></CFormTextarea>
+            </CCol>
+            <CCol :xs="12">
+              <CFormCheck v-model="isActive" type="checkbox" label=" Active" />
+            </CCol>
+            <CCol :xs="12">
+              <CButton color="success" type="submit">Submit</CButton>
+            </CCol>
+          </CForm>
         </CCardBody>
       </CCard>
     </CCol>
