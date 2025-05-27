@@ -95,22 +95,10 @@ export default [
   },
   // Cow
   {
-    component: 'CNavGroup',
-    name: 'Cow',
-    to: '/base',
+    component: 'CNavItem',
+    name: 'Cows',
+    to: '/cows',
     icon: 'cil-notes',
-    items: [
-      {
-        component: 'CNavItem',
-        name: 'Add Cow',
-        to: '/base/accordion',
-      },
-      {
-        component: 'CNavItem',
-        name: 'Cow List',
-        to: '/base/breadcrumbs',
-      },
-    ],
   },
   // Cattle Log
   {
@@ -133,10 +121,11 @@ export default [
   },
   // Pasture
   {
-    component: 'CNavGroup',
+    component: 'CNavItem',
     name: 'Pasture',
-    //to: '/base',
+    to: '/pastures',
     icon: 'cil-puzzle',
+<<<<<<< HEAD
     items: [
       {
         component: 'CNavItem',
@@ -149,6 +138,8 @@ export default [
         to: '/base/breadcrumbs',
       },
     ],
+=======
+>>>>>>> db517cdfe77e70a4f15212869655bc60c769a7a2
   },
 
   // Milk Management
