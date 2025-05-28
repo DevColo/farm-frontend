@@ -37,7 +37,6 @@ export const usePastureStore = defineStore('pasture', {
             Authorization: `Bearer ${token}`,
           },
         })
-        console.log('Fetched pastures:', response.data)
         this.pastures = response.data
       } catch (error) {
         let errorMessage = 'Failed to fetch pastures'

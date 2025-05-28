@@ -96,11 +96,12 @@ const AppSidebarNav = defineComponent({
                   })
                 : h('span', { class: 'nav-icon' }, h('span', { class: 'nav-icon-bullet' })),
               item.name,
-              item.external && h(resolveComponent('CIcon'), {
-                class: 'ms-2',
-                name: 'cil-external-link',
-                size: 'sm'
-              }),
+              item.external &&
+                h(resolveComponent('CIcon'), {
+                  class: 'ms-2',
+                  name: 'cil-external-link',
+                  size: 'sm',
+                }),
               item.badge &&
                 h(
                   CBadge,
@@ -118,6 +119,49 @@ const AppSidebarNav = defineComponent({
         )
       }
 
+      // return item.to
+      //   ? h(
+      //       RouterLink,
+      //       {
+      //         to: item.to,
+      //         custom: true,
+      //       },
+      //       {
+      //         default: (props) =>
+      //           h(
+      //             resolveComponent(item.component),
+      //             {
+      //               active: props.isActive,
+      //               as: 'div',
+      //               href: props.href,
+      //               onClick: () => props.navigate(),
+      //             },
+      //             {
+      //               default: () => [
+      //                 item.icon
+      //                   ? h(resolveComponent('CIcon'), {
+      //                       customClassName: 'nav-icon',
+      //                       name: item.icon,
+      //                     })
+      //                   : h('span', { class: 'nav-icon' }, h('span', { class: 'nav-icon-bullet' })),
+      //                 item.name,
+      //                 item.badge &&
+      //                   h(
+      //                     CBadge,
+      //                     {
+      //                       class: 'ms-auto',
+      //                       color: item.badge.color,
+      //                       size: 'sm',
+      //                     },
+      //                     {
+      //                       default: () => item.badge.text,
+      //                     },
+      //                   ),
+      //               ],
+      //             },
+      //           ),
+      //       },
+      //     )
       return item.to
         ? h(
             RouterLink,
@@ -126,17 +170,17 @@ const AppSidebarNav = defineComponent({
               custom: true,
             },
             {
-              default: (props) =>
-                h(
-                  resolveComponent(item.component),
-                  {
-                    active: props.isActive,
-                    as: 'div',
-                    href: props.href,
-                    onClick: () => props.navigate(),
-                  },
-                  {
-                    default: () => [
+              default: ({ href, navigate, isActive }) =>
+                h('div', { class: 'nav-item' }, [
+                  h(
+                    'a',
+                    {
+                      class: ['nav-link', { active: isActive }],
+                      'aria-current': isActive ? 'page' : null,
+                      href,
+                      onClick: navigate,
+                    },
+                    [
                       item.icon
                         ? h(resolveComponent('CIcon'), {
                             customClassName: 'nav-icon',
@@ -157,8 +201,8 @@ const AppSidebarNav = defineComponent({
                           },
                         ),
                     ],
-                  },
-                ),
+                  ),
+                ]),
             },
           )
         : h(
