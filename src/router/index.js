@@ -26,9 +26,9 @@ const routes = [
         component: () => import('@/views/cow/CowList.vue'),
       },
       {
-        path: 'farm-list',
-        name: 'Farm List',
-        component: () => import('@/views/farm/FarmList.vue'),
+        path: 'farm',
+        name: 'Farm',
+        component: () => import('@/views/farm/farm.vue'),
       },
       {
         path: 'add-block',

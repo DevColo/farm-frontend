@@ -31,23 +31,11 @@ export default [
     name: 'Farm Management',
   },
   // Farm
-  {
-    component: 'CNavGroup',
+    {
+    component: 'CNavItem',
     name: 'Farm',
     to: '/farm',
-    icon: 'cil-notes',
-    items: [
-      {
-        component: 'CNavItem',
-        name: 'Add Farm',
-        to: '/add-farm',
-      },
-      {
-        component: 'CNavItem',
-        name: 'Farm List',
-        to: '/farm-list',
-      },
-    ],
+    icon: 'cil-puzzle',
   },
   // Block
   {
@@ -125,21 +113,6 @@ export default [
     name: 'Pasture',
     to: '/pastures',
     icon: 'cil-puzzle',
-<<<<<<< HEAD
-    items: [
-      {
-        component: 'CNavItem',
-        name: 'Add Pasture',
-        to: '/add-pasture',
-      },
-      {
-        component: 'CNavItem',
-        name: 'Pasture List',
-        to: '/base/breadcrumbs',
-      },
-    ],
-=======
->>>>>>> db517cdfe77e70a4f15212869655bc60c769a7a2
   },
 
   // Milk Management
