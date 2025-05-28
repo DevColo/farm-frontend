@@ -114,8 +114,8 @@ function handleSubmit() {
   } else {
     pastureStore.createPasture(currentPasture.value)
   }
-  pastureStore.fetchPastures()
   showModal.value = false
+  pastureStore.fetchPastures()
 }
 </script>
 
@@ -176,18 +176,19 @@ function handleSubmit() {
                 }}</CTableDataCell>
                 <CTableDataCell>
                   <CButton
-                    color="info text-white"
+                    color="info"
                     size="sm"
-                    class="me-2"
+                    class="me-2 text-white"
                     title="Edit Pasture"
                     @click="openEdit(pasture)"
                   >
                     <CIcon :icon="cilPencil" />
                   </CButton>
                   <CButton
-                    color="danger text-white"
+                    color="danger"
                     title="Delete Pasture"
                     size="sm"
+                    class="text-white"
                     @click="confirmDelete(pasture.id)"
                   >
                     <CIcon :icon="cilTrash" />
@@ -201,11 +202,16 @@ function handleSubmit() {
           </CTable>
 
           <div class="d-flex justify-content-between align-items-center mt-3">
-            <CButton color="outline-dark" :disabled="currentPage === 1" @click="prevPage">
+            <CButton color="dark" variant="outline" :disabled="currentPage === 1" @click="prevPage">
               Previous
             </CButton>
             <div>Page {{ currentPage }} of {{ totalPages }}</div>
-            <CButton color="outline-dark" :disabled="currentPage === totalPages" @click="nextPage">
+            <CButton
+              color="dark"
+              variant="outline"
+              :disabled="currentPage === totalPages"
+              @click="nextPage"
+            >
               Next
             </CButton>
           </div>

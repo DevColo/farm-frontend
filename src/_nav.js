@@ -95,7 +95,7 @@ export default [
   },
   // Cow
   {
-    component: 'CNavItem',
+    component: 'router-link',
     name: 'Cows',
     to: '/cows',
     icon: 'cil-notes',

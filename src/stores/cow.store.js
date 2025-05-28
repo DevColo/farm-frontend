@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import { useToast } from 'vue-toastification'
 
 export const useCowStore = defineStore('cow', {
   state: () => ({
@@ -7,10 +8,79 @@ export const useCowStore = defineStore('cow', {
   }),
   actions: {
     async createCow(cowData) {
+      const toast = useToast()
+
       try {
-        const response = await axios.post('/api/cows', cowData)
-        this.cows.push(response.data)
+        const token = localStorage.getItem('user_token')
+
+        const formData = new FormData()
+        for (const key in cowData) {
+          if (cowData[key] !== undefined && cowData[key] !== null) {
+            formData.append(key, cowData[key])
+          }
+        }
+
+        await axios.post('/api/cows', formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+
         toast.success('Cow created successfully!')
+        await this.fetchCows()
+      } catch (error) {
+        let errorMessage = 'Something went wrong'
+        if (error.response && error.response.data) {
+          errorMessage = error.response.data.error
+        }
+        toast.error(errorMessage)
+      }
+    },
+
+    async fetchCows() {
+      const toast = useToast()
+      try {
+        const token = localStorage.getItem('user_token')
+        const response = await axios.get('/api/cows', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        this.cows = response.data
+      } catch (error) {
+        let errorMessage = 'Failed to fetch cows'
+        if (error.response && error.response.data) {
+          errorMessage = error.response.data.error || error.response.data.message
+        }
+        toast.error(errorMessage)
+      }
+    },
+
+    async editCow(id, cowData) {
+      const toast = useToast()
+      try {
+        const token = localStorage.getItem('user_token')
+
+        const formData = new FormData()
+        for (const key in cowData) {
+          if (cowData[key] !== null && cowData[key] !== undefined) {
+            formData.append(key, cowData[key])
+          }
+        }
+        if (cowData.image === '') {
+          formData.append('remove_image', '1')
+        }
+
+        await axios.put(`/api/cows/${id}`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+
+        toast.success('Cow updated successfully!')
+        await this.fetchCows()
       } catch (error) {
         let errorMessage = 'Something went wrong'
 
@@ -21,12 +91,21 @@ export const useCowStore = defineStore('cow', {
       }
     },
 
-    async fetchCows() {
+    async deleteCow(id) {
+      const toast = useToast()
       try {
-        const response = await axios.get('/api/cows')
-        this.cows = response.data
+        const token = localStorage.getItem('user_token')
+
+        await axios.delete(`/api/cows/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        toast.success('Cow deleted successfully!')
+        await this.fetchCows()
       } catch (error) {
-        console.error('Failed to fetch cows:', error)
+        toast.error(error.response?.data?.error || 'Failed to delete cow')
       }
     },
   },
