@@ -30,26 +30,18 @@ const routes = [
         name: 'Farm',
         component: () => import('@/views/farm/farm.vue'),
       },
+  
       {
-        path: 'add-block',
-        name: 'Add Block',
-        component: () => import('@/views/blocks/AddBlock.vue'),
+        path: 'block',
+        name: 'Block',
+        component: () => import('@/views/blocks/block.vue'),
       },
       {
-        path: 'block-list',
-        name: 'Block List',
-        component: () => import('@/views/blocks/BlockList.vue'),
+        path: 'parcel',
+        name: 'Parcel',
+        component: () => import('@/views/parcel/parcel.vue'),
       },
-      {
-        path: 'add-parcel',
-        name: 'Add Parcel',
-        component: () => import('@/views/parcel/AddParcel.vue'),
-      },
-      {
-        path: 'parcel-list',
-        name: 'Parcel List',
-        component: () => import('@/views/parcel/ParcelList.vue'),
-      },
+      
       {
         path: 'add-daily-record',
         name: 'Add Daily Record',

@@ -38,43 +38,24 @@ export default [
     icon: 'cil-puzzle',
   },
   // Block
-  {
-    component: 'CNavGroup',
-    name: 'Block',
-    to: '/blocks',
-    icon: 'cil-layers',
-    items: [
+ 
       {
         component: 'CNavItem',
-        name: 'Add Block',
-        to: '/add-block',
+        name: 'Block',
+        to: '/block',
+        icon: 'cil-puzzle',
+
       },
-      {
-        component: 'CNavItem',
-        name: 'Block List',
-        to: '/block-list',
-      },
-    ],
-  },
+      
   // Parcel
-  {
-    component: 'CNavGroup',
-    name: 'Parcel',
-    to: '/parcel',
-    icon: 'cil-puzzle',
-    items: [
+  
       {
         component: 'CNavItem',
-        name: 'Add Parcel',
-        to: '/add-parcel',
+        name: 'Parcel',
+        to: '/parcel',
+        icon: 'cil-puzzle',
       },
-      {
-        component: 'CNavItem',
-        name: 'Parcel List',
-        to: '/parcel-list',
-      },
-    ],
-  },
+  
 
   // Cattle Management
   {
