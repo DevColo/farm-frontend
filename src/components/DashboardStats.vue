@@ -2,9 +2,11 @@
 import { onMounted, ref } from 'vue'
 import { CChart } from '@coreui/vue-chartjs'
 import { getStyle } from '@coreui/utils'
+import { useDashboardStore } from '@/stores/dashboard.store'
 
 const widgetChartRef1 = ref()
 const widgetChartRef2 = ref()
+const dashboardStore = useDashboardStore()
 
 onMounted(() => {
   document.documentElement.addEventListener('ColorSchemeChange', () => {
@@ -18,6 +20,8 @@ onMounted(() => {
       widgetChartRef2.value.chart.update()
     }
   })
+
+  dashboardStore.fetchDashboardStats()
 })
 </script>
 
@@ -25,10 +29,7 @@ onMounted(() => {
   <CRow :xs="{ gutter: 4 }">
     <CCol :sm="6" :xl="4" :xxl="3">
       <CWidgetStatsA color="primary">
-        <template #value
-          >26K
-          <span class="fs-6 fw-normal"> (-12.4% <CIcon icon="cil-arrow-bottom" />) </span>
-        </template>
+        <template #value>{{ dashboardStore.dashboardStats.cows_count }} </template>
         <template #title>Cows</template>
         <template #action>
           <CDropdown placement="bottom-end">
@@ -36,9 +37,7 @@ onMounted(() => {
               <CIcon icon="cil-options" class="text-white" />
             </CDropdownToggle>
             <CDropdownMenu>
-              <CDropdownItem href="#">Action</CDropdownItem>
-              <CDropdownItem href="#">Another action</CDropdownItem>
-              <CDropdownItem href="#">Something else here</CDropdownItem>
+              <CDropdownItem href="/cows">View Cows</CDropdownItem>
             </CDropdownMenu>
           </CDropdown>
         </template>
@@ -109,20 +108,15 @@ onMounted(() => {
     </CCol>
     <CCol :sm="6" :xl="4" :xxl="3">
       <CWidgetStatsA color="info">
-        <template #value
-          >$6.200
-          <span class="fs-6 fw-normal"> (40.9% <CIcon icon="cil-arrow-top" />) </span>
-        </template>
-        <template #title>Income</template>
+        <template #value>{{ dashboardStore.dashboardStats.pastures_count }} </template>
+        <template #title>Pastures</template>
         <template #action>
           <CDropdown placement="bottom-end">
             <CDropdownToggle color="transparent" class="p-0 text-white" :caret="false">
               <CIcon icon="cil-options" class="text-white" />
             </CDropdownToggle>
             <CDropdownMenu>
-              <CDropdownItem href="#">Action</CDropdownItem>
-              <CDropdownItem href="#">Another action</CDropdownItem>
-              <CDropdownItem href="#">Something else here</CDropdownItem>
+              <CDropdownItem href="/pastures">View Pastures</CDropdownItem>
             </CDropdownMenu>
           </CDropdown>
         </template>
@@ -192,20 +186,15 @@ onMounted(() => {
     </CCol>
     <CCol :sm="6" :xl="4" :xxl="3">
       <CWidgetStatsA color="warning">
-        <template #value
-          >2.49%
-          <span class="fs-6 fw-normal"> (84.7% <CIcon icon="cil-arrow-top" />) </span>
-        </template>
-        <template #title>Conversion Rate</template>
+        <template #value>{{ dashboardStore.dashboardStats.total_qty }} Liters</template>
+        <template #title>Milk Quantity</template>
         <template #action>
           <CDropdown placement="bottom-end">
             <CDropdownToggle color="transparent" class="p-0 text-white" :caret="false">
               <CIcon icon="cil-options" class="text-white" />
             </CDropdownToggle>
             <CDropdownMenu>
-              <CDropdownItem href="#">Action</CDropdownItem>
-              <CDropdownItem href="#">Another action</CDropdownItem>
-              <CDropdownItem href="#">Something else here</CDropdownItem>
+              <CDropdownItem href="/daily-milk-records">View Milk Records</CDropdownItem>
             </CDropdownMenu>
           </CDropdown>
         </template>
@@ -262,23 +251,8 @@ onMounted(() => {
     </CCol>
     <CCol :sm="6" :xl="4" :xxl="3">
       <CWidgetStatsA color="danger">
-        <template #value
-          >44K
-          <span class="fs-6 fw-normal"> (-23.6% <CIcon icon="cil-arrow-bottom" />) </span>
-        </template>
-        <template #title>Sessions</template>
-        <template #action>
-          <CDropdown placement="bottom-end">
-            <CDropdownToggle color="transparent" class="p-0 text-white" :caret="false">
-              <CIcon icon="cil-options" class="text-white" />
-            </CDropdownToggle>
-            <CDropdownMenu>
-              <CDropdownItem href="#">Action</CDropdownItem>
-              <CDropdownItem href="#">Another action</CDropdownItem>
-              <CDropdownItem href="#">Something else here</CDropdownItem>
-            </CDropdownMenu>
-          </CDropdown>
-        </template>
+        <template #value>{{ dashboardStore.dashboardStats.total_revenue }} Rwf</template>
+        <template #title>Revenue</template>
         <template #chart>
           <CChart
             type="bar"

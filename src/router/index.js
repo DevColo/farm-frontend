@@ -26,6 +26,7 @@ const routes = [
         component: () => import('@/views/cow/CowList.vue'),
       },
       {
+<<<<<<< HEAD
         path: 'farm',
         name: 'Farm',
         component: () => import('@/views/farm/farm.vue'),
@@ -35,6 +36,16 @@ const routes = [
         path: 'block',
         name: 'Block',
         component: () => import('@/views/blocks/block.vue'),
+=======
+        path: 'daily-milk-records',
+        name: 'Daily Milk Record',
+        component: () => import('@/views/milk/DailyMilkRecord.vue'),
+      },
+      {
+        path: 'farm-list',
+        name: 'Farm List',
+        component: () => import('@/views/farm/FarmList.vue'),
+>>>>>>> dae7cc2378ba3954eb1eda34554ec16913102651
       },
       {
         path: 'parcel',
