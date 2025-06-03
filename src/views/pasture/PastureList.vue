@@ -126,7 +126,7 @@ function handleSubmit() {
         <CCardHeader>
           <div class="d-flex justify-content-between align-items-center">
             <strong>Pasture List</strong>
-            <CButton color="success" @click="openCreate">+ Create Pasture</CButton>
+            <CButton color="dark" @click="openCreate">+ Create Pasture</CButton>
           </div>
         </CCardHeader>
         <CCardBody>
@@ -134,8 +134,8 @@ function handleSubmit() {
             <input
               type="text"
               v-model="searchQuery"
-              class="form-control w-50"
-              placeholder="Search by pasture name or country..."
+              class="form-control w-25"
+              placeholder="Search by pasture or country"
               @input="resetPage"
             />
 

@@ -26,6 +26,11 @@ const routes = [
         component: () => import('@/views/cow/CowList.vue'),
       },
       {
+        path: 'daily-milk-records',
+        name: 'Daily Milk Record',
+        component: () => import('@/views/milk/DailyMilkRecord.vue'),
+      },
+      {
         path: 'farm-list',
         name: 'Farm List',
         component: () => import('@/views/farm/FarmList.vue'),
