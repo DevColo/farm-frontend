@@ -563,8 +563,10 @@ const removeImage = () => {
             v-model="currentCow.type"
             :options="[
               { label: 'Select Type', value: '' },
-              { label: 'Cow', value: 'cow' },
-              { label: 'Bull', value: 'bull' },
+              { label: 'F
+              
+              emale', value: 'female' },
+              { label: 'Male', value: 'male' },
             ]"
             required
           />

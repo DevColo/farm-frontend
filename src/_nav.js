@@ -31,33 +31,6 @@ export default [
   //   name: 'Farm Management',
   // },
   // Farm
-<<<<<<< HEAD
-    {
-    component: 'CNavItem',
-    name: 'Farm',
-    to: '/farm',
-    icon: 'cil-puzzle',
-  },
-  // Block
- 
-      {
-        component: 'CNavItem',
-        name: 'Block',
-        to: '/block',
-        icon: 'cil-puzzle',
-
-      },
-      
-  // Parcel
-  
-      {
-        component: 'CNavItem',
-        name: 'Parcel',
-        to: '/parcel',
-        icon: 'cil-puzzle',
-      },
-  
-=======
   // {
   //   component: 'CNavGroup',
   //   name: 'Farm',
@@ -114,7 +87,6 @@ export default [
   //     },
   //   ],
   // },
->>>>>>> dae7cc2378ba3954eb1eda34554ec16913102651
 
   // Cattle Management
   {
@@ -199,9 +171,7 @@ export default [
     to: '/daily-milk-records',
     icon: 'cil-user',
   },
-<<<<<<< HEAD
-]
-=======
+
 
   // General Settings
   {
@@ -568,4 +538,3 @@ export default [
   //   ],
   // },
 ]
->>>>>>> dae7cc2378ba3954eb1eda34554ec16913102651
