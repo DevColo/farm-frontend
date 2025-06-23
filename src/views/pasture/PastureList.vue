@@ -153,7 +153,6 @@ function handleSubmit() {
           <CTable striped hover responsive>
             <CTableHead>
               <CTableRow>
-                <CTableHeaderCell>ID</CTableHeaderCell>
                 <CTableHeaderCell>Pasture Name</CTableHeaderCell>
                 <CTableHeaderCell>Country</CTableHeaderCell>
                 <CTableHeaderCell>Description</CTableHeaderCell>
@@ -164,8 +163,13 @@ function handleSubmit() {
             </CTableHead>
             <CTableBody>
               <CTableRow v-for="pasture in paginatedPastures" :key="pasture.id">
-                <CTableDataCell>{{ pasture.id }}</CTableDataCell>
-                <CTableDataCell>{{ pasture.pasture }}</CTableDataCell>
+                <CTableDataCell
+                  ><router-link
+                    :to="`/pasture/cow/${pasture.id}`"
+                    class="text-decoration-none text-dark"
+                    >{{ pasture.pasture }}</router-link
+                  ></CTableDataCell
+                >
                 <CTableDataCell>{{ pasture.country || '' }}</CTableDataCell>
                 <CTableDataCell>{{ pasture.description || '' }}</CTableDataCell>
                 <CTableDataCell>

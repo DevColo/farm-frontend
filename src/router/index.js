@@ -21,14 +21,44 @@ const routes = [
         component: () => import('@/views/pasture/PastureList.vue'),
       },
       {
+        path: 'pasture/cow/:pastureId',
+        name: 'Pasture Cows',
+        component: () => import('@/views/cow/PastureCow.vue'),
+      },
+      {
+        path: 'breed/cow/:breed',
+        name: 'Breed Cows',
+        component: () => import('@/views/cow/BreedCow.vue'),
+      },
+      {
+        path: 'gender/cow/:gender',
+        name: 'Gender Cows',
+        component: () => import('@/views/cow/GenderCow.vue'),
+      },
+      {
+        path: 'class/cow/:class',
+        name: 'Class Cows',
+        component: () => import('@/views/cow/ClassCow.vue'),
+      },
+      {
         path: 'cows',
         name: 'Cows',
         component: () => import('@/views/cow/CowList.vue'),
       },
       {
+        path: 'cows/feeding',
+        name: 'Cows Feeding',
+        component: () => import('@/views/cow/CowFeeding.vue'),
+      },
+      {
         path: 'daily-milk-records',
         name: 'Daily Milk Record',
         component: () => import('@/views/milk/DailyMilkRecord.vue'),
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/views/user/Profile.vue'),
       },
       {
         path: 'farm-list',

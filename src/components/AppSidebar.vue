@@ -19,10 +19,17 @@ const sidebar = useSidebarStore()
     @visible-change="(value) => sidebar.toggleVisible(value)"
   >
     <CSidebarHeader class="border-bottom">
-      <RouterLink custom to="/" v-slot="{ href, navigate }">
+      <RouterLink custom to="/" v-slot="{ href, navigate }" class="logo-link">
         <CSidebarBrand v-bind="$attrs" as="a" :href="href" @click="navigate">
-          <CIcon custom-class-name="sidebar-brand-full" :icon="logo" :height="32" />
-          <CIcon custom-class-name="sidebar-brand-narrow" :icon="sygnet" :height="32" />
+          <img
+            src="@/assets/images/logo.png"
+            alt="Logo"
+            class="sidebar-brand-full d-none d-lg-inline-block logo"
+            style="width: 32px; height: auto"
+          />
+          JAKAJA
+          <!-- <CIcon custom-class-name="sidebar-brand-full" :icon="logo" :height="32" />
+          <CIcon custom-class-name="sidebar-brand-narrow" :icon="sygnet" :height="32" /> -->
         </CSidebarBrand>
       </RouterLink>
       <CCloseButton class="d-lg-none" dark @click="sidebar.toggleVisible()" />

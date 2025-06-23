@@ -2,34 +2,25 @@ import { defineStore } from 'pinia'
 import axios from 'axios'
 import { useToast } from 'vue-toastification'
 
-export const useCowStore = defineStore('cow', {
+export const useFeedingStore = defineStore('feeding', {
   state: () => ({
-    cows: [],
+    feedings: [],
     pasture: [],
   }),
   actions: {
-    async createCow(cowData) {
+    async createFeeding(feedingData) {
       const toast = useToast()
 
       try {
         const token = localStorage.getItem('user_token')
-
-        const formData = new FormData()
-        for (const key in cowData) {
-          if (cowData[key] !== undefined && cowData[key] !== null) {
-            formData.append(key, cowData[key])
-          }
-        }
-
-        await axios.post('/api/cows', formData, {
+        await axios.post('/api/feedings', feedingData, {
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
           },
         })
 
-        toast.success('Cow created successfully!')
-        await this.fetchCows()
+        toast.success('Feeding Record created successfully!')
+        await this.fetchFeedings()
       } catch (error) {
         let errorMessage = 'Something went wrong'
         if (error.response && error.response.data) {
@@ -39,18 +30,18 @@ export const useCowStore = defineStore('cow', {
       }
     },
 
-    async fetchCows() {
+    async fetchFeedings() {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.get('/api/cows', {
+        const response = await axios.get('/api/feedings', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        this.cows = response.data
+        this.feedings = response.data
       } catch (error) {
-        let errorMessage = 'Failed to fetch cows'
+        let errorMessage = 'Failed to fetch feedings'
         if (error.response && error.response.data) {
           errorMessage = error.response.data.error || error.response.data.message
         }
@@ -58,30 +49,19 @@ export const useCowStore = defineStore('cow', {
       }
     },
 
-    async editCow(id, cowData) {
+    async editFeeding(id, feedingData) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
 
-        const formData = new FormData()
-        for (const key in cowData) {
-          if (cowData[key] !== null && cowData[key] !== undefined) {
-            formData.append(key, cowData[key])
-          }
-        }
-        if (cowData.image === '') {
-          formData.append('remove_image', '1')
-        }
-
-        await axios.put(`/api/cows/${id}`, formData, {
+        await axios.put(`/api/feedings/${id}`, feedingData, {
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
           },
         })
 
-        toast.success('Cow updated successfully!')
-        await this.fetchCows()
+        toast.success('Feeding Record updated successfully!')
+        await this.fetchFeedings()
       } catch (error) {
         let errorMessage = 'Something went wrong'
 
@@ -92,21 +72,21 @@ export const useCowStore = defineStore('cow', {
       }
     },
 
-    async deleteCow(id) {
+    async deleteFeeding(id) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
 
-        await axios.delete(`/api/cows/${id}`, {
+        await axios.delete(`/api/feedings/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
 
-        toast.success('Cow deleted successfully!')
-        await this.fetchCows()
+        toast.success('Feeding Record deleted successfully!')
+        await this.fetchFeedings()
       } catch (error) {
-        toast.error(error.response?.data?.error || 'Failed to delete cow')
+        toast.error(error.response?.data?.error || 'Failed to delete Feeding Record')
       }
     },
 

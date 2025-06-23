@@ -104,8 +104,30 @@ export default [
   {
     component: 'router-link',
     name: 'Cows',
-    to: '/cows',
+    //to: '/cows',
     icon: 'cil-notes',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'View Cows',
+        to: '/cows',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Feeding',
+        to: '/cows/feeding',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Medication',
+        to: '/cows/medication',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Maternity',
+        to: '/cows/maternity',
+      },
+    ],
   },
   // Cattle Log
   // {

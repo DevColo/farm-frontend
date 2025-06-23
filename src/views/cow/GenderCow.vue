@@ -28,10 +28,14 @@ import {
   CFormCheck,
   CFormFeedback,
 } from '@coreui/vue'
-import { cilHealing, cilPencil, cilTrash, cilUser } from '@coreui/icons'
+import { cilPencil, cilTrash, cilUser } from '@coreui/icons'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import defaultCowImage from '@/assets/images/default-cow.jpg'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const gender = route.params.gender
 
 const cowStore = useCowStore()
 const pastureStore = usePastureStore()
@@ -59,8 +63,7 @@ const herdFromOutside = computed(() => currentCow.value.herd === 'from_outside')
 
 // fetch data
 onMounted(() => {
-  cowStore.fetchCows()
-  pastureStore.fetchPastures()
+  cowStore.fetchGenderCows(gender)
 })
 
 // search & pagination
@@ -104,27 +107,6 @@ function resetPage() {
   currentPage.value = 1
 }
 
-// modal handlers
-function openCreate() {
-  isEditing.value = false
-  validated.value = false
-  currentCow.value = {
-    id: null,
-    name: '',
-    ear_tag: '',
-    date_of_birth: '',
-    type: '',
-    breed: '',
-    herd: '',
-    from_location: '',
-    description: '',
-    pasture_id: '',
-    status: true,
-    image: null,
-  }
-  showModal.value = true
-}
-
 function openEdit(cow) {
   isEditing.value = true
   validated.value = false
@@ -146,39 +128,8 @@ const isActive = computed({
   },
 })
 
-async function handleSubmit(e) {
-  const form = e.currentTarget
-  if (!form.checkValidity()) {
-    e.preventDefault()
-    e.stopPropagation()
-    validated.value = true
-    return
-  }
-  e.preventDefault()
-  const payload = {
-    name: currentCow.value.name,
-    ear_tag: currentCow.value.ear_tag,
-    date_of_birth: currentCow.value.date_of_birth,
-    type: currentCow.value.type,
-    breed: currentCow.value.breed,
-    herd: currentCow.value.herd,
-    from_location: currentCow.value.herd === 'from_outside' ? currentCow.value.from_location : '',
-    description: currentCow.value.description,
-    pasture_id: currentCow.value.pasture_id,
-    status: currentCow.value.status ? '1' : '0',
-    image: currentCow.value.image,
-  }
-  if (isEditing.value) {
-    await cowStore.editCow(currentCow.value.id, payload)
-  } else {
-    await cowStore.createCow(payload)
-  }
-  showModal.value = false
-  //resetPage()
-}
-
 // Get Cow Age and Class
-function calculateAgeAndClass(dateStr, cow) {
+function calculateAgeAndClass(dateStr) {
   if (!dateStr) return { age: '—', ageClass: '—' }
 
   const dob = new Date(dateStr)
@@ -199,13 +150,7 @@ function calculateAgeAndClass(dateStr, cow) {
   if (!ageString) ageString = 'Less than 1 month'
 
   const ageClass =
-    months >= 1 && months <= 11
-      ? 'Calf'
-      : months >= 12 && months < 23
-      ? 'Yearling'
-      : cow.given_birth == '1'
-      ? 'Heifer'
-      : 'Adult'
+    months >= 1 && months <= 11 ? 'Calf' : months >= 12 && months < 23 ? 'Yearling' : 'Heifer'
 
   return { age: ageString, ageClass }
 }
@@ -216,11 +161,19 @@ async function exportPDF() {
   const autoTable = (await import('jspdf-autotable')).default
 
   const doc = new jsPDF()
+
+  // Add header
+  doc.setFontSize(16)
+  doc.text('Gender Cow List', 105, 15, null, null, 'center')
+  doc.setFontSize(12)
+  doc.text(`Gender: ${gender == 'cow' ? 'Female' : gender}`, 105, 25, null, null, 'center')
+
   autoTable(doc, {
-    head: [['ID', 'Name', 'Ear Tag', 'DOB', 'Breed', 'Age', 'Class']],
-    body: filteredCows.value.map((cow) => {
-      const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
-      return [cow.id, cow.name, cow.ear_tag, cow.date_of_birth, cow.breed, age, ageClass]
+    startY: 35,
+    head: [['SNO', 'NAME', 'EAR TAG', 'DATE OF BIRTH', 'BREED', 'AGE', 'CLASS']],
+    body: filteredCows.value.map((cow, index) => {
+      const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth)
+      return [index + 1, cow.name, cow.ear_tag, cow.date_of_birth, cow.breed, age, ageClass]
     }),
   })
   doc.save('cows.pdf')
@@ -229,10 +182,10 @@ async function exportPDF() {
 // Export in CSV
 function exportCSV() {
   const rows = [
-    ['ID', 'Name', 'Ear Tag', 'DOB', 'Breed', 'Age', 'Class'],
-    ...filteredCows.value.map((cow) => {
-      const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
-      return [cow.id, cow.name, cow.ear_tag, cow.date_of_birth, cow.breed, age, ageClass]
+    ['SNO', 'NAME', 'EAR TAG', 'DATE OF BIRTH', 'BREED', 'AGE', 'CLASS'],
+    ...filteredCows.value.map((cow, index) => {
+      const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth)
+      return [index + 1, cow.name, cow.ear_tag, cow.date_of_birth, cow.breed, age, ageClass]
     }),
   ]
 
@@ -268,7 +221,7 @@ function getCowImage(imageUrl) {
 function exportCowProfile(cow) {
   const doc = new jsPDF()
 
-  const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
+  const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth)
 
   // Load cow image (or fallback) and generate PDF once it's ready
   const imageUrl = cow.image ? `${import.meta.env.VITE_API_BASE_URL}/${cow.image}` : defaultCowImage
@@ -330,88 +283,6 @@ function toDataURL(url, callback) {
 const removeImage = () => {
   currentCow.value.image = null
 }
-
-const showHealthModal = ref(false)
-const activeHealthTab = ref('medication')
-const medication = ref({ type: '', reason: '' })
-const feeding = ref({ type: '', date: '' })
-const maternity = ref({ bullId: '', date: '' })
-const bulls = computed(() => cowStore.cows.filter((cow) => cow.type === 'bull'))
-
-function openHealthModal(cow) {
-  selectedCow.value = cow // Ensure selectedCow is set
-  showHealthModal.value = true
-  activeHealthTab.value = 'medication'
-}
-
-// function handleMedicationSubmit() {
-//   if (!medication.value.type || !medication.value.reason) {
-//     alert('Please fill out all required fields for medication.')
-//     return
-//   }
-//   console.log('Medication saved:', medication.value)
-//   medication.value = { type: '', reason: '' }
-//   showHealthModal.value = false
-// }
-
-// function handleFeedingSubmit() {
-//   if (!feeding.value.type || !feeding.value.date) {
-//     alert('Please fill out all required fields for feeding.')
-//     return
-//   }
-//   console.log('Feeding saved:', feeding.value)
-//   feeding.value = { type: '', date: '' }
-//   showHealthModal.value = false
-// }
-
-// function handleMaternitySubmit() {
-//   if (!maternity.value.bullId || !maternity.value.date) {
-//     alert('Please fill out all required fields for maternity.')
-//     return
-//   }
-//   console.log('Maternity saved:', maternity.value)
-//   maternity.value = { bullId: '', date: '' }
-//   showHealthModal.value = false
-// }
-
-const healthRecords = ref({
-  medication: [],
-  feeding: [],
-  maternity: [],
-})
-
-function handleMedicationSubmit() {
-  if (!medication.value.type || !medication.value.reason) {
-    alert('Please fill out all required fields for medication.')
-    return
-  }
-  healthRecords.value.medication.push({ ...medication.value })
-  alert('Medication record saved successfully!')
-  medication.value = { type: '', reason: '' }
-  showHealthModal.value = false
-}
-
-function handleFeedingSubmit() {
-  if (!feeding.value.type || !feeding.value.date) {
-    alert('Please fill out all required fields for feeding.')
-    return
-  }
-  healthRecords.value.feeding.push({ ...feeding.value })
-  alert('Feeding record saved successfully!')
-  feeding.value = { type: '', date: '' }
-  showHealthModal.value = false
-}
-
-function handleMaternitySubmit() {
-  if (!maternity.value.bullId || !maternity.value.date) {
-    alert('Please fill out all required fields for maternity.')
-    return
-  }
-  healthRecords.value.maternity.push({ ...maternity.value })
-  alert('Maternity record saved successfully!')
-  maternity.value = { bullId: '', date: '' }
-  showHealthModal.value = false
-}
 </script>
 
 <template>
@@ -419,7 +290,7 @@ function handleMaternitySubmit() {
     <CCol :xs="12">
       <CCard class="mb-4">
         <CCardHeader class="d-flex justify-content-between align-items-center">
-          <strong>Cow List</strong>
+          <strong>Gender {{ gender == 'cow' ? 'Female' : gender }} - Cow List</strong>
           <div class="d-flex gap-2 mb-3">
             <CButton color="dark" variant="outline" title="Export CSV" @click="exportCSV"
               ><CIcon icon="cil-file"
@@ -427,7 +298,6 @@ function handleMaternitySubmit() {
             <CButton color="dark" variant="outline" class="sm" title="Export PDF" @click="exportPDF"
               ><CIcon icon="cil-cloud-download"
             /></CButton>
-            <CButton color="dark" @click="openCreate">+ Create Cow</CButton>
           </div>
         </CCardHeader>
         <CCardBody>
@@ -456,12 +326,10 @@ function handleMaternitySubmit() {
           <CTable striped hover responsive>
             <CTableHead>
               <CTableRow>
-                <CTableHeaderCell>ID</CTableHeaderCell>
                 <CTableHeaderCell>Name</CTableHeaderCell>
                 <CTableHeaderCell>Ear Tag</CTableHeaderCell>
                 <CTableHeaderCell>DOB</CTableHeaderCell>
                 <CTableHeaderCell>Age</CTableHeaderCell>
-                <CTableHeaderCell>Gender</CTableHeaderCell>
                 <CTableHeaderCell>Class</CTableHeaderCell>
                 <CTableHeaderCell>Breed</CTableHeaderCell>
                 <CTableHeaderCell>Pasture</CTableHeaderCell>
@@ -471,25 +339,15 @@ function handleMaternitySubmit() {
             </CTableHead>
             <CTableBody>
               <CTableRow v-for="cow in paginatedCows" :key="cow.id">
-                <CTableDataCell>{{ cow.id }}</CTableDataCell>
                 <CTableDataCell>{{ cow.name }}</CTableDataCell>
                 <CTableDataCell>{{ cow.ear_tag }}</CTableDataCell>
                 <CTableDataCell>{{ cow.date_of_birth }}</CTableDataCell>
-                <CTableDataCell>{{
-                  calculateAgeAndClass(cow.date_of_birth, cow).age
-                }}</CTableDataCell>
+                <CTableDataCell>{{ calculateAgeAndClass(cow.date_of_birth).age }}</CTableDataCell>
                 <CTableDataCell
                   ><router-link
-                    :to="`/gender/cow/${cow.type}`"
+                    :to="`/class/cow/${calculateAgeAndClass(cow.date_of_birth).ageClass}`"
                     class="text-decoration-none text-dark"
-                    >{{ cow.type == 'cow' ? 'Female' : 'Male' }}</router-link
-                  ></CTableDataCell
-                >
-                <CTableDataCell
-                  ><router-link
-                    :to="`/class/cow/${calculateAgeAndClass(cow.date_of_birth, cow).ageClass}`"
-                    class="text-decoration-none text-dark"
-                    >{{ calculateAgeAndClass(cow.date_of_birth, cow).ageClass }}</router-link
+                    >{{ calculateAgeAndClass(cow.date_of_birth).ageClass }}</router-link
                   ></CTableDataCell
                 >
                 <CTableDataCell
@@ -521,16 +379,6 @@ function handleMaternitySubmit() {
                     @click="openProfile(cow)"
                   >
                     <CIcon :icon="cilUser" />
-                  </CButton>
-                  <!-- Health Button -->
-                  <CButton
-                    size="sm"
-                    color="warning"
-                    class="me-2 text-white"
-                    title="Cow Health"
-                    @click="openHealthModal(cow)"
-                  >
-                    <CIcon :icon="cilHealing" />
                   </CButton>
 
                   <!-- Edit Cow Button -->
@@ -640,157 +488,11 @@ function handleMaternitySubmit() {
         </CTabPane>
 
         <CTabPane :visible="activeTab === 'health'">
-          <p>Fed Corn on June 9, 2025</p>
+          <p>Health info placeholder</p>
         </CTabPane>
 
         <CTabPane :visible="activeTab === 'history'">
-          <p>Mate with Cow X on June 9, 2025</p>
-        </CTabPane>
-      </CTabContent>
-    </CModalBody>
-  </CModal>
-
-  <template>
-    <CTabPane :visible="activeTab === 'health'">
-      <div v-if="healthRecords.medication.length > 0">
-        <h5>Medication Records</h5>
-        <ul>
-          <li v-for="(record, index) in healthRecords.medication" :key="index">
-            Type: {{ record.type }}, Reason: {{ record.reason }}
-          </li>
-        </ul>
-      </div>
-      <div v-if="healthRecords.feeding.length > 0">
-        <h5>Feeding Records</h5>
-        <ul>
-          <li v-for="(record, index) in healthRecords.feeding" :key="index">
-            Type: {{ record.type }}, Date: {{ record.date }}
-          </li>
-        </ul>
-      </div>
-      <div v-if="healthRecords.maternity.length > 0">
-        <h5>Maternity Records</h5>
-        <ul>
-          <li v-for="(record, index) in healthRecords.maternity" :key="index">
-            Bull ID: {{ record.bullId }}, Date: {{ record.date }}
-          </li>
-        </ul>
-      </div>
-    </CTabPane>
-  </template>
-  <!-- Health Modal -->
-  <CModal :visible="showHealthModal" @close="showHealthModal = false" size="lg" v-if="selectedCow">
-    <CModalHeader>
-      <CModalTitle
-        >{{ selectedCow.name ? selectedCow.name + ' - ' : '' }} {{ selectedCow.ear_tag }} Health &
-        Feeding Records</CModalTitle
-      >
-    </CModalHeader>
-    <CModalBody>
-      <CNav variant="tabs">
-        <CNavItem>
-          <CNavLink
-            :active="activeHealthTab === 'medication'"
-            @click="activeHealthTab = 'medication'"
-          >
-            Medication
-          </CNavLink>
-        </CNavItem>
-        <CNavItem>
-          <CNavLink :active="activeHealthTab === 'feeding'" @click="activeHealthTab = 'feeding'">
-            Feeding
-          </CNavLink>
-        </CNavItem>
-        <CNavItem v-if="selectedCow.type === 'cow'">
-          <CNavLink
-            :active="activeHealthTab === 'maternity'"
-            @click="activeHealthTab = 'maternity'"
-          >
-            Maternity
-          </CNavLink>
-        </CNavItem>
-      </CNav>
-
-      <CTabContent class="mt-3">
-        <!-- Medication Tab -->
-        <CTabPane :visible="activeHealthTab === 'medication'">
-          <CForm @submit.prevent="handleMedicationSubmit">
-            <CCol :md="6">
-              <CFormLabel for="medicationType">Medication Type</CFormLabel>
-              <CFormSelect
-                id="medicationType"
-                v-model="medication.type"
-                :options="[
-                  { label: 'Select Type', value: '' },
-                  { label: 'Injection', value: 'injection' },
-                  { label: 'Oral', value: 'oral' },
-                ]"
-                required
-              />
-              <CFormFeedback invalid>Medication type is required.</CFormFeedback>
-            </CCol>
-            <CCol :md="12">
-              <CFormLabel for="medicationReason">Reason</CFormLabel>
-              <CFormTextarea id="medicationReason" v-model="medication.reason" rows="3" required />
-              <CFormFeedback invalid>Reason is required.</CFormFeedback>
-            </CCol>
-            <CCol :xs="12" class="d-flex justify-content-end mt-3">
-              <CButton color="success" type="submit">Save Medication</CButton>
-            </CCol>
-          </CForm>
-        </CTabPane>
-
-        <!-- Feeding Tab -->
-        <CTabPane :visible="activeHealthTab === 'feeding'">
-          <CForm @submit.prevent="handleFeedingSubmit">
-            <CCol :md="6">
-              <CFormLabel for="feedingType">Food Type</CFormLabel>
-              <CFormSelect
-                id="feedingType"
-                v-model="feeding.type"
-                :options="[
-                  { label: 'Select Food Type', value: '' },
-                  { label: 'Grass', value: 'grass' },
-                  { label: 'Hay', value: 'hay' },
-                  { label: 'Silage', value: 'silage' },
-                ]"
-                required
-              />
-              <CFormFeedback invalid>Food type is required.</CFormFeedback>
-            </CCol>
-            <CCol :md="6">
-              <CFormLabel for="feedingDate">Date Fed</CFormLabel>
-              <CFormInput id="feedingDate" type="date" v-model="feeding.date" required />
-              <CFormFeedback invalid>Date is required.</CFormFeedback>
-            </CCol>
-            <CCol :xs="12" class="d-flex justify-content-end mt-3">
-              <CButton color="success" type="submit">Save Feeding</CButton>
-            </CCol>
-          </CForm>
-        </CTabPane>
-
-        <!-- Maternity Tab -->
-        <CTabPane :visible="activeHealthTab === 'maternity'">
-          <CForm @submit.prevent="handleMaternitySubmit">
-            <CCol :md="6">
-              <CFormLabel for="bull">Bull</CFormLabel>
-              <CFormSelect
-                id="bull"
-                v-model="maternity.bullId"
-                :options="bulls.map((bull) => ({ label: bull.name, value: bull.id }))"
-                required
-              />
-              <CFormFeedback invalid>Bull is required.</CFormFeedback>
-            </CCol>
-            <CCol :md="6">
-              <CFormLabel for="matingDate">Date of Mating</CFormLabel>
-              <CFormInput id="matingDate" type="date" v-model="maternity.date" required />
-              <CFormFeedback invalid>Date is required.</CFormFeedback>
-            </CCol>
-            <CCol :xs="12" class="d-flex justify-content-end mt-3">
-              <CButton color="success" type="submit">Save Maternity</CButton>
-            </CCol>
-          </CForm>
+          <p>History info placeholder</p>
         </CTabPane>
       </CTabContent>
     </CModalBody>

@@ -22,7 +22,11 @@ const router = useRouter()
         {{ authStore.user?.first_name }} {{ authStore.user?.other_name }}
         {{ authStore.user?.last_name }}
       </CDropdownHeader>
-      <CDropdownItem> <CIcon icon="cil-user" /> Profile </CDropdownItem>
+      <CDropdownItem
+        ><router-link :to="`/profile`" class="text-decoration-none text-dark"
+          ><CIcon icon="cil-user" /> Profile
+        </router-link>
+      </CDropdownItem>
       <CDropdownItem> <CIcon icon="cil-settings" /> Settings </CDropdownItem>
       <CDropdownDivider />
       <CDropdownItem @click="authStore.logout(router)">
