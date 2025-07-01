@@ -448,7 +448,7 @@ const healthRecords = ref({
                 <CTableHeaderCell>Class</CTableHeaderCell>
                 <CTableHeaderCell>Breed</CTableHeaderCell>
                 <CTableHeaderCell>Pasture</CTableHeaderCell>
-                <CTableHeaderCell>Status</CTableHeaderCell>
+                <!-- <CTableHeaderCell>Status</CTableHeaderCell> -->
                 <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
@@ -490,11 +490,11 @@ const healthRecords = ref({
                     >{{ cow.pasture?.pasture || '—' }}</router-link
                   ></CTableDataCell
                 >
-                <CTableDataCell>
+               <!-- <CTableDataCell>
                   <span :class="['badge', cow.status === '1' ? 'bg-success' : 'bg-danger']">
                     {{ cow.status === '1' ? 'Active' : 'Inactive' }}
                   </span>
-                </CTableDataCell>
+                </CTableDataCell> -->
                 <CTableDataCell>
                   <!-- View Profile Button -->
                   <CButton
