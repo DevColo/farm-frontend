@@ -115,18 +115,18 @@ export default [
       {
         component: 'CNavItem',
         name: 'Feeding',
-        to: '/cows/feeding',
+        to: '/feedings',
       },
       {
         component: 'CNavItem',
         name: 'Medication',
-        to: '/cows/medication',
+        to: '/medications',
       },
-      {
-        component: 'CNavItem',
-        name: 'Maternity',
-        to: '/cows/maternity',
-      },
+      // {
+      //   component: 'CNavItem',
+      //   name: 'Maternity',
+      //   to: '/cows/maternity',
+      // },
     ],
   },
   // Cattle Log
@@ -182,30 +182,30 @@ export default [
   // },
 
   // Customers Management
-  {
-    component: 'CNavTitle',
-    name: 'Customers Management',
-  },
+  // {
+  //   component: 'CNavTitle',
+  //   name: 'Customers Management',
+  // },
   // Customers
-  {
-    component: 'CNavItem',
-    name: 'Customers',
-    to: '/daily-milk-records',
-    icon: 'cil-user',
-  },
+  // {
+  //   component: 'CNavItem',
+  //   name: 'Customers',
+  //   to: '/daily-milk-records',
+  //   icon: 'cil-user',
+  // },
 
   // General Settings
-  {
-    component: 'CNavTitle',
-    name: 'General Settings',
-  },
+  // {
+  //   component: 'CNavTitle',
+  //   name: 'General Settings',
+  // },
   // Price Settings
-  {
-    component: 'CNavItem',
-    name: 'Price Settings',
-    to: '/daily-milk-records',
-    icon: 'cil-dollar',
-  },
+  // {
+  //   component: 'CNavItem',
+  //   name: 'Price Settings',
+  //   to: '/daily-milk-records',
+  //   icon: 'cil-dollar',
+  // },
 
   // {
   //   component: 'CNavGroup',

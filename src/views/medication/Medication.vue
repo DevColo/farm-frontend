@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-//import { useCowStore } from '@/stores/cow.store'
-import { useMilkStore } from '@/stores/milk.store'
+import { useCowStore } from '@/stores/cow.store'
+import { useMedicationStore } from '@/stores/medication.store'
 import {
   CRow,
   CCol,
@@ -28,27 +28,29 @@ import {
   CFormCheck,
   CFormFeedback,
 } from '@coreui/vue'
-import { cilPencil, cilTrash, cilUser } from '@coreui/icons'
+import { cilPencil, cilTrash } from '@coreui/icons'
+import Multiselect from 'vue-multiselect'
+import 'vue-multiselect/dist/vue-multiselect.css'
 
-//const cowStore = useCowStore()
-const milkStore = useMilkStore()
+const cowStore = useCowStore()
+const medicationStore = useMedicationStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
 
-const currentMilkRecord = ref({
+const currentMedication = ref({
   id: null,
-  morning_qty: '',
-  evening_qty: '',
-  record_date: '',
-  // cow_id: '',
+  medication: '',
+  reason: '',
+  medication_date: '',
+  cow_id: '',
 })
 
 // fetch data
 onMounted(() => {
-  // cowStore.fetchCows()
-  milkStore.fetchMilkRecords()
+  medicationStore.fetchMedications()
+  cowStore.fetchCows()
 })
 
 // search & pagination
@@ -56,28 +58,28 @@ const searchQuery = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
-const filteredMilkRecords = computed(() => {
+const filteredMedications = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return milkStore.milkRecords
-  return milkStore.milkRecords.filter((c) =>
-    [c.record_date, c.morning_qty, c.evening_qty].some((f) => f?.toLowerCase().includes(q)),
+  if (!q) return medicationStore.medications
+  return medicationStore.medications.filter((m) =>
+    [m.medication, m.reason].some((f) => f?.toLowerCase().includes(q)),
   )
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredMilkRecords.value.length / itemsPerPage.value)),
+  Math.max(1, Math.ceil(filteredMedications.value.length / itemsPerPage.value)),
 )
-const paginatedMilkRecords = computed(() => {
+const paginatedMedications = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredMilkRecords.value.slice(start, start + itemsPerPage.value)
+  return filteredMedications.value.slice(start, start + itemsPerPage.value)
 })
 
 // Fix for the prop type warning
 watch(
-  () => currentMilkRecord.value.cow_id,
+  () => currentMedication.value.cow_id,
   (newValue) => {
     if (typeof newValue === 'number') {
-      currentMilkRecord.value.cow_id = String(newValue)
+      currentMedication.value.cow_id = String(newValue)
     }
   },
 )
@@ -96,26 +98,26 @@ function resetPage() {
 function openCreate() {
   isEditing.value = false
   validated.value = false
-  currentMilkRecord.value = {
+  currentMedication.value = {
     id: null,
-    morning_qty: '',
-    evening_qty: '',
-    record_date: '',
-    // cow_id: '',
+    medication: '',
+    reason: '',
+    medication_date: '',
+    cow_id: '',
   }
   showModal.value = true
 }
 
-function openEdit(milkRecord) {
+function openEdit(medication) {
   isEditing.value = true
   validated.value = false
-  currentMilkRecord.value = { ...milkRecord }
+  currentMedication.value = { ...medication }
   showModal.value = true
 }
 
 function confirmDelete(id) {
-  if (confirm('Are you sure you want to delete this milk record ?')) {
-    milkStore.deleteMilkRecord(id)
+  if (confirm('Are you sure you want to delete this Medication record?')) {
+    medicationStore.deleteMedication(id)
   }
 }
 
@@ -128,74 +130,55 @@ async function handleSubmit(e) {
     return
   }
   e.preventDefault()
-  const today = new Date()
   const payload = {
-    // cow_id: currentMilkRecord.value.cow_id,
-    morning_qty: currentMilkRecord.value.morning_qty,
-    evening_qty: currentMilkRecord.value.evening_qty,
-    //record_date: currentMilkRecord.value.record_date ?? today,
-    record_date: today,
+    medication: currentMedication.value.medication,
+    cow_id: currentMedication.value.cow_id.value,
+    medication_date: currentMedication.value.medication_date,
+    reason: currentMedication.value.reason,
   }
   if (isEditing.value) {
-    await milkStore.editMilkRecord(currentMilkRecord.value.id, payload)
+    await medicationStore.editMedication(currentMedication.value.id, payload)
   } else {
-    await milkStore.createMilkRecord(payload)
+    await medicationStore.createMedication(payload)
   }
   showModal.value = false
-  milkStore.fetchMilkRecords()
+  //resetPage()
 }
 
 // Export in PDF
 async function exportPDF() {
   const { default: jsPDF } = await import('jspdf')
   const autoTable = (await import('jspdf-autotable')).default
-
   const doc = new jsPDF()
+  doc.setFontSize(18)
+  doc.text('Cows Medication Records', 105, 15, { align: 'center' })
+  doc.setFontSize(12)
+  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 25, { align: 'center' })
   autoTable(doc, {
-    head: [
-      [
-        'RECORDED DATE',
-        // 'COW NAME',
-        // 'EAR TAG',
-        'MORNING QTY (L)',
-        'EVENING QTY (L)',
-        'TOTAL QTY (L)',
-      ],
-    ],
-    body: filteredMilkRecords.value.map((milk) => {
-      return [
-        milk.record_date,
-        // milk.cow.name,
-        // milk.cow.ear_tag,
-        milk.morning_qty,
-        milk.evening_qty,
-        (milk.morning_qty ?? 0) + (milk.evening_qty ?? 0),
-      ]
-    }),
+    startY: 35,
+    head: [['ID', 'Medication', 'reason', 'Date of Medication', 'Pasture']],
+    body: filteredMedications.value.map((medication) => [
+      medication.id,
+      medication.medication,
+      medication.reason,
+      medication.medication_date,
+      medication.cow?.ear_tag,
+    ]),
   })
-  doc.save('milk-record.pdf')
+  doc.save('medications.pdf')
 }
 
 // Export in CSV
 function exportCSV() {
   const rows = [
-    [
-      'RECORDED DATE',
-      // 'COW NAME', 'EAR TAG',
-      'MORNING QTY (L)',
-      'EVENING QTY (L)',
-      'TOTAL QTY (L)',
-    ],
-    ...filteredMilkRecords.value.map((milk) => {
-      return [
-        milk.record_date,
-        // milk.cow.name,
-        // milk.cow.ear_tag,
-        milk.morning_qty,
-        milk.evening_qty,
-        (milk.morning_qty ?? 0) + (milk.evening_qty ?? 0),
-      ]
-    }),
+    ['ID', 'medication', 'reason', 'Date of Medication', 'Pasture'],
+    ...filteredMedications.value.map((medication) => [
+      medication.id,
+      medication.medication,
+      medication.reason,
+      medication.medication_date,
+      medication.cow?.ear_tag,
+    ]),
   ]
 
   const csvContent = rows
@@ -206,21 +189,10 @@ function exportCSV() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.setAttribute('href', url)
-  link.setAttribute('download', 'milk-record.csv')
+  link.setAttribute('download', 'medications.csv')
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-}
-
-// Calculate Revenue
-const getTotalQuantity = (morning_qty = 0, evening_qty = 0) => {
-  return BigInt(morning_qty) + BigInt(evening_qty)
-}
-
-// Calculate Revenue
-const getRevenue = (morning_qty = 0, evening_qty = 0) => {
-  var total = BigInt(morning_qty) + BigInt(evening_qty)
-  return total * BigInt(1000)
 }
 </script>
 
@@ -229,7 +201,7 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
     <CCol :xs="12">
       <CCard class="mb-4">
         <CCardHeader class="d-flex justify-content-between align-items-center">
-          <strong>Daily Milk Record</strong>
+          <strong>Cows Medication List</strong>
           <div class="d-flex gap-2 mb-3">
             <CButton color="dark" variant="outline" title="Export CSV" @click="exportCSV"
               ><CIcon icon="cil-file"
@@ -237,7 +209,7 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
             <CButton color="dark" variant="outline" class="sm" title="Export PDF" @click="exportPDF"
               ><CIcon icon="cil-cloud-download"
             /></CButton>
-            <CButton color="dark" @click="openCreate">+ Add Milk Record</CButton>
+            <CButton color="dark" @click="openCreate">+ Add Medication Record</CButton>
           </div>
         </CCardHeader>
         <CCardBody>
@@ -267,38 +239,32 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
             <CTableHead>
               <CTableRow>
                 <CTableHeaderCell>ID</CTableHeaderCell>
-                <!-- <CTableHeaderCell>Cow</CTableHeaderCell>
-                <CTableHeaderCell>Ear Tag</CTableHeaderCell> -->
-                <CTableHeaderCell>Record Date</CTableHeaderCell>
-                <CTableHeaderCell>Morning Qty (L)</CTableHeaderCell>
-                <CTableHeaderCell>Evening Qty (L)</CTableHeaderCell>
-                <CTableHeaderCell>Total Qty (L)</CTableHeaderCell>
-                <CTableHeaderCell>Revenue (Rwf)</CTableHeaderCell>
+                <CTableHeaderCell>Medication</CTableHeaderCell>
+                <CTableHeaderCell>reason</CTableHeaderCell>
+                <CTableHeaderCell>Date of Medication</CTableHeaderCell>
+                <CTableHeaderCell>Cow</CTableHeaderCell>
                 <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
             <CTableBody>
-              <CTableRow v-for="milk in paginatedMilkRecords" :key="milk.id">
-                <CTableDataCell>{{ milk.id }}</CTableDataCell>
-                <!-- <CTableDataCell>{{ milk.cow?.name ?? '-' }}</CTableDataCell>
-                <CTableDataCell>{{ milk.cow?.ear_tag ?? '' }}</CTableDataCell> -->
-                <CTableDataCell>{{ milk.record_date }}</CTableDataCell>
-                <CTableDataCell>{{ milk.morning_qty ?? 'NOT RECORDED' }}</CTableDataCell>
-                <CTableDataCell>{{ milk.evening_qty ?? 'NOT RECORDED' }}</CTableDataCell>
-                <CTableDataCell>{{
-                  getTotalQuantity(milk.morning_qty, milk.evening_qty)
-                }}</CTableDataCell>
-                <CTableDataCell>{{
-                  getRevenue(milk.morning_qty, milk.evening_qty)
-                }}</CTableDataCell>
+              <CTableRow v-for="medication in paginatedMedications" :key="medication.id">
+                <CTableDataCell>{{ medication.id }}</CTableDataCell>
+                <CTableDataCell>{{ medication.medication }}</CTableDataCell>
+                <CTableDataCell>{{ medication.reason }}</CTableDataCell>
+                <CTableDataCell>{{ medication.medication_date }}</CTableDataCell>
+                <CTableDataCell
+                  ><router-link :to="`/cows`" class="text-decoration-none text-dark">{{
+                    medication.cow?.ear_tag ?? ''
+                  }}</router-link></CTableDataCell
+                >
                 <CTableDataCell>
                   <!-- Edit Cow Button -->
                   <CButton
                     size="sm"
                     color="info"
                     class="me-2 text-white"
-                    title="Edit Daily Milk Record"
-                    @click="openEdit(milk)"
+                    title="Edit Medication Record"
+                    @click="openEdit(medication)"
                   >
                     <CIcon :icon="cilPencil" />
                   </CButton>
@@ -308,16 +274,16 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
                     size="sm"
                     color="danger"
                     class="text-white"
-                    title="Delete Daily Milk Record"
-                    @click="confirmDelete(milk.id)"
+                    title="Delete Medication Record"
+                    @click="confirmDelete(medication.id)"
                   >
                     <CIcon :icon="cilTrash" />
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
-              <CTableRow v-if="paginatedMilkRecords.length === 0">
+              <CTableRow v-if="paginatedMedications.length === 0">
                 <CTableDataCell colspan="8" class="text-center">
-                  No Dail Milk Record Found.
+                  No medication record found.
                 </CTableDataCell>
               </CTableRow>
             </CTableBody>
@@ -325,7 +291,7 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
 
           <!-- pagination controls -->
           <div class="text-end mb-3">
-            <strong>Total Records:</strong> {{ filteredMilkRecords.length }}
+            <strong>Total Records:</strong> {{ filteredMedications.length }}
           </div>
           <div class="d-flex justify-content-between align-items-center mt-3">
             <CButton color="dark" variant="outline" :disabled="currentPage === 1" @click="prevPage">
@@ -347,10 +313,10 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
   </CRow>
 
   <!-- Create/Edit Modal -->
-  <CModal :visible="showModal" @close="showModal = false" backdrop="static">
+  <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
     <CModalHeader>
       <CModalTitle>{{
-        isEditing ? 'Edit Daily Milk Record' : 'Add Daily Milk Record'
+        isEditing ? 'Edit Cow Medication Record' : 'Add Cow Medication Record'
       }}</CModalTitle>
     </CModalHeader>
     <CModalBody>
@@ -360,57 +326,54 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
         :validated="validated"
         @submit="handleSubmit"
       >
-        <!-- <CCol :md="6">
-          <CFormLabel for="cow">Cow</CFormLabel>
-          <CFormSelect
+        <CCol :md="6">
+          <CFormLabel for="medication">Medication</CFormLabel>
+          <CFormInput id="medication" v-model="currentMedication.medication" required />
+          <CFormFeedback invalid>Medication is required.</CFormFeedback>
+        </CCol>
+
+        <CCol :md="6">
+          <CFormLabel for="reason">reason</CFormLabel>
+          <CFormInput id="reason" v-model="currentMedication.reason" required />
+          <CFormFeedback invalid>reason is required.</CFormFeedback>
+        </CCol>
+
+        <CCol :md="6">
+          <CFormLabel for="cow">cow</CFormLabel>
+          <Multiselect
             id="cow"
-            v-model="currentMilkRecord.cow_id"
+            v-model="currentMedication.cow_id"
             :options="[
-              { label: 'Select Cow', value: '' },
+              { label: 'Select cow', value: '' },
               ...cowStore.cows.map((cow) => ({
-                label: cow.name ? cow.name + '-' + cow.ear_tag : cow.ear_tag,
+                label: cow.ear_tag,
                 value: cow.id,
               })),
             ]"
+            label="label"
+            track-by="value"
+            placeholder="Select Cow"
+            :searchable="true"
+            :allowEmpty="true"
             required
           />
-          <CFormFeedback invalid>Cow is required.</CFormFeedback>
-        </CCol> -->
-
-        <CCol :md="12">
-          <CFormLabel for="record_date">Record Date</CFormLabel>
-          <CFormInput id="record_date" type="date" v-model="currentMilkRecord.record_date" />
+          <CFormFeedback invalid v-if="!currentMedication.cow_id">Cow is required.</CFormFeedback>
         </CCol>
 
-        <CCol :md="12">
-          <CFormLabel for="type">Morning Quantity (L)</CFormLabel>
+        <CCol :md="6">
+          <CFormLabel for="dateOfMedication">Date of Medication</CFormLabel>
           <CFormInput
-            id="morning_qty"
-            type="number"
-            v-model.number="currentMilkRecord.morning_qty"
-            min="0"
-            step="0.1"
-            class="mb-3"
+            id="dateOfMedication"
+            type="date"
+            v-model="currentMedication.medication_date"
+            required
           />
-          <CFormFeedback invalid>Morning Quantity is required.</CFormFeedback>
-        </CCol>
-
-        <CCol :md="12">
-          <CFormLabel for="type">Evening Quantity (L)</CFormLabel>
-          <CFormInput
-            id="evening_qty"
-            type="number"
-            v-model.number="currentMilkRecord.evening_qty"
-            min="0"
-            step="0.1"
-            class="mb-3"
-          />
-          <CFormFeedback invalid>Evening Quantity is required.</CFormFeedback>
+          <CFormFeedback invalid>Date of Medication is required.</CFormFeedback>
         </CCol>
 
         <CCol :xs="12" class="d-flex justify-content-end">
           <CButton color="secondary" class="me-2" @click="showModal = false">Cancel</CButton>
-          <CButton color="success" type="submit">{{ isEditing ? 'Update' : 'Add Record' }}</CButton>
+          <CButton color="success" type="submit">{{ isEditing ? 'Update' : 'Create' }}</CButton>
         </CCol>
       </CForm>
     </CModalBody>

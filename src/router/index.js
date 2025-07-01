@@ -46,9 +46,14 @@ const routes = [
         component: () => import('@/views/cow/CowList.vue'),
       },
       {
-        path: 'cows/feeding',
+        path: 'feedings',
         name: 'Cows Feeding',
-        component: () => import('@/views/cow/CowFeeding.vue'),
+        component: () => import('@/views/feeding/Feeding.vue'),
+      },
+      {
+        path: 'medications',
+        name: 'Cows Medications',
+        component: () => import('@/views/medication/Medication.vue'),
       },
       {
         path: 'daily-milk-records',

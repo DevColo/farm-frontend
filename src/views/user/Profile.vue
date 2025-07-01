@@ -3,20 +3,7 @@ import { ref } from 'vue'
 import avatar from '@/assets/images/avatars/8.jpg'
 import { useAuthStore } from '@/stores/auth'
 
-const validatedCustom01 = ref(false)
-const validatedDefault01 = ref(false)
-const validatedTooltip01 = ref(false)
 const authStore = useAuthStore()
-// const userData = ref({
-//   id: null,
-//   first_name: '',
-//   other_name: '',
-//   last_name: '',
-//   phone: '',
-//   email: '',
-//   address: '',
-//   image: null,
-// })
 const validated = ref(false)
 
 // Edit Profile Modal
@@ -24,7 +11,7 @@ const activeTab = ref('profile')
 const showModal = ref(false)
 const userData = ref({})
 function editProfileModal(user) {
-  userData.value = { ...user }
+  userData.value = { ...user, password: '' }
   showModal.value = true
 }
 
@@ -45,6 +32,7 @@ async function handleSubmit(e) {
     email: userData.value.email,
     address: userData.value.address,
     photo: userData.value.photo,
+    ...(userData.value.password ? { password: userData.value.password } : {}),
   }
 
   await authStore.updateUser(authStore.user?.id, payload)
@@ -57,8 +45,8 @@ const removePhoto = () => {
   userData.value.photo = null
 }
 
-// Get User Photo
-function getUsePhoto(imageUrl) {
+// Get User Image
+function getUserImage(imageUrl) {
   return imageUrl ? `${import.meta.env.VITE_API_BASE_URL}/${imageUrl}` : avatar
 }
 </script>
@@ -70,7 +58,7 @@ function getUsePhoto(imageUrl) {
         <div class="card">
           <div class="card-body d-flex align-items-center">
             <div class="me-3 text-white bg-light p-3">
-              <CAvatar :src="avatar" size="md" />
+              <CAvatar :src="getUserImage(authStore.user?.photo)" size="lg" />
             </div>
           </div>
           <div class="p-3">
@@ -152,7 +140,7 @@ function getUsePhoto(imageUrl) {
 
         <CCol :md="6">
           <CFormLabel for="password">Password</CFormLabel>
-          <CFormInput id="password" v-model="userData.password" required />
+          <CFormInput id="password" v-model="userData.password" />
           <CFormFeedback invalid>Password is required.</CFormFeedback>
         </CCol>
 

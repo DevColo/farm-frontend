@@ -6,12 +6,18 @@ import avatar from '@/assets/images/avatars/8.jpg'
 const itemsCount = 42
 const authStore = useAuthStore()
 const router = useRouter()
+
+// Get User Image
+function getUserImage(imageUrl) {
+  return imageUrl ? `${import.meta.env.VITE_API_BASE_URL}/${imageUrl}` : avatar
+}
 </script>
 
 <template>
   <CDropdown placement="bottom-end" variant="nav-item">
     <CDropdownToggle class="py-0 pe-0" :caret="false">
-      <CAvatar :src="avatar" size="md" />
+      <CAvatar :src="getUserImage(authStore.user?.photo)" size="md" />
+
       <!-- <p class="btn btn-lit mb-0">{{ authStore.user?.first_name }} <CIcon icon="cil-user" /></p> -->
     </CDropdownToggle>
     <CDropdownMenu class="pt-0">
@@ -35,3 +41,9 @@ const router = useRouter()
     </CDropdownMenu>
   </CDropdown>
 </template>
+<style scoped>
+.avatar-img {
+  width: 40px !important;
+  height: 40px !important;
+}
+</style>

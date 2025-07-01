@@ -530,18 +530,48 @@ const removeImage = () => {
         </CCol>
 
         <CCol :md="6">
-          <CFormLabel for="type">Type</CFormLabel>
+          <CFormLabel for="type">Gender</CFormLabel>
           <CFormSelect
             id="type"
             v-model="currentCow.type"
             :options="[
               { label: 'Select Type', value: '' },
-              { label: 'Cow', value: 'cow' },
-              { label: 'Bull', value: 'bull' },
+              { label: 'Female', value: 'Female' },
+              { label: 'Male', value: 'Male' },
             ]"
             required
           />
           <CFormFeedback invalid>Type is required.</CFormFeedback>
+        </CCol>
+
+        <CCol :md="6" v-if="currentCow.type === 'Female'">
+          <CFormLabel for="given_birth">Has Given Birth</CFormLabel>
+          <CFormSelect
+            id="given_birth"
+            v-model="currentCow.given_birth"
+            :options="[
+              { label: 'Select Option', value: '' },
+              { label: 'Yes', value: '1' },
+              { label: 'No', value: '0' },
+            ]"
+            required
+          />
+          <CFormFeedback invalid>This field is required for females.</CFormFeedback>
+        </CCol>
+
+        <CCol :md="6" v-if="currentCow.type === 'Male'">
+          <CFormLabel for="male_type">Male Type</CFormLabel>
+          <CFormSelect
+            id="male_type"
+            v-model="currentCow.male_type"
+            :options="[
+              { label: 'Select Type', value: '' },
+              { label: 'Bull', value: 'Bull' },
+              { label: 'Steer', value: 'Steer' },
+            ]"
+            required
+          />
+          <CFormFeedback invalid>This field is required for males.</CFormFeedback>
         </CCol>
 
         <CCol :md="6">

@@ -156,6 +156,7 @@ function handleSubmit() {
                 <CTableHeaderCell>Pasture Name</CTableHeaderCell>
                 <CTableHeaderCell>Country</CTableHeaderCell>
                 <CTableHeaderCell>Description</CTableHeaderCell>
+                <CTableHeaderCell>Amount of Cows</CTableHeaderCell>
                 <CTableHeaderCell>Active</CTableHeaderCell>
                 <CTableHeaderCell>Created At</CTableHeaderCell>
                 <CTableHeaderCell>Action</CTableHeaderCell>
@@ -170,8 +171,15 @@ function handleSubmit() {
                     >{{ pasture.pasture }}</router-link
                   ></CTableDataCell
                 >
-                <CTableDataCell>{{ pasture.country || '' }}</CTableDataCell>
-                <CTableDataCell>{{ pasture.description || '' }}</CTableDataCell>
+                <CTableDataCell>{{ pasture.country ?? '' }}</CTableDataCell>
+                <CTableDataCell>{{ pasture.description ?? '' }}</CTableDataCell>
+                <CTableDataCell
+                  ><router-link
+                    :to="`/pasture/cow/${pasture.id}`"
+                    class="text-decoration-none text-dark"
+                    >{{ pasture.cow_count }}</router-link
+                  ></CTableDataCell
+                >
                 <CTableDataCell>
                   {{ pasture.status === '1' ? 'Yes' : 'No' }}
                 </CTableDataCell>
@@ -205,6 +213,9 @@ function handleSubmit() {
             </CTableBody>
           </CTable>
 
+          <div class="text-end mb-3">
+            <strong>Total Records:</strong> {{ filteredPastures.length }}
+          </div>
           <div class="d-flex justify-content-between align-items-center mt-3">
             <CButton color="dark" variant="outline" :disabled="currentPage === 1" @click="prevPage">
               Previous

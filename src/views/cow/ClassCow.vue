@@ -346,7 +346,8 @@ const removeImage = () => {
                   ><router-link
                     :to="`/gender/cow/${cow.type}`"
                     class="text-decoration-none text-dark"
-                    >{{ cow.type == 'cow' ? 'Female' : 'Male' }}</router-link
+                    >{{ cow.type
+                    }}{{ cow.male_type != null ? ' - ' + cow.male_type : '' }}</router-link
                   ></CTableDataCell
                 >
                 <CTableDataCell
