@@ -19,7 +19,7 @@ export const useAuthStore = defineStore('auth', {
       const toast = useToast()
 
       try {
-        const res = await axios.post('/login', { email, password })
+        const res = await axios.post('/api/login', { email, password })
         this.token = res.data.token
         this.user = res.data.user
 
@@ -68,7 +68,7 @@ export const useAuthStore = defineStore('auth', {
           formData.append('remove_image', '1')
         }
 
-        await axios.put(`/users/${id}`, formData, {
+        await axios.put(`/api/users/${id}`, formData, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data',
@@ -91,7 +91,7 @@ export const useAuthStore = defineStore('auth', {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.get(`/users/${id}`, {
+        const response = await axios.get(`/api/users/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
