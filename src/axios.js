@@ -2,7 +2,8 @@
 import axios from 'axios'
 
 const instance = axios.create({
-  baseURL: 'https://api.jakaja.net/api',
+  //baseURL: 'https://api.jakaja.net/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
