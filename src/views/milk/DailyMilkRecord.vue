@@ -248,7 +248,7 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
               type="text"
               v-model="searchQuery"
               class="form-control w-25"
-              placeholder="Search by name, tag or breed..."
+              placeholder="Search by date, quantity"
               @input="resetPage"
             />
             <div class="d-flex align-items-center">

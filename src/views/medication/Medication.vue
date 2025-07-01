@@ -220,7 +220,7 @@ function exportCSV() {
               type="text"
               v-model="searchQuery"
               class="form-control w-25"
-              placeholder="Search by name, tag or breed..."
+              placeholder="Search by medication or reason"
               @input="resetPage"
             />
             <div class="d-flex align-items-center">

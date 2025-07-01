@@ -61,9 +61,7 @@ const currentPage = ref(1)
 const filteredFeedings = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return feedingStore.feedings
-  return feedingStore.feedings.filter((c) =>
-    [c.name, c.ear_tag, c.breed].some((f) => f?.toLowerCase().includes(q)),
-  )
+  return feedingStore.feedings.filter((c) => [c.food].some((f) => f?.toLowerCase().includes(q)))
 })
 
 const totalPages = computed(() =>
@@ -220,7 +218,7 @@ function exportCSV() {
               type="text"
               v-model="searchQuery"
               class="form-control w-25"
-              placeholder="Search by name, tag or breed..."
+              placeholder="Search by food"
               @input="resetPage"
             />
             <div class="d-flex align-items-center">
