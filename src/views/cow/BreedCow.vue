@@ -333,7 +333,7 @@ const removeImage = () => {
                 <CTableHeaderCell>Gender</CTableHeaderCell>
                 <CTableHeaderCell>Class</CTableHeaderCell>
                 <CTableHeaderCell>Pasture</CTableHeaderCell>
-                <CTableHeaderCell>Status</CTableHeaderCell>
+                <!-- <CTableHeaderCell>Status</CTableHeaderCell> -->
                 <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
@@ -365,11 +365,11 @@ const removeImage = () => {
                     >{{ cow.pasture?.pasture || '—' }}</router-link
                   ></CTableDataCell
                 >
-                <CTableDataCell>
+                <!-- <CTableDataCell>
                   <span :class="['badge', cow.status === '1' ? 'bg-success' : 'bg-danger']">
                     {{ cow.status === '1' ? 'Active' : 'Inactive' }}
                   </span>
-                </CTableDataCell>
+                </CTableDataCell> -->
                 <CTableDataCell>
                   <!-- View Profile Button -->
                   <CButton
@@ -448,13 +448,13 @@ const removeImage = () => {
           ></CNavItem
         >
         <CNavItem
-          ><CNavLink :active="activeTab === 'health'" @click="activeTab = 'health'"
-            >Health</CNavLink
+          ><CNavLink :active="activeTab === 'feeding'" @click="activeTab = 'feeding'"
+            >Feeding History</CNavLink
           ></CNavItem
         >
         <CNavItem
-          ><CNavLink :active="activeTab === 'history'" @click="activeTab = 'history'"
-            >History</CNavLink
+          ><CNavLink :active="activeTab === 'health'" @click="activeTab = 'health'"
+            >Medication</CNavLink
           ></CNavItem
         >
       </CNav>
@@ -468,32 +468,109 @@ const removeImage = () => {
               style="max-height: 200px"
             />
           </div>
-          <p><strong>Name:</strong> {{ selectedCow.name ?? '' }}</p>
-          <p><strong>Ear Tag:</strong> {{ selectedCow.ear_tag ?? '' }}</p>
-          <p><strong>Date of Birth:</strong> {{ selectedCow.date_of_birth ?? '' }}</p>
-          <p><strong>Type:</strong> {{ selectedCow.type ?? '' }}</p>
-          <p><strong>Breed:</strong> {{ selectedCow.breed ?? '' }}</p>
-          <p>
-            <strong>Herd:</strong>
-            {{ selectedCow.herd === 'from_farm' ? 'From Farm' : 'From Another Farm' }}
-          </p>
-          <p v-if="selectedCow.herd != 'from_farm'">
-            <strong>Source Location:</strong>
-            {{ selectedCow.from_location ?? '' }}
-          </p>
-          <p><strong>Description:</strong> {{ selectedCow.description ?? '' }}</p>
-          <p><strong>Status:</strong> {{ selectedCow.status === '1' ? 'Active' : 'Inactive' }}</p>
+          <div class="row">
+            <div class="col-md-6">
+              <p><strong>Name:</strong> {{ selectedCow.name ?? '' }}</p>
+              <p><strong>Ear Tag:</strong> {{ selectedCow.ear_tag ?? '' }}</p>
+              <p><strong>Date of Birth:</strong> {{ selectedCow.date_of_birth ?? '' }}</p>
+              <p><strong>Gender:</strong> {{ selectedCow.type ?? '' }}</p>
+              <p><strong>Breed:</strong> {{ selectedCow.breed ?? '' }}</p>
+              <p>
+                <strong>Herd:</strong>
+                {{ selectedCow.herd === 'from_farm' ? 'From Farm' : 'From Another Farm' }}
+              </p>
+              <p v-if="selectedCow.herd != 'from_farm'">
+                <strong>Source Location:</strong>
+                {{ selectedCow.from_location ?? '' }}
+              </p>
+              <p v-if="selectedCow.type != 'Male'">
+                <strong>Type:</strong>
+                {{ selectedCow.male_type ?? '' }}
+              </p>
+              <p v-if="selectedCow.type != 'Male'">
+                <strong>Given Birth:</strong> {{ selectedCow.given_birth === '1' ? 'Yes' : 'No' }}
+              </p>
+            </div>
+            <div class="col-md-6">
+              <p>
+                <strong>Class:</strong>
+                {{ calculateAgeAndClass(selectedCow.date_of_birth, selectedCow).ageClass }}
+              </p>
+              <p><strong>Mother Ear Tag:</strong> {{ selectedCow.mother_ear_tag ?? '' }}</p>
+              <p><strong>Father Ear Tag:</strong> {{ selectedCow.father_ear_tag ?? '' }}</p>
+              <p><strong>Pasture:</strong> {{ selectedCow.pasture?.pasture ?? '—' }}</p>
+              <p v-if="selectedCow.pasture?.country">
+                <strong>Pasture Country:</strong> {{ selectedCow.pasture.country }}
+              </p>
+              <p><strong>Description:</strong> {{ selectedCow.description ?? '' }}</p>
+              <p>
+                <strong>Status:</strong> {{ selectedCow.status === '1' ? 'Active' : 'Inactive' }}
+              </p>
+            </div>
+          </div>
           <CButton color="dark" @click="exportCowProfile(selectedCow)"
             ><CIcon icon="cil-cloud-download" /> Download</CButton
           >
         </CTabPane>
 
-        <CTabPane :visible="activeTab === 'health'">
-          <p>Health info placeholder</p>
+        <CTabPane :visible="activeTab === 'feeding'">
+          <div>
+            <CTable striped hover responsive>
+              <CTableHead>
+                <CTableRow>
+                  <CTableHeaderCell>ID</CTableHeaderCell>
+                  <CTableHeaderCell>Food</CTableHeaderCell>
+                  <CTableHeaderCell>Quantity</CTableHeaderCell>
+                  <CTableHeaderCell>Fed Date</CTableHeaderCell>
+                  <CTableHeaderCell>Pasture</CTableHeaderCell>
+                  <!-- <CTableHeaderCell>Created At</CTableHeaderCell> -->
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                <CTableRow v-for="record in selectedCow.feedings" :key="record.id">
+                  <CTableDataCell>{{ record.id }}</CTableDataCell>
+                  <CTableDataCell>{{ record.food }}</CTableDataCell>
+                  <CTableDataCell>{{ record.quantity }}</CTableDataCell>
+                  <CTableDataCell>{{ record.fed_date }}</CTableDataCell>
+                  <CTableDataCell>{{ selectedCow.pasture.pasture }}</CTableDataCell>
+                  <!-- <CTableDataCell>{{ new Date(record.createdAt).toLocaleString() }}</CTableDataCell> -->
+                </CTableRow>
+                <CTableRow v-if="selectedCow.feedings.length === 0">
+                  <CTableDataCell colspan="6" class="text-center"
+                    >No feeding records found.</CTableDataCell
+                  >
+                </CTableRow>
+              </CTableBody>
+            </CTable>
+          </div>
         </CTabPane>
 
-        <CTabPane :visible="activeTab === 'history'">
-          <p>History info placeholder</p>
+        <CTabPane :visible="activeTab === 'health'">
+          <div>
+            <CTable striped hover responsive>
+              <CTableHead>
+                <CTableRow>
+                  <CTableHeaderCell>Medication</CTableHeaderCell>
+                  <CTableHeaderCell>Reason</CTableHeaderCell>
+                  <CTableHeaderCell>Date</CTableHeaderCell>
+                  <!-- <CTableHeaderCell>Created At</CTableHeaderCell> -->
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                <CTableRow v-for="record in selectedCow.medications" :key="record.id">
+                  <CTableDataCell>{{ record.medication }}</CTableDataCell>
+                  <CTableDataCell>{{ record.reason }}</CTableDataCell>
+                  <CTableDataCell>{{ record.medication_date }}</CTableDataCell>
+                  <!-- <CTableDataCell>{{ new Date(record.createdAt).toLocaleString() }}</CTableDataCell> -->
+                </CTableRow>
+                <CTableRow v-if="selectedCow.medications.length === 0">
+                  <CTableDataCell colspan="6" class="text-center"
+                    >No medication records found.</CTableDataCell
+                  >
+                </CTableRow>
+              </CTableBody>
+            </CTable>
+          </div>
         </CTabPane>
       </CTabContent>
     </CModalBody>
