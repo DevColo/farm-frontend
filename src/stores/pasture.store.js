@@ -1,6 +1,6 @@
 // stores/pasture.store.js
 import { defineStore } from 'pinia'
-import axios from '@axios'
+import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
 export const usePastureStore = defineStore('pasture', {
