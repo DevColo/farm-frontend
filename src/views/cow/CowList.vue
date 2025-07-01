@@ -439,7 +439,6 @@ const healthRecords = ref({
           <CTable striped hover responsive>
             <CTableHead>
               <CTableRow>
-                <CTableHeaderCell>ID</CTableHeaderCell>
                 <CTableHeaderCell>Name</CTableHeaderCell>
                 <CTableHeaderCell>Ear Tag</CTableHeaderCell>
                 <CTableHeaderCell>DOB</CTableHeaderCell>
@@ -454,7 +453,6 @@ const healthRecords = ref({
             </CTableHead>
             <CTableBody>
               <CTableRow v-for="cow in paginatedCows" :key="cow.id">
-                <CTableDataCell>{{ cow.id }}</CTableDataCell>
                 <CTableDataCell>{{ cow.name }}</CTableDataCell>
                 <CTableDataCell>{{ cow.ear_tag }}</CTableDataCell>
                 <CTableDataCell>{{ cow.date_of_birth }}</CTableDataCell>
@@ -490,7 +488,7 @@ const healthRecords = ref({
                     >{{ cow.pasture?.pasture || '—' }}</router-link
                   ></CTableDataCell
                 >
-               <!-- <CTableDataCell>
+                <!-- <CTableDataCell>
                   <span :class="['badge', cow.status === '1' ? 'bg-success' : 'bg-danger']">
                     {{ cow.status === '1' ? 'Active' : 'Inactive' }}
                   </span>
