@@ -273,7 +273,7 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
                 <CTableHeaderCell>Morning Qty (L)</CTableHeaderCell>
                 <CTableHeaderCell>Evening Qty (L)</CTableHeaderCell>
                 <CTableHeaderCell>Total Qty (L)</CTableHeaderCell>
-                <CTableHeaderCell>Revenue (Rwf)</CTableHeaderCell>
+                <!-- <CTableHeaderCell>Revenue (Rwf)</CTableHeaderCell> -->
                 <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
@@ -288,9 +288,9 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
                 <CTableDataCell>{{
                   getTotalQuantity(milk.morning_qty, milk.evening_qty)
                 }}</CTableDataCell>
-                <CTableDataCell>{{
+                <!-- <CTableDataCell>{{
                   getRevenue(milk.morning_qty, milk.evening_qty)
-                }}</CTableDataCell>
+                }}</CTableDataCell> -->
                 <CTableDataCell>
                   <!-- Edit Cow Button -->
                   <CButton
