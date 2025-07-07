@@ -133,8 +133,8 @@ async function handleSubmit(e) {
     // cow_id: currentMilkRecord.value.cow_id,
     morning_qty: currentMilkRecord.value.morning_qty,
     evening_qty: currentMilkRecord.value.evening_qty,
-    //record_date: currentMilkRecord.value.record_date ?? today,
-    record_date: today,
+    record_date: currentMilkRecord.value.record_date ?? today,
+    //record_date: today,
   }
   if (isEditing.value) {
     await milkStore.editMilkRecord(currentMilkRecord.value.id, payload)
