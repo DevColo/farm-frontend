@@ -783,7 +783,7 @@ const healthRecords = ref({
             :options="
               [
                 { label: 'Select Breed', value: '' },
-                'Holstein',
+                'Friesian',
                 'Jersey',
                 'Guernsey',
                 'Angus',
