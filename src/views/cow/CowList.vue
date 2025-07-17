@@ -71,15 +71,25 @@ onMounted(() => {
 
 // search & pagination
 const searchQuery = ref('')
+const filterYear = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
+// Generate available years dynamically based on cow data
+const availableYears = computed(() => {
+  const years = cowStore.cows.map((cow) => new Date(cow.date_of_birth).getFullYear())
+  return Array.from(new Set(years)).sort((a, b) => b - a) // Sort years in descending order
+})
+
 const filteredCows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return cowStore.cows
-  return cowStore.cows.filter((c) =>
-    [c.name, c.ear_tag, c.breed].some((f) => f?.toLowerCase().includes(q)),
-  )
+  const year = filterYear.value
+  return cowStore.cows.filter((c) => {
+    const matchesQuery =
+      !q || [c.name, c.ear_tag, c.breed].some((f) => f?.toLowerCase().includes(q))
+    const matchesYear = !year || new Date(c.date_of_birth).getFullYear() === parseInt(year)
+    return matchesQuery && matchesYear
+  })
 })
 
 const totalPages = computed(() =>
@@ -415,18 +425,37 @@ const healthRecords = ref({
         </CCardHeader>
         <CCardBody>
           <!-- search + page-size -->
+          <div class="d-flex justify-content-start align-items-center flex-wrap mb-3">
+            <!-- Search Input -->
+            <div class="d-flex align-items-center me-2" style="min-width: 250px">
+              <input
+                type="text"
+                v-model="searchQuery"
+                class="form-control"
+                style="max-width: 250px"
+                placeholder="Search by name, tag or breed..."
+                @input="resetPage"
+              />
+            </div>
 
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <input
-              type="text"
-              v-model="searchQuery"
-              class="form-control w-25"
-              placeholder="Search by name, tag or breed..."
-              @input="resetPage"
-            />
-            <div class="d-flex align-items-center">
-              <label class="me-2">Show:</label>
-              <select v-model="itemsPerPage" @change="resetPage" class="form-select">
+            <!-- Filter by Year -->
+            <div class="d-flex align-items-center me-5">
+              <label class="me-2 mb-0">Filter by Year:</label>
+              <select v-model="filterYear" @change="resetPage" class="form-select w-auto">
+                <option value="">All</option>
+                <option v-for="year in availableYears" :key="year" :value="year">
+                  {{ year }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Items per Page -->
+            <div
+              class="d-flex align-items-center"
+              style="float: right; right: 18px; position: absolute"
+            >
+              <label class="me-2 mb-0">Show:</label>
+              <select v-model="itemsPerPage" @change="resetPage" class="form-select w-auto">
                 <option :value="10">10</option>
                 <option :value="25">25</option>
                 <option :value="50">50</option>
@@ -783,7 +812,7 @@ const healthRecords = ref({
             :options="
               [
                 { label: 'Select Breed', value: '' },
-                'Friesian',
+                'Holstein',
                 'Jersey',
                 'Guernsey',
                 'Angus',
