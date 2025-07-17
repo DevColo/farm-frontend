@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { CChart } from '@coreui/vue-chartjs'
 import { getStyle } from '@coreui/utils'
 import { useDashboardStore } from '@/stores/dashboard.store'
@@ -22,6 +22,40 @@ onMounted(() => {
   })
 
   dashboardStore.fetchDashboardStats()
+})
+
+const selectedYear = ref(new Date().getFullYear())
+
+// Get available years from the data
+const availableYears = computed(() => {
+  const years = [
+    ...new Set(dashboardStore.dashboardStats.monthly_milk?.map((item) => item.year) || []),
+  ]
+  return years.sort((a, b) => b - a) // Sort descending (newest first)
+})
+
+// Filter monthly milk data by selected year
+const filteredMonthlyMilk = computed(() => {
+  return (
+    dashboardStore.dashboardStats.monthly_milk?.filter(
+      (item) => item.year === selectedYear.value,
+    ) || []
+  )
+})
+
+// Calculate total quantity for the selected year
+const filteredTotalQty = computed(() => {
+  return filteredMonthlyMilk.value.reduce(
+    (total, item) => total + parseFloat(item.total_qty || 0),
+    0,
+  )
+})
+
+// Set initial year to the most recent year when component mounts
+onMounted(() => {
+  if (availableYears.value.length > 0) {
+    selectedYear.value = availableYears.value[0]
+  }
 })
 </script>
 
@@ -184,7 +218,150 @@ onMounted(() => {
         </template>
       </CWidgetStatsA>
     </CCol>
+
     <CCol :sm="6" :xl="4" :xxl="3">
+      <CWidgetStatsA color="danger">
+        <template #value>{{ filteredTotalQty }} Liters</template>
+        <template #title>Milk Quantity ({{ selectedYear }})</template>
+        <template #action>
+          <CDropdown placement="bottom-end">
+            <CDropdownToggle color="transparent" class="p-0 text-white" :caret="false">
+              <CIcon icon="cil-options" class="text-white" />
+            </CDropdownToggle>
+            <CDropdownMenu>
+              <CDropdownHeader>Filter by Year</CDropdownHeader>
+              <CDropdownItem
+                v-for="year in availableYears"
+                :key="year"
+                @click="selectedYear = year"
+                :active="selectedYear === year"
+              >
+                {{ year }}
+              </CDropdownItem>
+            </CDropdownMenu>
+          </CDropdown>
+        </template>
+        <template #chart>
+          <CChart
+            type="bar"
+            class="mt-3 mx-3"
+            style="height: 70px"
+            :data="{
+              labels: filteredMonthlyMilk.map((item) => item.month),
+              datasets: [
+                {
+                  label: 'Recorded Liters',
+                  backgroundColor: 'rgba(255,255,255,.2)',
+                  borderColor: 'rgba(255,255,255,.55)',
+                  data: filteredMonthlyMilk.map((item) => parseFloat(item.total_qty)),
+                  barPercentage: 0.6,
+                },
+              ],
+            }"
+            :options="{
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+              },
+              scales: {
+                x: {
+                  grid: {
+                    display: false,
+                    drawTicks: false,
+                  },
+                  ticks: {
+                    display: false,
+                  },
+                },
+                y: {
+                  border: {
+                    display: false,
+                  },
+                  grid: {
+                    display: false,
+                    drawTicks: false,
+                  },
+                  ticks: {
+                    display: false,
+                  },
+                },
+              },
+            }"
+          />
+        </template>
+      </CWidgetStatsA>
+    </CCol>
+    <!-- <CCol :sm="6" :xl="4" :xxl="3">
+      <CWidgetStatsA color="danger">
+        <template #value>{{ dashboardStore.dashboardStats.total_qty }} Liters</template>
+        <template #title>Milk Quantity</template>
+        <template #action>
+          <CDropdown placement="bottom-end">
+            <CDropdownToggle color="transparent" class="p-0 text-white" :caret="false">
+              <CIcon icon="cil-options" class="text-white" />
+            </CDropdownToggle>
+            <CDropdownMenu>
+              <CDropdownItem href="/pastures">View Pastures</CDropdownItem>
+            </CDropdownMenu>
+          </CDropdown>
+        </template>
+        <template #chart>
+          <CChart
+            type="bar"
+            class="mt-3 mx-3"
+            style="height: 70px"
+            :data="{
+              labels: dashboardStore.dashboardStats.monthly_milk.map((item) => item.month),
+              datasets: [
+                {
+                  label: 'Recorded Liters',
+                  backgroundColor: 'rgba(255,255,255,.2)',
+                  borderColor: 'rgba(255,255,255,.55)',
+                  data: dashboardStore.dashboardStats.monthly_milk.map((item) =>
+                    parseFloat(item.total_qty),
+                  ),
+                  barPercentage: 0.6,
+                },
+              ],
+            }"
+            :options="{
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+              },
+              scales: {
+                x: {
+                  grid: {
+                    display: false,
+                    drawTicks: false,
+                  },
+                  ticks: {
+                    display: false,
+                  },
+                },
+                y: {
+                  border: {
+                    display: false,
+                  },
+                  grid: {
+                    display: false,
+                    drawTicks: false,
+                  },
+                  ticks: {
+                    display: false,
+                  },
+                },
+              },
+            }"
+          />
+        </template>
+      </CWidgetStatsA>
+    </CCol> -->
+    <!-- <CCol :sm="6" :xl="4" :xxl="3">
       <CWidgetStatsA color="warning">
         <template #value>{{ dashboardStore.dashboardStats.total_qty }} Liters</template>
         <template #title>Milk Quantity</template>
@@ -248,8 +425,8 @@ onMounted(() => {
           />
         </template>
       </CWidgetStatsA>
-    </CCol>
-    <CCol :sm="6" :xl="4" :xxl="3">
+    </CCol> -->
+    <!-- <CCol :sm="6" :xl="4" :xxl="3">
       <CWidgetStatsA color="danger">
         <template #value>{{ dashboardStore.dashboardStats.total_revenue }} Rwf</template>
         <template #title>Revenue</template>
@@ -321,6 +498,6 @@ onMounted(() => {
           />
         </template>
       </CWidgetStatsA>
-    </CCol>
+    </CCol> -->
   </CRow>
 </template>
