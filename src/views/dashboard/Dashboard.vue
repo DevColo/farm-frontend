@@ -1,10 +1,5 @@
 <script setup>
 import avatar1 from '@/assets/images/avatars/1.jpg'
-import avatar2 from '@/assets/images/avatars/2.jpg'
-import avatar3 from '@/assets/images/avatars/3.jpg'
-import avatar4 from '@/assets/images/avatars/4.jpg'
-import avatar5 from '@/assets/images/avatars/5.jpg'
-import avatar6 from '@/assets/images/avatars/6.jpg'
 import MainChart from './MainChart.vue'
 import DashboardStats from '../../components/DashboardStats.vue'
 
@@ -31,7 +26,7 @@ const tableExample = [
 <template>
   <div>
     <DashboardStats class="mb-4" />
-    <CRow>
+    <!-- <CRow>
       <CCol :md="12">
         <CCard class="mb-4">
           <CCardHeader> Traffic &amp; Sales </CCardHeader>
@@ -92,6 +87,6 @@ const tableExample = [
           </CCardBody>
         </CCard>
       </CCol>
-    </CRow>
+    </CRow> -->
   </div>
 </template>

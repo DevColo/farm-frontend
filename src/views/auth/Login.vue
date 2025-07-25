@@ -40,8 +40,12 @@ const handleLogin = async () => {
             <CCard class="p-4 w-100">
               <CCardBody>
                 <CForm @submit.prevent="handleLogin">
-                  <h1>Login</h1>
-                  <p class="text-body-secondary">Sign In to your account</p>
+                  <img
+                    src="@/assets/images/logo.png"
+                    alt="Logo"
+                    class="mb-4 mx-auto d-block"
+                    style="width: 60px; height: auto"
+                  />
                   <CInputGroup class="mb-3">
                     <CInputGroupText>
                       <CIcon icon="cil-user" />
@@ -63,11 +67,11 @@ const handleLogin = async () => {
                     <CCol :xs="6">
                       <CButton
                         :disabled="authStore.loading"
-                        color="primary"
+                        color="dark"
                         class="px-4"
                         type="submit"
                       >
-                        <span v-if="authStore.loading">Logging in...</span>
+                        <span v-if="authStore.loading">...</span>
                         <span v-else>Login</span>
                       </CButton>
                     </CCol>

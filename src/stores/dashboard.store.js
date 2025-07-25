@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
 export const useDashboardStore = defineStore('dashboardData', {

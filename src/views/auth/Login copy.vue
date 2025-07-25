@@ -1,13 +1,19 @@
 <template>
-  <div class="wrapper min-vh-100 d-flex flex-row align-items-center">
+  <div class="wrapper min-vh-200 d-flex flex-row align-items-center">
     <CContainer>
       <CRow class="justify-content-center">
-        <CCol class="mx-auto" style="max-width: 400px">
+        <CCol class="mx-auto" style="max-width: 600px">
           <CCardGroup>
             <CCard class="p-4 w-100">
               <CCardBody>
                 <CForm>
                   <h1>Login</h1>
+                  <img
+                    src="@/assets/images/logo.png"
+                    alt="Logo"
+                    class="mb-4"
+                    style="width: 100px; height: auto"
+                  />
                   <p class="text-body-secondary">Sign In to your account</p>
                   <CInputGroup class="mb-3">
                     <CInputGroupText>

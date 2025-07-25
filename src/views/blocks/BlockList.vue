@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useFarmStore } from '@/stores/farm.store'
+import { useBlockStore } from '@/stores/block.store'
 import {
   CRow,
   CCol,
@@ -29,13 +29,13 @@ import {
 import CIcon from '@coreui/icons-vue'
 import { cilPencil, cilTrash } from '@coreui/icons'
 
-const farmStore = useFarmStore()
+const blockStore = useBlockStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
-const currentFarm = ref({
-  farm: '',
-  country: 'Rwanda',
+const currentBlock = ref({
+  block: '',
+  farm: 'AAA',
   description: '',
   status: '1',
 })
@@ -45,24 +45,24 @@ const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
 onMounted(() => {
-  farmStore.fetchFarm()
+  blockStore.fetchBlock()
 })
 
-const filteredFarm = computed(() => {
+const filteredBlock = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
-  if (!query) return farmStore.farm
-  return farmStore.farm.filter((p) =>
-    [p.farm, p.country].some((field) => field?.toLowerCase().includes(query)),
+  if (!query) return blockStore.block
+  return blockStore.block.filter((p) =>
+    [p.block, p.farm].some((field) => field?.toLowerCase().includes(query)),
   )
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredFarm.value.length / itemsPerPage.value)),
+  Math.max(1, Math.ceil(filteredBlock.value.length / itemsPerPage.value)),
 )
-const paginatedFarm = computed(() => {
+const paginatedBlock = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
-  return filteredFarm.value.slice(start, end)
+  return filteredBlock.value.slice(start, end)
 })
 
 function nextPage() {
@@ -76,46 +76,46 @@ function resetPage() {
 }
 
 function confirmDelete(id) {
-  if (confirm('Are you sure you want to delete this farm?')) {
-    farmStore.deleteFarm(id)
+  if (confirm('Are you sure you want to delete this block?')) {
+    blockStore.deleteBlock(id)
   }
 }
 
 function openCreate() {
   isEditing.value = false
-  currentFarm.value = {
-    farm: '',
-    country: 'Rwanda',
+  currentBlock.value = {
+    block: '',
+    farm: 'AAA',
     description: '',
     status: '1',
   }
   showModal.value = true
 }
 
-function openEdit(farm) {
+function openEdit(block) {
   isEditing.value = true
-  currentFarm.value = { ...farm }
+  currentBlock.value = { ...block }
   showModal.value = true
 }
 
 // Computed property to sync status string with checkbox boolean
 const isActive = computed({
   get() {
-    return currentFarm.value.status === '1'
+    return currentBlock.value.status === '1'
   },
   set(value) {
-    currentFarm.value.status = value ? '1' : '0'
+    currentBlock.value.status = value ? '1' : '0'
   },
 })
 
 function handleSubmit() {
   if (isEditing.value) {
-    farmStore.editFarm(currentFarm.value.id, currentFarm.value)
+    blockStore.editBlock(currentBlock.value.id, currentBlock.value)
   } else {
-    farmStore.createFarm(currentFarm.value)
+    blockStore.createBlock(currentBlock.value)
   }
   showModal.value = false
-  farmStore.fetchFarm()
+  blockStore.fetchBlock()
 }
 </script>
 
@@ -125,8 +125,8 @@ function handleSubmit() {
       <CCard class="mb-4">
         <CCardHeader>
           <div class="d-flex justify-content-between align-items-center">
-            <strong>Farm</strong>
-            <CButton color="success" @click="openCreate">+ Create Farm</CButton>
+            <strong>Block</strong>
+            <CButton color="dark" @click="openCreate">+ Create Block</CButton>
           </div>
         </CCardHeader>
         <CCardBody>
@@ -135,7 +135,7 @@ function handleSubmit() {
               type="text"
               v-model="searchQuery"
               class="form-control w-50"
-              placeholder="Search by farm name or country..."
+              placeholder="Search by block name or farm..."
               @input="resetPage"
             />
 
@@ -154,8 +154,8 @@ function handleSubmit() {
             <CTableHead>
               <CTableRow>
                 <CTableHeaderCell>ID</CTableHeaderCell>
-                <CTableHeaderCell>Farm Name</CTableHeaderCell>
-                <CTableHeaderCell>Country</CTableHeaderCell>
+                <CTableHeaderCell>Block Name</CTableHeaderCell>
+                <CTableHeaderCell>Farm</CTableHeaderCell>
                 <CTableHeaderCell>Description</CTableHeaderCell>
                 <CTableHeaderCell>Active</CTableHeaderCell>
                 <CTableHeaderCell>Created At</CTableHeaderCell>
@@ -163,40 +163,40 @@ function handleSubmit() {
               </CTableRow>
             </CTableHead>
             <CTableBody>
-              <CTableRow v-for="farm in paginatedfarm" :key="farm.id">
-                <CTableDataCell>{{ farm.id }}</CTableDataCell>
-                <CTableDataCell>{{ farm.farm }}</CTableDataCell>
-                <CTableDataCell>{{ farm.country || '' }}</CTableDataCell>
-                <CTableDataCell>{{ farm.description || '' }}</CTableDataCell>
+              <CTableRow v-for="block in paginatedBlock" :key="block.id">
+                <CTableDataCell>{{ block.id }}</CTableDataCell>
+                <CTableDataCell>{{ block.block }}</CTableDataCell>
+                <CTableDataCell>{{ block.farm || '' }}</CTableDataCell>
+                <CTableDataCell>{{ block.description || '' }}</CTableDataCell>
                 <CTableDataCell>
-                  {{ farm.status === '1' ? 'Yes' : 'No' }}
+                  {{ block.status === '1' ? 'Yes' : 'No' }}
                 </CTableDataCell>
                 <CTableDataCell>{{
-                  new Date(farm.createdAt).toLocaleString() || ''
+                  new Date(block.createdAt).toLocaleString() || ''
                 }}</CTableDataCell>
                 <CTableDataCell>
                   <CButton
                     color="info"
                     size="sm"
                     class="me-2 text-white"
-                    title="Edit Farm"
-                    @click="openEdit(farm)"
+                    title="Edit Block"
+                    @click="openEdit(block)"
                   >
                     <CIcon :icon="cilPencil" />
                   </CButton>
                   <CButton
                     color="danger"
-                    title="Delete Farm"
+                    title="Delete Block"
                     size="sm"
                     class="text-white"
-                    @click="confirmDelete(farm.id)"
+                    @click="confirmDelete(block.id)"
                   >
                     <CIcon :icon="cilTrash" />
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
-              <CTableRow v-if="paginatedFarm.length === 0">
-                <CTableDataCell colspan="6" class="text-center">No farm found.</CTableDataCell>
+              <CTableRow v-if="paginatedBlock.length === 0">
+                <CTableDataCell colspan="6" class="text-center">No block found.</CTableDataCell>
               </CTableRow>
             </CTableBody>
           </CTable>
@@ -223,27 +223,27 @@ function handleSubmit() {
   <!-- Create/Edit Modal -->
   <CModal :visible="showModal" @close="showModal = false" backdrop="static">
     <CModalHeader>
-      <CModalTitle>{{ isEditing ? 'Edit Farm' : 'Create Farm' }}</CModalTitle>
+      <CModalTitle>{{ isEditing ? 'Edit Block' : 'Create Block' }}</CModalTitle>
     </CModalHeader>
     <CModalBody>
       <CForm @submit.prevent="handleSubmit">
         <div class="mb-3">
-          <CFormLabel>Farm Name</CFormLabel>
-          <CFormInput v-model="currentFarm.farm" required />
+          <CFormLabel>Block Name</CFormLabel>
+          <CFormInput v-model="currentBlock.block" required />
         </div>
         <div class="mb-3">
-          <CFormLabel>Country</CFormLabel>
-          <CFormSelect v-model="currentFarm.country" required>
-            <option disabled value="">Choose country</option>
-            <option value="Rwanda">Rwanda</option>
-            <option value="Uganda">Uganda</option>
-            <option value="Burundi">Burundi</option>
-            <option value="DR Congo">DR Congo</option>
+          <CFormLabel>farm</CFormLabel>
+          <CFormSelect v-model="currentBlock.farm" required>
+            <option disabled value="">Choose farm</option>
+            <option value="Rwanda">AAA</option>
+            <option value="Uganda">BBB</option>
+            <option value="Burundi">CCC</option>
+            <option value="DR Congo">DDD</option>
           </CFormSelect>
         </div>
         <div class="mb-3">
           <CFormLabel>Description</CFormLabel>
-          <CFormTextarea rows="3" v-model="currentFarm.description" />
+          <CFormTextarea rows="3" v-model="currentBlock.description" />
         </div>
         <div class="mb-3">
           <CFormCheck v-model="isActive" type="checkbox" label=" Active" />
@@ -256,4 +256,5 @@ function handleSubmit() {
     </CModalBody>
   </CModal>
 </template>
+
 

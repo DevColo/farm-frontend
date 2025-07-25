@@ -1,47 +1,47 @@
-// stores/parcel.store.js
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
-export const useParcelStore = defineStore('parcel', {
+export const useFeedingStore = defineStore('feeding', {
   state: () => ({
-    parcel: [], // list of parcels
+    feedings: [],
+    pasture: [],
   }),
-
   actions: {
-    async createParcel(payload) {
+    async createFeeding(feedingData) {
       const toast = useToast()
+
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.post('/api/parcel', payload, {
+        await axios.post('/api/feedings', feedingData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        // Add parcel returned from backend (with ID)
-        this.parcel.push(response.data)
-        toast.success('Parcel created successfully!')
+
+        toast.success('Feeding Record created successfully!')
+        await this.fetchFeedings()
       } catch (error) {
         let errorMessage = 'Something went wrong'
         if (error.response && error.response.data) {
-          errorMessage = error.response.data.error || error.response.data.message
+          errorMessage = error.response.data.error
         }
         toast.error(errorMessage)
       }
     },
 
-    async fetchParcel() {
+    async fetchFeedings() {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.get('/api/parcel', {
+        const response = await axios.get('/api/feedings', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        this.parcel = response.data
+        this.feedings = response.data
       } catch (error) {
-        let errorMessage = 'Failed to fetch parcels'
+        let errorMessage = 'Failed to fetch feedings'
         if (error.response && error.response.data) {
           errorMessage = error.response.data.error || error.response.data.message
         }
@@ -49,40 +49,44 @@ export const useParcelStore = defineStore('parcel', {
       }
     },
 
-    async deleteParcel(id) {
+    async editFeeding(id, feedingData) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.delete(`/api/parcel/${id}`, {
+
+        await axios.put(`/api/feedings/${id}`, feedingData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        // Remove deleted parcel from state
-        this.parcel = this.parcel.filter((p) => p.id !== id)
-        toast.success('Parcel deleted successfully')
+
+        toast.success('Feeding Record updated successfully!')
+        await this.fetchFeedings()
       } catch (error) {
-        toast.error('Failed to delete parcel')
+        let errorMessage = 'Something went wrong'
+
+        if (error.response && error.response.data) {
+          errorMessage = error.response.data.error
+        }
+        toast.error(errorMessage)
       }
     },
 
-    async editParcel(id, updatedData) {
+    async deleteFeeding(id) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.put(`/api/parcel/${id}`, updatedData, {
+
+        await axios.delete(`/api/feedings/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        // Update parcel in state
-        const index = this.parcel.findIndex((p) => p.id === id)
-        if (index !== -1) {
-          this.parcel[index] = response.data
-        }
-        toast.success('Parcel updated successfully')
+
+        toast.success('Feeding Record deleted successfully!')
+        await this.fetchFeedings()
       } catch (error) {
-        toast.error('Failed to update parcel')
+        toast.error(error.response?.data?.error || 'Failed to delete Feeding Record')
       }
     },
   },

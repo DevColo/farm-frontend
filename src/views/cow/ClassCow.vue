@@ -32,8 +32,10 @@ import { cilPencil, cilTrash, cilUser } from '@coreui/icons'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import defaultCowImage from '@/assets/images/default-cow.jpg'
-import Multiselect from 'vue-multiselect'
-import 'vue-multiselect/dist/vue-multiselect.css'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const cowClass = route.params.class
 
 const cowStore = useCowStore()
 const pastureStore = usePastureStore()
@@ -48,12 +50,8 @@ const currentCow = ref({
   ear_tag: '',
   date_of_birth: '',
   type: '',
-  male_type: '',
-  given_birth: '',
   breed: '',
   herd: '',
-  mother_ear_tag: '',
-  father_ear_tag: '',
   from_location: '',
   description: '',
   pasture_id: '',
@@ -65,31 +63,20 @@ const herdFromOutside = computed(() => currentCow.value.herd === 'from_outside')
 
 // fetch data
 onMounted(() => {
-  cowStore.fetchCows()
-  pastureStore.fetchPastures()
+  cowStore.fetchClassCows(cowClass)
 })
 
 // search & pagination
 const searchQuery = ref('')
-const filterYear = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
-// Generate available years dynamically based on cow data
-const availableYears = computed(() => {
-  const years = cowStore.cows.map((cow) => new Date(cow.date_of_birth).getFullYear())
-  return Array.from(new Set(years)).sort((a, b) => b - a) // Sort years in descending order
-})
-
 const filteredCows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  const year = filterYear.value
-  return cowStore.cows.filter((c) => {
-    const matchesQuery =
-      !q || [c.name, c.ear_tag, c.breed].some((f) => f?.toLowerCase().includes(q))
-    const matchesYear = !year || new Date(c.date_of_birth).getFullYear() === parseInt(year)
-    return matchesQuery && matchesYear
-  })
+  if (!q) return cowStore.cows
+  return cowStore.cows.filter((c) =>
+    [c.name, c.ear_tag, c.breed].some((f) => f?.toLowerCase().includes(q)),
+  )
 })
 
 const totalPages = computed(() =>
@@ -120,31 +107,6 @@ function resetPage() {
   currentPage.value = 1
 }
 
-// modal handlers
-function openCreate() {
-  isEditing.value = false
-  validated.value = false
-  currentCow.value = {
-    id: null,
-    name: '',
-    ear_tag: '',
-    date_of_birth: '',
-    type: '',
-    male_type: '',
-    given_birth: '',
-    breed: '',
-    herd: '',
-    mother_ear_tag: '',
-    father_ear_tag: '',
-    from_location: '',
-    description: '',
-    pasture_id: '',
-    status: true,
-    image: null,
-  }
-  showModal.value = true
-}
-
 function openEdit(cow) {
   isEditing.value = true
   validated.value = false
@@ -166,43 +128,8 @@ const isActive = computed({
   },
 })
 
-async function handleSubmit(e) {
-  const form = e.currentTarget
-  if (!form.checkValidity()) {
-    e.preventDefault()
-    e.stopPropagation()
-    validated.value = true
-    return
-  }
-  e.preventDefault()
-  const payload = {
-    name: currentCow.value.name,
-    ear_tag: currentCow.value.ear_tag,
-    date_of_birth: currentCow.value.date_of_birth,
-    type: currentCow.value.type,
-    male_type: currentCow.value.male_type,
-    given_birth: currentCow.value.given_birth,
-    breed: currentCow.value.breed,
-    herd: currentCow.value.herd,
-    mother_ear_tag: currentCow.value.mother_ear_tag,
-    father_ear_tag: currentCow.value.father_ear_tag,
-    from_location: currentCow.value.herd === 'from_outside' ? currentCow.value.from_location : '',
-    description: currentCow.value.description,
-    pasture_id: currentCow.value.pasture_id,
-    status: currentCow.value.status ? '1' : '0',
-    image: currentCow.value.image,
-  }
-  if (isEditing.value) {
-    await cowStore.editCow(currentCow.value.id, payload)
-  } else {
-    await cowStore.createCow(payload)
-  }
-  showModal.value = false
-  //resetPage()
-}
-
 // Get Cow Age and Class
-function calculateAgeAndClass(dateStr, cow) {
+function calculateAgeAndClass(dateStr) {
   if (!dateStr) return { age: '—', ageClass: '—' }
 
   const dob = new Date(dateStr)
@@ -223,13 +150,7 @@ function calculateAgeAndClass(dateStr, cow) {
   if (!ageString) ageString = 'Less than 1 month'
 
   const ageClass =
-    months >= 1 && months <= 11
-      ? 'Calf'
-      : months >= 12 && months < 23
-      ? 'Yearling'
-      : cow.given_birth == '1'
-      ? 'Heifer'
-      : 'Adult'
+    months >= 1 && months <= 11 ? 'Calf' : months >= 12 && months < 23 ? 'Yearling' : 'Heifer'
 
   return { age: ageString, ageClass }
 }
@@ -242,54 +163,17 @@ async function exportPDF() {
   const doc = new jsPDF()
 
   // Add header
-  doc.setFontSize(18)
-  doc.text('Jakaja', 105, 15, { align: 'center' })
-  doc.text('Cow List', 105, 22, { align: 'center' })
+  doc.setFontSize(16)
+  doc.text('Class Cow List', 105, 15, null, null, 'center')
+  doc.setFontSize(12)
+  doc.text(`Class: ${cowClass}`, 105, 25, null, null, 'center')
 
-  // Add logo
-  const logoUrl = new URL('@/assets/images/logo.png', import.meta.url).href
-  const logoWidth = 30
-  const logoHeight = 30
-  const logoX = 10
-  const logoY = 15
-
-  const logoImage = new Image()
-  logoImage.src = logoUrl
-  logoImage.onload = () => {
-    doc.addImage(logoImage, 'PNG', logoX, logoY, logoWidth, logoHeight)
-  }
   autoTable(doc, {
-    startY: 30,
-    head: [
-      [
-        'Sno',
-        'Name',
-        'Tag',
-        'Gender',
-        'Type',
-        'Breed',
-        'Source',
-        'Mother',
-        'Father',
-        'Age',
-        'Class',
-      ],
-    ],
+    startY: 35,
+    head: [['SNO', 'NAME', 'EAR TAG', 'DATE OF BIRTH', 'BREED', 'AGE', 'CLASS']],
     body: filteredCows.value.map((cow, index) => {
-      const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
-      return [
-        index + 1,
-        cow.name,
-        cow.ear_tag,
-        cow.type,
-        cow.type == 'Male' ? cow.male_type : '',
-        cow.breed,
-        cow.from_location,
-        cow.mother_ear_tag,
-        cow.father_ear_tag,
-        age,
-        ageClass,
-      ]
+      const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth)
+      return [index + 1, cow.name, cow.ear_tag, cow.date_of_birth, cow.breed, age, ageClass]
     }),
   })
   doc.save('cows.pdf')
@@ -298,10 +182,10 @@ async function exportPDF() {
 // Export in CSV
 function exportCSV() {
   const rows = [
-    ['ID', 'Name', 'Ear Tag', 'DOB', 'Breed', 'Age', 'Class'],
-    ...filteredCows.value.map((cow) => {
-      const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
-      return [cow.id, cow.name, cow.ear_tag, cow.date_of_birth, cow.breed, age, ageClass]
+    ['SNO', 'NAME', 'EAR TAG', 'DATE OF BIRTH', 'BREED', 'AGE', 'CLASS'],
+    ...filteredCows.value.map((cow, index) => {
+      const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth)
+      return [index + 1, cow.name, cow.ear_tag, cow.date_of_birth, cow.breed, age, ageClass]
     }),
   ]
 
@@ -337,7 +221,7 @@ function getCowImage(imageUrl) {
 function exportCowProfile(cow) {
   const doc = new jsPDF()
 
-  const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
+  const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth)
 
   // Load cow image (or fallback) and generate PDF once it's ready
   const imageUrl = cow.image ? `${import.meta.env.VITE_API_BASE_URL}/${cow.image}` : defaultCowImage
@@ -399,12 +283,6 @@ function toDataURL(url, callback) {
 const removeImage = () => {
   currentCow.value.image = null
 }
-
-const healthRecords = ref({
-  medication: [],
-  feeding: [],
-  maternity: [],
-})
 </script>
 
 <template>
@@ -412,7 +290,7 @@ const healthRecords = ref({
     <CCol :xs="12">
       <CCard class="mb-4">
         <CCardHeader class="d-flex justify-content-between align-items-center">
-          <strong>Cow List</strong>
+          <strong>Class {{ cowClass ?? '—' }} - Cow List</strong>
           <div class="d-flex gap-2 mb-3">
             <CButton color="dark" variant="outline" title="Export CSV" @click="exportCSV"
               ><CIcon icon="cil-file"
@@ -420,42 +298,22 @@ const healthRecords = ref({
             <CButton color="dark" variant="outline" class="sm" title="Export PDF" @click="exportPDF"
               ><CIcon icon="cil-cloud-download"
             /></CButton>
-            <CButton color="dark" @click="openCreate">+ Create Cow</CButton>
           </div>
         </CCardHeader>
         <CCardBody>
           <!-- search + page-size -->
-          <div class="d-flex justify-content-start align-items-center flex-wrap mb-3">
-            <!-- Search Input -->
-            <div class="d-flex align-items-center me-2" style="min-width: 250px">
-              <input
-                type="text"
-                v-model="searchQuery"
-                class="form-control"
-                style="max-width: 250px"
-                placeholder="Search by name, tag or breed..."
-                @input="resetPage"
-              />
-            </div>
 
-            <!-- Filter by Year -->
-            <div class="d-flex align-items-center me-5">
-              <label class="me-2 mb-0">Filter by Year:</label>
-              <select v-model="filterYear" @change="resetPage" class="form-select w-auto">
-                <option value="">All</option>
-                <option v-for="year in availableYears" :key="year" :value="year">
-                  {{ year }}
-                </option>
-              </select>
-            </div>
-
-            <!-- Items per Page -->
-            <div
-              class="d-flex align-items-center"
-              style="float: right; right: 18px; position: absolute"
-            >
-              <label class="me-2 mb-0">Show:</label>
-              <select v-model="itemsPerPage" @change="resetPage" class="form-select w-auto">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <input
+              type="text"
+              v-model="searchQuery"
+              class="form-control w-25"
+              placeholder="Search by name, tag or breed..."
+              @input="resetPage"
+            />
+            <div class="d-flex align-items-center">
+              <label class="me-2">Show:</label>
+              <select v-model="itemsPerPage" @change="resetPage" class="form-select">
                 <option :value="10">10</option>
                 <option :value="25">25</option>
                 <option :value="50">50</option>
@@ -473,8 +331,6 @@ const healthRecords = ref({
                 <CTableHeaderCell>DOB</CTableHeaderCell>
                 <CTableHeaderCell>Age</CTableHeaderCell>
                 <CTableHeaderCell>Gender</CTableHeaderCell>
-                <CTableHeaderCell>Class</CTableHeaderCell>
-                <CTableHeaderCell>Breed</CTableHeaderCell>
                 <CTableHeaderCell>Pasture</CTableHeaderCell>
                 <!-- <CTableHeaderCell>Status</CTableHeaderCell> -->
                 <CTableHeaderCell>Action</CTableHeaderCell>
@@ -485,29 +341,13 @@ const healthRecords = ref({
                 <CTableDataCell>{{ cow.name }}</CTableDataCell>
                 <CTableDataCell>{{ cow.ear_tag }}</CTableDataCell>
                 <CTableDataCell>{{ cow.date_of_birth }}</CTableDataCell>
-                <CTableDataCell>{{
-                  calculateAgeAndClass(cow.date_of_birth, cow).age
-                }}</CTableDataCell>
+                <CTableDataCell>{{ calculateAgeAndClass(cow.date_of_birth).age }}</CTableDataCell>
                 <CTableDataCell
                   ><router-link
                     :to="`/gender/cow/${cow.type}`"
                     class="text-decoration-none text-dark"
-                    >{{ cow.type }}
-                    {{ cow.male_type != null ? ' - ' + cow.male_type : '' }}</router-link
-                  ></CTableDataCell
-                >
-                <CTableDataCell
-                  ><router-link
-                    :to="`/class/cow/${calculateAgeAndClass(cow.date_of_birth, cow).ageClass}`"
-                    class="text-decoration-none text-dark"
-                    >{{ calculateAgeAndClass(cow.date_of_birth, cow).ageClass }}</router-link
-                  ></CTableDataCell
-                >
-                <CTableDataCell
-                  ><router-link
-                    :to="`/breed/cow/${cow.breed}`"
-                    class="text-decoration-none text-dark"
-                    >{{ cow.breed || '—' }}</router-link
+                    >{{ cow.type
+                    }}{{ cow.male_type != null ? ' - ' + cow.male_type : '' }}</router-link
                   ></CTableDataCell
                 >
                 <CTableDataCell
@@ -760,48 +600,18 @@ const healthRecords = ref({
         </CCol>
 
         <CCol :md="6">
-          <CFormLabel for="type">Gender</CFormLabel>
+          <CFormLabel for="type">Type</CFormLabel>
           <CFormSelect
             id="type"
             v-model="currentCow.type"
             :options="[
               { label: 'Select Type', value: '' },
-              { label: 'Female', value: 'Female' },
-              { label: 'Male', value: 'Male' },
+              { label: 'Cow', value: 'cow' },
+              { label: 'Bull', value: 'bull' },
             ]"
             required
           />
           <CFormFeedback invalid>Type is required.</CFormFeedback>
-        </CCol>
-
-        <CCol :md="6" v-if="currentCow.type === 'Female'">
-          <CFormLabel for="given_birth">Has Given Birth</CFormLabel>
-          <CFormSelect
-            id="given_birth"
-            v-model="currentCow.given_birth"
-            :options="[
-              { label: 'Select Option', value: '' },
-              { label: 'Yes', value: '1' },
-              { label: 'No', value: '0' },
-            ]"
-            required
-          />
-          <CFormFeedback invalid>This field is required for females.</CFormFeedback>
-        </CCol>
-
-        <CCol :md="6" v-if="currentCow.type === 'Male'">
-          <CFormLabel for="male_type">Male Type</CFormLabel>
-          <CFormSelect
-            id="male_type"
-            v-model="currentCow.male_type"
-            :options="[
-              { label: 'Select Type', value: '' },
-              { label: 'Bull', value: 'Bull' },
-              { label: 'Steer', value: 'Steer' },
-            ]"
-            required
-          />
-          <CFormFeedback invalid>This field is required for males.</CFormFeedback>
         </CCol>
 
         <CCol :md="6">
@@ -842,36 +652,6 @@ const healthRecords = ref({
             required
           />
           <CFormFeedback invalid>Herd is required.</CFormFeedback>
-        </CCol>
-
-        <CCol :md="6" v-if="currentCow.herd === 'from_farm'">
-          <CFormLabel for="mother_ear_tag">Mother Ear Tag</CFormLabel>
-          <Multiselect
-            id="mother_ear_tag"
-            v-model="currentCow.mother_ear_tag"
-            :options="
-              cowStore.cows.filter((cow) => cow.type === 'Female').map((cow) => cow.ear_tag)
-            "
-            placeholder="Select Mother"
-            :searchable="true"
-            :allowEmpty="true"
-            required
-          />
-          <CFormFeedback invalid>Mother ear tag is required.</CFormFeedback>
-        </CCol>
-
-        <CCol :md="6" v-if="currentCow.herd === 'from_farm'">
-          <CFormLabel for="father_ear_tag">Father Ear Tag</CFormLabel>
-          <Multiselect
-            id="father_ear_tag"
-            v-model="currentCow.father_ear_tag"
-            :options="cowStore.cows.filter((cow) => cow.type === 'Male').map((cow) => cow.ear_tag)"
-            placeholder="Select Father"
-            :searchable="true"
-            :allowEmpty="true"
-            required
-          />
-          <CFormFeedback invalid>Father ear tag is required.</CFormFeedback>
         </CCol>
 
         <CCol :md="6" v-if="herdFromOutside">

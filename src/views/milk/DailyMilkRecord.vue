@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useCowStore } from '@/stores/cow.store'
+//import { useCowStore } from '@/stores/cow.store'
 import { useMilkStore } from '@/stores/milk.store'
 import {
   CRow,
@@ -29,28 +29,26 @@ import {
   CFormFeedback,
 } from '@coreui/vue'
 import { cilPencil, cilTrash, cilUser } from '@coreui/icons'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import defaultCowImage from '@/assets/images/default-cow.jpg'
 
-const cowStore = useCowStore()
+//const cowStore = useCowStore()
 const milkStore = useMilkStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
+const filterDate = ref('')
 
 const currentMilkRecord = ref({
   id: null,
   morning_qty: '',
   evening_qty: '',
   record_date: '',
-  cow_id: '',
+  // cow_id: '',
 })
 
 // fetch data
 onMounted(() => {
-  cowStore.fetchCows()
+  // cowStore.fetchCows()
   milkStore.fetchMilkRecords()
 })
 
@@ -59,13 +57,13 @@ const searchQuery = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
-const filteredMilkRecords = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return milkStore.milkRecords
-  return milkStore.milkRecords.filter((c) =>
-    [c.record_date, c.morning_qty, c.evening_qty].some((f) => f?.toLowerCase().includes(q)),
-  )
-})
+// const filteredMilkRecords = computed(() => {
+//   const q = searchQuery.value.trim().toLowerCase()
+//   if (!q) return milkStore.milkRecords
+//   return milkStore.milkRecords.filter((c) =>
+//     [c.record_date, c.morning_qty, c.evening_qty].some((f) => f?.toLowerCase().includes(q)),
+//   )
+// })
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredMilkRecords.value.length / itemsPerPage.value)),
@@ -104,7 +102,7 @@ function openCreate() {
     morning_qty: '',
     evening_qty: '',
     record_date: '',
-    cow_id: '',
+    // cow_id: '',
   }
   showModal.value = true
 }
@@ -133,11 +131,11 @@ async function handleSubmit(e) {
   e.preventDefault()
   const today = new Date()
   const payload = {
-    cow_id: currentMilkRecord.value.cow_id,
+    // cow_id: currentMilkRecord.value.cow_id,
     morning_qty: currentMilkRecord.value.morning_qty,
     evening_qty: currentMilkRecord.value.evening_qty,
-    //record_date: currentMilkRecord.value.record_date ?? today,
-    record_date: today,
+    record_date: currentMilkRecord.value.record_date ?? today,
+    //record_date: today,
   }
   if (isEditing.value) {
     await milkStore.editMilkRecord(currentMilkRecord.value.id, payload)
@@ -158,8 +156,8 @@ async function exportPDF() {
     head: [
       [
         'RECORDED DATE',
-        'COW NAME',
-        'EAR TAG',
+        // 'COW NAME',
+        // 'EAR TAG',
         'MORNING QTY (L)',
         'EVENING QTY (L)',
         'TOTAL QTY (L)',
@@ -168,8 +166,8 @@ async function exportPDF() {
     body: filteredMilkRecords.value.map((milk) => {
       return [
         milk.record_date,
-        milk.cow.name,
-        milk.cow.ear_tag,
+        // milk.cow.name,
+        // milk.cow.ear_tag,
         milk.morning_qty,
         milk.evening_qty,
         (milk.morning_qty ?? 0) + (milk.evening_qty ?? 0),
@@ -182,12 +180,18 @@ async function exportPDF() {
 // Export in CSV
 function exportCSV() {
   const rows = [
-    ['RECORDED DATE', 'COW NAME', 'EAR TAG', 'MORNING QTY (L)', 'EVENING QTY (L)', 'TOTAL QTY (L)'],
+    [
+      'RECORDED DATE',
+      // 'COW NAME', 'EAR TAG',
+      'MORNING QTY (L)',
+      'EVENING QTY (L)',
+      'TOTAL QTY (L)',
+    ],
     ...filteredMilkRecords.value.map((milk) => {
       return [
         milk.record_date,
-        milk.cow.name,
-        milk.cow.ear_tag,
+        // milk.cow.name,
+        // milk.cow.ear_tag,
         milk.morning_qty,
         milk.evening_qty,
         (milk.morning_qty ?? 0) + (milk.evening_qty ?? 0),
@@ -219,6 +223,24 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
   var total = BigInt(morning_qty) + BigInt(evening_qty)
   return total * BigInt(1000)
 }
+
+// Extend your computed filter
+const filteredMilkRecords = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  const date = filterDate.value
+
+  return milkStore.milkRecords.filter((record) => {
+    const matchSearch =
+      !q ||
+      [record.record_date, record.morning_qty, record.evening_qty].some((f) =>
+        f?.toString().toLowerCase().includes(q),
+      )
+
+    const matchDate = !date || record.record_date === date
+
+    return matchSearch && matchDate
+  })
+})
 </script>
 
 <template>
@@ -240,17 +262,32 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
         <CCardBody>
           <!-- search + page-size -->
 
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <input
-              type="text"
-              v-model="searchQuery"
-              class="form-control w-25"
-              placeholder="Search by name, tag or breed..."
-              @input="resetPage"
-            />
-            <div class="d-flex align-items-center">
-              <label class="me-2">Show:</label>
-              <select v-model="itemsPerPage" @change="resetPage" class="form-select">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+            <!-- Search -->
+            <div class="d-flex align-items-center" style="gap: 8px">
+              <input
+                type="text"
+                v-model="searchQuery"
+                class="form-control"
+                style="max-width: 220px"
+                placeholder="Search by date, quantity"
+                @input="resetPage"
+              />
+
+              <!-- Date Filter -->
+              <input
+                type="date"
+                v-model="filterDate"
+                class="form-control"
+                @change="resetPage"
+                style="max-width: 180px"
+              />
+            </div>
+
+            <!-- Items Per Page -->
+            <div class="d-flex align-items-center ms-auto" style="gap: 8px">
+              <label class="mb-0">Show:</label>
+              <select v-model="itemsPerPage" @change="resetPage" class="form-select w-auto">
                 <option :value="10">10</option>
                 <option :value="25">25</option>
                 <option :value="50">50</option>
@@ -264,30 +301,30 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
             <CTableHead>
               <CTableRow>
                 <CTableHeaderCell>ID</CTableHeaderCell>
-                <CTableHeaderCell>Cow</CTableHeaderCell>
-                <CTableHeaderCell>Ear Tag</CTableHeaderCell>
+                <!-- <CTableHeaderCell>Cow</CTableHeaderCell>
+                <CTableHeaderCell>Ear Tag</CTableHeaderCell> -->
                 <CTableHeaderCell>Record Date</CTableHeaderCell>
                 <CTableHeaderCell>Morning Qty (L)</CTableHeaderCell>
                 <CTableHeaderCell>Evening Qty (L)</CTableHeaderCell>
                 <CTableHeaderCell>Total Qty (L)</CTableHeaderCell>
-                <CTableHeaderCell>Revenue (Rwf)</CTableHeaderCell>
+                <!-- <CTableHeaderCell>Revenue (Rwf)</CTableHeaderCell> -->
                 <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
             <CTableBody>
               <CTableRow v-for="milk in paginatedMilkRecords" :key="milk.id">
                 <CTableDataCell>{{ milk.id }}</CTableDataCell>
-                <CTableDataCell>{{ milk.cow?.name ?? '-' }}</CTableDataCell>
-                <CTableDataCell>{{ milk.cow?.ear_tag ?? '' }}</CTableDataCell>
+                <!-- <CTableDataCell>{{ milk.cow?.name ?? '-' }}</CTableDataCell>
+                <CTableDataCell>{{ milk.cow?.ear_tag ?? '' }}</CTableDataCell> -->
                 <CTableDataCell>{{ milk.record_date }}</CTableDataCell>
                 <CTableDataCell>{{ milk.morning_qty ?? 'NOT RECORDED' }}</CTableDataCell>
                 <CTableDataCell>{{ milk.evening_qty ?? 'NOT RECORDED' }}</CTableDataCell>
                 <CTableDataCell>{{
                   getTotalQuantity(milk.morning_qty, milk.evening_qty)
                 }}</CTableDataCell>
-                <CTableDataCell>{{
+                <!-- <CTableDataCell>{{
                   getRevenue(milk.morning_qty, milk.evening_qty)
-                }}</CTableDataCell>
+                }}</CTableDataCell> -->
                 <CTableDataCell>
                   <!-- Edit Cow Button -->
                   <CButton
@@ -343,73 +380,6 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
     </CCol>
   </CRow>
 
-  <!-- Profile Modal -->
-  <CModal :visible="showProfileModal" @close="showProfileModal = false" size="lg">
-    <CModalHeader
-      ><CModalTitle
-        >{{ selectedCow.name ? selectedCow.name + ' - ' : '' }}
-        {{ selectedCow.ear_tag }}</CModalTitle
-      ></CModalHeader
-    >
-    <CModalBody>
-      <CNav variant="tabs">
-        <CNavItem
-          ><CNavLink :active="activeTab === 'profile'" @click="activeTab = 'profile'"
-            >Profile</CNavLink
-          ></CNavItem
-        >
-        <CNavItem
-          ><CNavLink :active="activeTab === 'health'" @click="activeTab = 'health'"
-            >Health</CNavLink
-          ></CNavItem
-        >
-        <CNavItem
-          ><CNavLink :active="activeTab === 'history'" @click="activeTab = 'history'"
-            >History</CNavLink
-          ></CNavItem
-        >
-      </CNav>
-
-      <CTabContent class="mt-3">
-        <CTabPane :visible="activeTab === 'profile'">
-          <div class="text-center mb-3">
-            <img
-              :src="getCowImage(selectedCow.image)"
-              class="img-fluid rounded"
-              style="max-height: 200px"
-            />
-          </div>
-          <p><strong>Name:</strong> {{ selectedCow.name ?? '' }}</p>
-          <p><strong>Ear Tag:</strong> {{ selectedCow.ear_tag ?? '' }}</p>
-          <p><strong>Date of Birth:</strong> {{ selectedCow.record_date ?? '' }}</p>
-          <p><strong>Type:</strong> {{ selectedCow.type ?? '' }}</p>
-          <p><strong>Breed:</strong> {{ selectedCow.breed ?? '' }}</p>
-          <p>
-            <strong>Herd:</strong>
-            {{ selectedCow.herd === 'from_farm' ? 'From Farm' : 'From Another Farm' }}
-          </p>
-          <p v-if="selectedCow.herd != 'from_farm'">
-            <strong>Source Location:</strong>
-            {{ selectedCow.from_location ?? '' }}
-          </p>
-          <p><strong>Description:</strong> {{ selectedCow.description ?? '' }}</p>
-          <p><strong>Status:</strong> {{ selectedCow.status === '1' ? 'Active' : 'Inactive' }}</p>
-          <CButton color="dark" @click="exportCowProfile(selectedCow)"
-            ><CIcon icon="cil-cloud-download" /> Download</CButton
-          >
-        </CTabPane>
-
-        <CTabPane :visible="activeTab === 'health'">
-          <p>Health info placeholder</p>
-        </CTabPane>
-
-        <CTabPane :visible="activeTab === 'history'">
-          <p>History info placeholder</p>
-        </CTabPane>
-      </CTabContent>
-    </CModalBody>
-  </CModal>
-
   <!-- Create/Edit Modal -->
   <CModal :visible="showModal" @close="showModal = false" backdrop="static">
     <CModalHeader>
@@ -424,7 +394,7 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
         :validated="validated"
         @submit="handleSubmit"
       >
-        <CCol :md="6">
+        <!-- <CCol :md="6">
           <CFormLabel for="cow">Cow</CFormLabel>
           <CFormSelect
             id="cow"
@@ -439,9 +409,9 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
             required
           />
           <CFormFeedback invalid>Cow is required.</CFormFeedback>
-        </CCol>
+        </CCol> -->
 
-        <CCol :md="6">
+        <CCol :md="12">
           <CFormLabel for="record_date">Record Date</CFormLabel>
           <CFormInput id="record_date" type="date" v-model="currentMilkRecord.record_date" />
         </CCol>
