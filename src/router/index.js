@@ -100,6 +100,16 @@ const routes = [
         name: 'Daily Record List',
         component: () => import('@/views/milk/DailyRecordList.vue'),
       },
+       {
+        path: 'product-form',
+        name: 'Product Form',
+        component: () => import('@/views/milk/ProductForm.vue'),
+      },
+       {
+        path: 'product-category-form',
+        name: 'Product Category Form',
+        component: () => import('@/views/milk/ProductCategoryForm.vue'),
+      },
 
       // Theme
       {

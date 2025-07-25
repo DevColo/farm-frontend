@@ -164,6 +164,20 @@ export default [
     to: '/daily-milk-records',
     icon: 'cil-layers',
   },
+
+  {
+    component: 'CNavItem',
+    name: 'Product Category Form',
+    to: '/product-category-form',
+    icon: 'cil-layers',
+  },
+
+  {
+    component: 'CNavItem',
+    name: 'Product Form',
+    to: '/product-form',
+    icon: 'cil-layers',
+  },
   // Milk Record
   // {
   //   component: 'CNavGroup',
