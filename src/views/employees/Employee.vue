@@ -125,17 +125,18 @@ function handleSubmit() {
       <CCard class="mb-4">
         <CCardHeader>
           <div class="d-flex justify-content-between align-items-center">
-            <strong>Product</strong>
-            <CButton color="dark" @click="openCreate">+ Create Product Category</CButton>
+            <strong>Employees</strong>
+            <CButton color="dark" @click="openCreate">+ Create Employee</CButton>
           </div>
         </CCardHeader>
+         
         <CCardBody>
           <div class="d-flex justify-content-between align-items-center mb-3">
             <input
               type="text"
               v-model="searchQuery"
               class="form-control w-50"
-              placeholder="Search by product name or category..."
+              placeholder="Search by employee name..."
               @input="resetPage"
             />
 
@@ -154,12 +155,16 @@ function handleSubmit() {
             <CTableHead>
               <CTableRow>
                 <CTableHeaderCell>ID</CTableHeaderCell>
-                <CTableHeaderCell>Product Name</CTableHeaderCell>
-                <CTableHeaderCell>Category</CTableHeaderCell>
-                <CTableHeaderCell>Description</CTableHeaderCell>
-                <CTableHeaderCell>Active</CTableHeaderCell>
-                <CTableHeaderCell>Created At</CTableHeaderCell>
-                <CTableHeaderCell>Action</CTableHeaderCell>
+                <CTableHeaderCell>Full Name</CTableHeaderCell>
+                <CTableHeaderCell>National ID</CTableHeaderCell>
+                <CTableHeaderCell>Email address</CTableHeaderCell>
+                <CTableHeaderCell>Phone number</CTableHeaderCell>
+                <CTableHeaderCell>Department</CTableHeaderCell>
+                <CTableHeaderCell>Position</CTableHeaderCell>
+                 <CTableHeaderCell>Gender</CTableHeaderCell>
+                   <CTableHeaderCell>address</CTableHeaderCell>
+                      <CTableHeaderCell>Profile</CTableHeaderCell>
+
               </CTableRow>
             </CTableHead>
             <CTableBody>
@@ -196,7 +201,7 @@ function handleSubmit() {
                 </CTableDataCell>
               </CTableRow>
               <CTableRow v-if="paginatedFarm.length === 0">
-                <CTableDataCell colspan="6" class="text-center">No product found.</CTableDataCell>
+                <CTableDataCell colspan="6" class="text-center">No employee found.</CTableDataCell>
               </CTableRow>
             </CTableBody>
           </CTable>
@@ -223,28 +228,65 @@ function handleSubmit() {
   <!-- Create/Edit Modal -->
   <CModal :visible="showModal" @close="showModal = false" backdrop="static">
     <CModalHeader>
-      <CModalTitle>{{ isEditing ? 'Edit product' : 'Create Product' }}</CModalTitle>
+      <CModalTitle>{{ isEditing ? 'Edit Farm' : 'Create Farm' }}</CModalTitle>
     </CModalHeader>
     <CModalBody>
       <CForm @submit.prevent="handleSubmit">
         <div class="mb-3">
-          <CFormLabel>Product Name</CFormLabel>
+          <CFormLabel>Full Name</CFormLabel>
+          <CFormInput v-model="currentFarm.farm" required />
+        </div>
+         <div class="mb-3">
+          <CFormLabel>National ID</CFormLabel>
+          <CFormInput v-model="currentFarm.farm" required />
+        </div>
+         <div class="mb-3">
+          <CFormLabel>Email address</CFormLabel>
+          <CFormInput v-model="currentFarm.farm" required />
+        </div>
+         <div class="mb-3">
+          <CFormLabel>Phone Number</CFormLabel>
           <CFormInput v-model="currentFarm.farm" required />
         </div>
         <div class="mb-3">
-          <CFormLabel>Category</CFormLabel>
+          <CFormLabel>Department</CFormLabel>
           <CFormSelect v-model="currentFarm.country" required>
-            <option disabled value="">Choose category</option>
+            <option disabled value="">Choose departnment</option>
             <option value="Rwanda">A</option>
             <option value="Uganda">B</option>
             <option value="Burundi">C</option>
             <option value="DR Congo">D</option>
           </CFormSelect>
         </div>
+         <div class="mb-3">
+          <CFormLabel>Position</CFormLabel>
+          <CFormInput v-model="currentFarm.farm" required />
+        </div>
         <div class="mb-3">
-          <CFormLabel>Description</CFormLabel>
+          <CFormLabel>Gender</CFormLabel>
+          <CFormSelect v-model="currentFarm.country" required>
+            <option disabled value="">Choose Gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </CFormSelect>
+        </div>
+       
+        <div class="mb-3">
+          <CFormLabel>Address</CFormLabel>
           <CFormTextarea rows="3" v-model="currentFarm.description" />
         </div>
+      
+        
+           <div class="mb-3">
+                <CFormLabel>Profile Picture</CFormLabel>
+                <CFormInput
+                  type="file"
+                  accept="image/*"
+                  @change="handleProfileUpload"
+                     />
+            </div>
+
+
         <div class="mb-3">
           <CFormCheck v-model="isActive" type="checkbox" label=" Active" />
         </div>

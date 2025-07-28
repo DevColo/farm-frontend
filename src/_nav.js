@@ -178,18 +178,19 @@ export default [
     to: '/product-form',
     icon: 'cil-layers',
   },
-  // Milk Record
-  // {
-  //   component: 'CNavGroup',
-  //   name: 'Milk Record',
-  //   to: '/milk',
-  //   icon: 'cil-notes',
-  //   items: [
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Add Dialy Record',
-  //       to: '/add-daily-record',
-  //     },
+   {
+    component: 'CNavItem',
+    name: 'Product Sales Form',
+    to: '/product-sales-form',
+    icon: 'cil-layers',
+  },
+   //Employees Record
+     {
+      component: 'CNavItem',
+        name: 'Employee',
+       to: '/employee',
+       icon: 'cil-layers',
+   },
   //     {
   //       component: 'CNavItem',
   //       name: 'Dialy Record List',

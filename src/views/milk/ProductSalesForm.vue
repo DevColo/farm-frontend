@@ -34,11 +34,14 @@ const farmStore = useFarmStore()
 const showModal = ref(false)
 const isEditing = ref(false)
 const currentFarm = ref({
-  farm: '',
-  country: 'Rwanda',
-  description: '',
+  product: '',
+  unitPrice: '',   // <- new field
+  quantity: '',    // <- new field
+  currency: '',    // <- new field
+  customer: '',    // <- new field
   status: '1',
 })
+
 
 const searchQuery = ref('')
 const itemsPerPage = ref(10)
@@ -126,7 +129,7 @@ function handleSubmit() {
         <CCardHeader>
           <div class="d-flex justify-content-between align-items-center">
             <strong>Product</strong>
-            <CButton color="dark" @click="openCreate">+ Create Product Category</CButton>
+            <CButton color="dark" @click="openCreate">+ Create Product </CButton>
           </div>
         </CCardHeader>
         <CCardBody>
@@ -155,10 +158,10 @@ function handleSubmit() {
               <CTableRow>
                 <CTableHeaderCell>ID</CTableHeaderCell>
                 <CTableHeaderCell>Product Name</CTableHeaderCell>
-                <CTableHeaderCell>Category</CTableHeaderCell>
-                <CTableHeaderCell>Description</CTableHeaderCell>
-                <CTableHeaderCell>Active</CTableHeaderCell>
-                <CTableHeaderCell>Created At</CTableHeaderCell>
+                <CTableHeaderCell>Unit Price</CTableHeaderCell>
+                <CTableHeaderCell>Quantity</CTableHeaderCell>
+                <CTableHeaderCell>Currency</CTableHeaderCell>
+                <CTableHeaderCell>Customer</CTableHeaderCell>
                 <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
@@ -227,24 +230,32 @@ function handleSubmit() {
     </CModalHeader>
     <CModalBody>
       <CForm @submit.prevent="handleSubmit">
-        <div class="mb-3">
-          <CFormLabel>Product Name</CFormLabel>
-          <CFormInput v-model="currentFarm.farm" required />
-        </div>
-        <div class="mb-3">
-          <CFormLabel>Category</CFormLabel>
-          <CFormSelect v-model="currentFarm.country" required>
-            <option disabled value="">Choose category</option>
-            <option value="Rwanda">A</option>
-            <option value="Uganda">B</option>
-            <option value="Burundi">C</option>
-            <option value="DR Congo">D</option>
-          </CFormSelect>
-        </div>
-        <div class="mb-3">
-          <CFormLabel>Description</CFormLabel>
-          <CFormTextarea rows="3" v-model="currentFarm.description" />
-        </div>
+    <div class="mb-3">
+  <CFormLabel>Product</CFormLabel>
+  <CFormInput v-model="currentFarm.farm" required />
+</div>
+
+<div class="mb-3">
+  <CFormLabel>Unit Price</CFormLabel>
+  <CFormInput type="number" v-model="currentFarm.unitPrice" />
+</div>
+
+<div class="mb-3">
+  <CFormLabel>Quantity</CFormLabel>
+  <CFormInput type="number" v-model="currentFarm.quantity" />
+</div>
+
+<div class="mb-3">
+  <CFormLabel>Currency</CFormLabel>
+  <CFormInput v-model="currentFarm.currency" />
+</div>
+
+<div class="mb-3">
+  <CFormLabel>Customer</CFormLabel>
+  <CFormInput v-model="currentFarm.customer" />
+</div>
+
+
         <div class="mb-3">
           <CFormCheck v-model="isActive" type="checkbox" label=" Active" />
         </div>

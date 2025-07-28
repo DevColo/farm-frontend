@@ -110,6 +110,16 @@ const routes = [
         name: 'Product Category Form',
         component: () => import('@/views/milk/ProductCategoryForm.vue'),
       },
+       {
+        path: 'product-sales-form',
+        name: 'Product Sales Form',
+        component: () => import('@/views/milk/ProductSalesForm.vue'),
+      },
+      {
+        path: 'employee',
+        name: 'Employee',
+        component: () => import('@/views/employees/Employee.vue'),
+      },
 
       // Theme
       {

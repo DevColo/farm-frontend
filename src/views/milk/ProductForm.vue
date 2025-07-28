@@ -135,7 +135,7 @@ function handleSubmit() {
               type="text"
               v-model="searchQuery"
               class="form-control w-50"
-              placeholder="Search by farm name or country..."
+              placeholder="Search by product name or category..."
               @input="resetPage"
             />
 
