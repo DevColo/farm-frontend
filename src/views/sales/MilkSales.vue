@@ -278,9 +278,10 @@ const availableQuantity = computed(() => {
             <CTableHead>
               <CTableRow>
                 <CTableHeaderCell>Milk Recorded Date</CTableHeaderCell>
-                <CTableHeaderCell>Quantity Recorded</CTableHeaderCell>
-                <CTableHeaderCell>Sale Date</CTableHeaderCell>
-                <CTableHeaderCell>Quantity Sold</CTableHeaderCell>
+                <CTableHeaderCell>Customer</CTableHeaderCell>
+                <CTableHeaderCell>Qty Recorded</CTableHeaderCell>
+                <CTableHeaderCell>Sold Date</CTableHeaderCell>
+                <CTableHeaderCell>Qty Sold</CTableHeaderCell>
                 <CTableHeaderCell>Unit Price (Rwf)</CTableHeaderCell>
                 <CTableHeaderCell>Revenue (Rwf)</CTableHeaderCell>
                 <CTableHeaderCell>Action</CTableHeaderCell>
@@ -289,6 +290,9 @@ const availableQuantity = computed(() => {
             <CTableBody>
               <CTableRow v-for="milkSales in paginatedMilkSales" :key="milkSales.id">
                 <CTableDataCell>{{ milkSales.milk_record?.record_date ?? '' }}</CTableDataCell>
+                <CTableDataCell>{{
+                  milkSales.customer?.first_name + ' ' + milkSales.customer?.last_name
+                }}</CTableDataCell>
                 <CTableDataCell>{{
                   Number(milkSales.milk_record?.morning_qty) +
                     Number(milkSales.milk_record?.evening_qty) ?? ''

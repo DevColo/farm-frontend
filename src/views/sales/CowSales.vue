@@ -253,6 +253,7 @@ watch(
             <CTableHead>
               <CTableRow>
                 <CTableHeaderCell>Cow</CTableHeaderCell>
+                <CTableHeaderCell>Customer</CTableHeaderCell>
                 <CTableHeaderCell>Sale Date</CTableHeaderCell>
                 <CTableHeaderCell>Cost (Rwf)</CTableHeaderCell>
                 <CTableHeaderCell>Action</CTableHeaderCell>
@@ -265,6 +266,9 @@ watch(
                     {{ cowSales.cow?.ear_tag ?? '' }}
                   </router-link></CTableDataCell
                 >
+                <CTableDataCell>{{
+                  cowSales.customer?.first_name + ' ' + cowSales.customer?.last_name
+                }}</CTableDataCell>
                 <CTableDataCell>{{ cowSales.sales_date }}</CTableDataCell>
                 <CTableDataCell>{{ cowSales.unit_price }}</CTableDataCell>
                 <CTableDataCell
