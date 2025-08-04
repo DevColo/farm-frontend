@@ -84,7 +84,7 @@ const routes = [
       {
         path: 'roles',
         name: 'Roles',
-        component: () => import('@/views/Role/Role.vue'),
+        component: () => import('@/views/role/Role.vue'),
       },
       {
         path: 'foods',
