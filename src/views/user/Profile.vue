@@ -147,11 +147,12 @@ function getUserImage(imageUrl) {
         <CCol :xs="4" v-if="userData.photo && typeof userData.photo === 'string'">
           <div class="d-flex align-items-start gap-3 mb-2">
             <img
-              :src="getUsePhoto(userData.photo)"
+              :src="getUserImage(userData?.photo)"
               class="img-fluid rounded"
               style="max-height: 200px"
               alt="User Photo"
             />
+
             <CButton color="danger" size="sm" title="Remove Photo" @click="removePhoto"
               ><CIcon :icon="cilTrash"
             /></CButton>
