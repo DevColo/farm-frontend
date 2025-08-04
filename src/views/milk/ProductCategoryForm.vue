@@ -125,8 +125,8 @@ function handleSubmit() {
       <CCard class="mb-4">
         <CCardHeader>
           <div class="d-flex justify-content-between align-items-center">
-            <strong>Farm</strong>
-            <CButton color="dark" @click="openCreate">+ Create Farm</CButton>
+            <strong>Product</strong>
+            <CButton color="dark" @click="openCreate">+ Create Product Category</CButton>
           </div>
         </CCardHeader>
         <CCardBody>
@@ -135,7 +135,7 @@ function handleSubmit() {
               type="text"
               v-model="searchQuery"
               class="form-control w-50"
-              placeholder="Search by farm name or country..."
+              placeholder="Search by product name or category..."
               @input="resetPage"
             />
 
@@ -154,8 +154,8 @@ function handleSubmit() {
             <CTableHead>
               <CTableRow>
                 <CTableHeaderCell>ID</CTableHeaderCell>
-                <CTableHeaderCell>Farm Name</CTableHeaderCell>
-                <CTableHeaderCell>Country</CTableHeaderCell>
+                <CTableHeaderCell>Product Name</CTableHeaderCell>
+                <CTableHeaderCell>Category</CTableHeaderCell>
                 <CTableHeaderCell>Description</CTableHeaderCell>
                 <CTableHeaderCell>Active</CTableHeaderCell>
                 <CTableHeaderCell>Created At</CTableHeaderCell>
@@ -196,7 +196,7 @@ function handleSubmit() {
                 </CTableDataCell>
               </CTableRow>
               <CTableRow v-if="paginatedFarm.length === 0">
-                <CTableDataCell colspan="6" class="text-center">No farm found.</CTableDataCell>
+                <CTableDataCell colspan="6" class="text-center">No product found.</CTableDataCell>
               </CTableRow>
             </CTableBody>
           </CTable>
@@ -223,22 +223,22 @@ function handleSubmit() {
   <!-- Create/Edit Modal -->
   <CModal :visible="showModal" @close="showModal = false" backdrop="static">
     <CModalHeader>
-      <CModalTitle>{{ isEditing ? 'Edit Farm' : 'Create Farm' }}</CModalTitle>
+      <CModalTitle>{{ isEditing ? 'Edit product' : 'Create Product' }}</CModalTitle>
     </CModalHeader>
     <CModalBody>
       <CForm @submit.prevent="handleSubmit">
         <div class="mb-3">
-          <CFormLabel>Farm Name</CFormLabel>
+          <CFormLabel>Product Name</CFormLabel>
           <CFormInput v-model="currentFarm.farm" required />
         </div>
         <div class="mb-3">
-          <CFormLabel>Country</CFormLabel>
+          <CFormLabel>Category</CFormLabel>
           <CFormSelect v-model="currentFarm.country" required>
-            <option disabled value="">Choose country</option>
-            <option value="Rwanda">Rwanda</option>
-            <option value="Uganda">Uganda</option>
-            <option value="Burundi">Burundi</option>
-            <option value="DR Congo">DR Congo</option>
+            <option disabled value="">Choose category</option>
+            <option value="Rwanda">A</option>
+            <option value="Uganda">B</option>
+            <option value="Burundi">C</option>
+            <option value="DR Congo">D</option>
           </CFormSelect>
         </div>
         <div class="mb-3">
