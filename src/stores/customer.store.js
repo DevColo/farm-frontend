@@ -89,5 +89,24 @@ export const useCustomerStore = defineStore('cutomer', {
         toast.error(error.response?.data?.error || 'Failed to delete Customer Record')
       }
     },
+
+    async fetchCustomerById(id) {
+      const toast = useToast()
+      try {
+        const token = localStorage.getItem('user_token')
+        const response = await axios.get(`/api/customers/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        this.customer = response.data
+      } catch (error) {
+        let errorMessage = 'Failed to fetch Customer details'
+        if (error.response && error.response.data) {
+          errorMessage = error.response.data.error || error.response.data.message
+        }
+        toast.error(errorMessage)
+      }
+    },
   },
 })

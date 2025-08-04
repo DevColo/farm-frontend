@@ -266,9 +266,11 @@ watch(
                     {{ cowSales.cow?.ear_tag ?? '' }}
                   </router-link></CTableDataCell
                 >
-                <CTableDataCell>{{
-                  cowSales.customer?.first_name + ' ' + cowSales.customer?.last_name
-                }}</CTableDataCell>
+                <CTableDataCell>
+                  <router-link :to="`/customers/${cowSales.customer?.id}`">
+                    {{ cowSales.customer?.first_name + ' ' + cowSales.customer?.last_name }}
+                  </router-link>
+                </CTableDataCell>
                 <CTableDataCell>{{ cowSales.sales_date }}</CTableDataCell>
                 <CTableDataCell>{{ cowSales.unit_price }}</CTableDataCell>
                 <CTableDataCell

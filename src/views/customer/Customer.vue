@@ -152,8 +152,7 @@ function handleSubmit() {
           <CTable striped hover responsive>
             <CTableHead>
               <CTableRow>
-                <CTableHeaderCell>First Name</CTableHeaderCell>
-                <CTableHeaderCell>Last Name</CTableHeaderCell>
+                <CTableHeaderCell>Full Name</CTableHeaderCell>
                 <CTableHeaderCell>Phone</CTableHeaderCell>
                 <CTableHeaderCell>Email</CTableHeaderCell>
                 <CTableHeaderCell>Created At</CTableHeaderCell>
@@ -162,8 +161,11 @@ function handleSubmit() {
             </CTableHead>
             <CTableBody>
               <CTableRow v-for="customer in paginatedCustomers" :key="customer.id">
-                <CTableDataCell>{{ customer.first_name ?? '' }}</CTableDataCell>
-                <CTableDataCell>{{ customer.last_name ?? '' }}</CTableDataCell>
+                <CTableDataCell
+                  ><router-link :to="`/customers/${customer.id}`">
+                    {{ customer.first_name + ' ' ?? '' }} {{ customer.last_name ?? '' }}
+                  </router-link></CTableDataCell
+                >
                 <CTableDataCell>{{ customer.phone ?? '' }}</CTableDataCell>
                 <CTableDataCell>{{ customer.email ?? '' }}</CTableDataCell>
                 <CTableDataCell>{{

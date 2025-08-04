@@ -107,6 +107,12 @@ const routes = [
         component: () => import('@/views/sales/CowSales.vue'),
       },
       {
+        path: '/customers/:id',
+        name: 'Customer Profile',
+        component: () => import('@/views/customer/CustomerView.vue'),
+        props: true,
+      },
+      {
         path: 'farm-list',
         name: 'Farm List',
         component: () => import('@/views/farm/FarmList.vue'),

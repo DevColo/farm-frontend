@@ -290,9 +290,11 @@ const availableQuantity = computed(() => {
             <CTableBody>
               <CTableRow v-for="milkSales in paginatedMilkSales" :key="milkSales.id">
                 <CTableDataCell>{{ milkSales.milk_record?.record_date ?? '' }}</CTableDataCell>
-                <CTableDataCell>{{
-                  milkSales.customer?.first_name + ' ' + milkSales.customer?.last_name
-                }}</CTableDataCell>
+                <CTableDataCell
+                  ><router-link :to="`/customers/${milkSales.customer?.id}`">
+                    {{ milkSales.customer?.first_name + ' ' + milkSales.customer?.last_name }}
+                  </router-link></CTableDataCell
+                >
                 <CTableDataCell>{{
                   Number(milkSales.milk_record?.morning_qty) +
                     Number(milkSales.milk_record?.evening_qty) ?? ''
