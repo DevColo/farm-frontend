@@ -36,6 +36,7 @@ const milkStore = useMilkStore()
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
+const filterDate = ref('')
 
 const currentMilkRecord = ref({
   id: null,
@@ -56,13 +57,13 @@ const searchQuery = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
-const filteredMilkRecords = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return milkStore.milkRecords
-  return milkStore.milkRecords.filter((c) =>
-    [c.record_date, c.morning_qty, c.evening_qty].some((f) => f?.toLowerCase().includes(q)),
-  )
-})
+// const filteredMilkRecords = computed(() => {
+//   const q = searchQuery.value.trim().toLowerCase()
+//   if (!q) return milkStore.milkRecords
+//   return milkStore.milkRecords.filter((c) =>
+//     [c.record_date, c.morning_qty, c.evening_qty].some((f) => f?.toLowerCase().includes(q)),
+//   )
+// })
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredMilkRecords.value.length / itemsPerPage.value)),
@@ -222,6 +223,24 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
   var total = BigInt(morning_qty) + BigInt(evening_qty)
   return total * BigInt(1000)
 }
+
+// Extend your computed filter
+const filteredMilkRecords = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  const date = filterDate.value
+
+  return milkStore.milkRecords.filter((record) => {
+    const matchSearch =
+      !q ||
+      [record.record_date, record.morning_qty, record.evening_qty].some((f) =>
+        f?.toString().toLowerCase().includes(q),
+      )
+
+    const matchDate = !date || record.record_date === date
+
+    return matchSearch && matchDate
+  })
+})
 </script>
 
 <template>
@@ -243,17 +262,32 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
         <CCardBody>
           <!-- search + page-size -->
 
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <input
-              type="text"
-              v-model="searchQuery"
-              class="form-control w-25"
-              placeholder="Search by date, quantity"
-              @input="resetPage"
-            />
-            <div class="d-flex align-items-center">
-              <label class="me-2">Show:</label>
-              <select v-model="itemsPerPage" @change="resetPage" class="form-select">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+            <!-- Search -->
+            <div class="d-flex align-items-center" style="gap: 8px">
+              <input
+                type="text"
+                v-model="searchQuery"
+                class="form-control"
+                style="max-width: 220px"
+                placeholder="Search by date, quantity"
+                @input="resetPage"
+              />
+
+              <!-- Date Filter -->
+              <input
+                type="date"
+                v-model="filterDate"
+                class="form-control"
+                @change="resetPage"
+                style="max-width: 180px"
+              />
+            </div>
+
+            <!-- Items Per Page -->
+            <div class="d-flex align-items-center ms-auto" style="gap: 8px">
+              <label class="mb-0">Show:</label>
+              <select v-model="itemsPerPage" @change="resetPage" class="form-select w-auto">
                 <option :value="10">10</option>
                 <option :value="25">25</option>
                 <option :value="50">50</option>
@@ -266,22 +300,15 @@ const getRevenue = (morning_qty = 0, evening_qty = 0) => {
           <CTable striped hover responsive>
             <CTableHead>
               <CTableRow>
-                <CTableHeaderCell>ID</CTableHeaderCell>
-                <!-- <CTableHeaderCell>Cow</CTableHeaderCell>
-                <CTableHeaderCell>Ear Tag</CTableHeaderCell> -->
                 <CTableHeaderCell>Record Date</CTableHeaderCell>
                 <CTableHeaderCell>Morning Qty (L)</CTableHeaderCell>
                 <CTableHeaderCell>Evening Qty (L)</CTableHeaderCell>
                 <CTableHeaderCell>Total Qty (L)</CTableHeaderCell>
-                <!-- <CTableHeaderCell>Revenue (Rwf)</CTableHeaderCell> -->
                 <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
             <CTableBody>
               <CTableRow v-for="milk in paginatedMilkRecords" :key="milk.id">
-                <CTableDataCell>{{ milk.id }}</CTableDataCell>
-                <!-- <CTableDataCell>{{ milk.cow?.name ?? '-' }}</CTableDataCell>
-                <CTableDataCell>{{ milk.cow?.ear_tag ?? '' }}</CTableDataCell> -->
                 <CTableDataCell>{{ milk.record_date }}</CTableDataCell>
                 <CTableDataCell>{{ milk.morning_qty ?? 'NOT RECORDED' }}</CTableDataCell>
                 <CTableDataCell>{{ milk.evening_qty ?? 'NOT RECORDED' }}</CTableDataCell>

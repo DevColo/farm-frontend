@@ -46,6 +46,12 @@ const routes = [
         component: () => import('@/views/cow/CowList.vue'),
       },
       {
+        path: '/cows/:id',
+        name: 'Cow View',
+        component: () => import('@/views/cow/CowView.vue'),
+        props: true,
+      },
+      {
         path: 'feedings',
         name: 'Cows Feeding',
         component: () => import('@/views/feeding/Feeding.vue'),
@@ -56,6 +62,11 @@ const routes = [
         component: () => import('@/views/medication/Medication.vue'),
       },
       {
+        path: 'maternity',
+        name: 'Cows Maternity',
+        component: () => import('@/views/maternity/Maternity.vue'),
+      },
+      {
         path: 'daily-milk-records',
         name: 'Daily Milk Record',
         component: () => import('@/views/milk/DailyMilkRecord.vue'),
@@ -64,6 +75,36 @@ const routes = [
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/user/Profile.vue'),
+      },
+      {
+        path: 'users',
+        name: 'Users',
+        component: () => import('@/views/user/User.vue'),
+      },
+      {
+        path: 'roles',
+        name: 'Roles',
+        component: () => import('@/views/Role/Role.vue'),
+      },
+      {
+        path: 'foods',
+        name: 'Cow Foods',
+        component: () => import('@/views/food/FoodList.vue'),
+      },
+      {
+        path: 'customers',
+        name: 'Customers',
+        component: () => import('@/views/customer/Customer.vue'),
+      },
+      {
+        path: 'milk-sales',
+        name: 'Milk Sales',
+        component: () => import('@/views/sales/MilkSales.vue'),
+      },
+      {
+        path: 'cow-sales',
+        name: 'Cow Sales',
+        component: () => import('@/views/sales/CowSales.vue'),
       },
       {
         path: 'farm-list',
@@ -89,16 +130,6 @@ const routes = [
         path: 'parcel-list',
         name: 'Parcel List',
         component: () => import('@/views/parcel/ParcelList.vue'),
-      },
-      {
-        path: 'add-daily-record',
-        name: 'Add Daily Record',
-        component: () => import('@/views/milk/AddDailyRecord.vue'),
-      },
-      {
-        path: 'daily-record-list',
-        name: 'Daily Record List',
-        component: () => import('@/views/milk/DailyRecordList.vue'),
       },
 
       // Theme

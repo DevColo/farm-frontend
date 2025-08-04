@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { CChart } from '@coreui/vue-chartjs'
 import { getStyle } from '@coreui/utils'
 import { useDashboardStore } from '@/stores/dashboard.store'
@@ -22,6 +22,116 @@ onMounted(() => {
   })
 
   dashboardStore.fetchDashboardStats()
+})
+
+const selectedMilkYear = ref(new Date().getFullYear())
+const selectedMilkSalesYear = ref(new Date().getFullYear())
+const selectedCowSalesYear = ref(new Date().getFullYear())
+const selectedCowYear = ref(new Date().getFullYear())
+
+// Get available years from the data
+const availableMilkYears = computed(() => {
+  const years = [
+    ...new Set(dashboardStore.dashboardStats.monthly_milk?.map((item) => item.year) || []),
+  ]
+  return years.sort((a, b) => b - a) // Sort descending (newest first)
+})
+
+// Filter monthly milk data by selected year
+const filteredMonthlyMilk = computed(() => {
+  return (
+    dashboardStore.dashboardStats.monthly_milk?.filter(
+      (item) => item.year === selectedMilkYear.value,
+    ) || []
+  )
+})
+
+// Calculate total quantity for the selected year
+const filteredTotalMilkQty = computed(() => {
+  return filteredMonthlyMilk.value.reduce(
+    (total, item) => total + parseFloat(item.total_qty || 0),
+    0,
+  )
+})
+
+// Get available years from the milk sales data
+const availableMilkSalesYears = computed(() => {
+  const years = [
+    ...new Set(dashboardStore.dashboardStats.milk_sales?.map((item) => item.year) || []),
+  ]
+  return years.sort((a, b) => b - a) // Sort descending (newest first)
+})
+
+// Filter monthly milk data by selected year
+const filteredMonthlyMilkSales = computed(() => {
+  return (
+    dashboardStore.dashboardStats.milk_sales?.filter(
+      (item) => item.year === selectedMilkYear.value,
+    ) || []
+  )
+})
+
+// Calculate total quantity for the selected year
+const filteredTotalMilkSalesQty = computed(() => {
+  return filteredMonthlyMilkSales.value.reduce(
+    (total, item) => total + parseFloat(item.total_revenue || 0),
+    0,
+  )
+})
+
+// Get available years from the Cow sales
+const availableCowSalesYears = computed(() => {
+  const years = [
+    ...new Set(dashboardStore.dashboardStats.cow_sales?.map((item) => item.year) || []),
+  ]
+  return years.sort((a, b) => b - a) // Sort descending (newest first)
+})
+
+// Filter monthly Cow sales by selected year
+const filteredMonthlyCowSales = computed(() => {
+  return (
+    dashboardStore.dashboardStats.cow_sales?.filter(
+      (item) => item.year === selectedCowYear.value,
+    ) || []
+  )
+})
+
+// Calculate total quantity for the selected year Cow sales
+const filteredTotalCowSalesQty = computed(() => {
+  return filteredMonthlyCowSales.value.reduce(
+    (total, item) => total + parseFloat(item.total_revenue || 0),
+    0,
+  )
+})
+
+// Filter yearly cow data
+const filteredYearlyCow = computed(() => {
+  return dashboardStore.dashboardStats.cows || []
+})
+
+// Filter yearly pasture data
+const filteredYearlyPasture = computed(() => {
+  return dashboardStore.dashboardStats.pastures || []
+})
+
+// Filter yearly customer data
+const filteredYearlyCustomer = computed(() => {
+  return dashboardStore.dashboardStats.customers || []
+})
+
+// Set initial year to the most recent year when component mounts
+onMounted(() => {
+  if (availableMilkYears.value.length > 0) {
+    selectedMilkYear.value = availableMilkYears.value[0]
+  }
+
+  if (availableMilkSalesYears.value.length > 0) {
+    selectedMilkSalesYear.value = availableMilkSalesYears.value[0]
+  }
+
+  if (availableCowSalesYears.value.length > 0) {
+    selectedCowSalesYear.value = availableCowSalesYears.value[0]
+  }
 })
 </script>
 
@@ -48,57 +158,45 @@ onMounted(() => {
             style="height: 70px"
             ref="widgetChartRef1"
             :data="{
-              labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+              labels: filteredYearlyCow.map((item) => item.year),
               datasets: [
                 {
-                  label: 'My First dataset',
+                  label: 'Total Cows',
                   backgroundColor: 'transparent',
                   borderColor: 'rgba(255,255,255,.55)',
                   pointBackgroundColor: getStyle('--cui-primary'),
-                  data: [68, 59, 84, 84, 51, 55, 40],
+                  data: filteredYearlyCow.map((item) => parseFloat(item.count)),
                 },
               ],
             }"
             :options="{
+              maintainAspectRatio: false,
               plugins: {
                 legend: {
                   display: false,
                 },
               },
-              maintainAspectRatio: false,
               scales: {
                 x: {
-                  border: {
-                    display: false,
-                  },
                   grid: {
                     display: false,
+                    drawTicks: false,
                   },
                   ticks: {
                     display: false,
                   },
                 },
                 y: {
-                  min: 30,
-                  max: 89,
-                  display: false,
+                  border: {
+                    display: false,
+                  },
                   grid: {
                     display: false,
+                    drawTicks: false,
                   },
                   ticks: {
                     display: false,
                   },
-                },
-              },
-              elements: {
-                line: {
-                  borderWidth: 1,
-                  tension: 0.4,
-                },
-                point: {
-                  radius: 4,
-                  hitRadius: 10,
-                  hoverRadius: 4,
                 },
               },
             }"
@@ -125,58 +223,122 @@ onMounted(() => {
             type="line"
             class="mt-3 mx-3"
             style="height: 70px"
-            ref="widgetChartRef2"
+            ref="widgetChartRef1"
             :data="{
-              labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+              labels: filteredYearlyPasture.map((item) => item.year),
               datasets: [
                 {
-                  label: 'My First dataset',
+                  label: 'Total Pastures',
                   backgroundColor: 'transparent',
                   borderColor: 'rgba(255,255,255,.55)',
-                  pointBackgroundColor: getStyle('--cui-info'),
-                  data: [1, 18, 9, 17, 34, 22, 11],
+                  pointBackgroundColor: getStyle('--cui-primary'),
+                  data: filteredYearlyPasture.map((item) => parseFloat(item.count)),
                 },
               ],
             }"
             :options="{
+              maintainAspectRatio: false,
               plugins: {
                 legend: {
                   display: false,
                 },
               },
-              maintainAspectRatio: false,
               scales: {
                 x: {
-                  border: {
-                    display: false,
-                  },
                   grid: {
                     display: false,
+                    drawTicks: false,
                   },
                   ticks: {
                     display: false,
                   },
                 },
                 y: {
-                  min: -9,
-                  max: 39,
-                  display: false,
+                  border: {
+                    display: false,
+                  },
                   grid: {
                     display: false,
+                    drawTicks: false,
                   },
                   ticks: {
                     display: false,
                   },
                 },
               },
-              elements: {
-                line: {
-                  borderWidth: 1,
+            }"
+          />
+        </template>
+      </CWidgetStatsA>
+    </CCol>
+
+    <CCol :sm="6" :xl="4" :xxl="3">
+      <CWidgetStatsA color="danger">
+        <template #value>{{ filteredTotalMilkQty }} Liters</template>
+        <template #title>Milk Quantity ({{ selectedMilkYear }})</template>
+        <template #action>
+          <CDropdown placement="bottom-end">
+            <CDropdownToggle color="transparent" class="p-0 text-white" :caret="false">
+              <CIcon icon="cil-options" class="text-white" />
+            </CDropdownToggle>
+            <CDropdownMenu>
+              <CDropdownHeader>Filter by Year</CDropdownHeader>
+              <CDropdownItem
+                v-for="year in availableMilkYears"
+                :key="year"
+                @click="selectedMilkYear = year"
+                :active="selectedMilkYear === year"
+              >
+                {{ year }}
+              </CDropdownItem>
+            </CDropdownMenu>
+          </CDropdown>
+        </template>
+        <template #chart>
+          <CChart
+            type="bar"
+            class="mt-3 mx-3"
+            style="height: 70px"
+            :data="{
+              labels: filteredMonthlyMilk.map((item) => item.month),
+              datasets: [
+                {
+                  label: 'Recorded Liters',
+                  backgroundColor: 'rgba(255,255,255,.2)',
+                  borderColor: 'rgba(255,255,255,.55)',
+                  data: filteredMonthlyMilk.map((item) => parseFloat(item.total_qty)),
+                  barPercentage: 0.6,
                 },
-                point: {
-                  radius: 4,
-                  hitRadius: 10,
-                  hoverRadius: 4,
+              ],
+            }"
+            :options="{
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+              },
+              scales: {
+                x: {
+                  grid: {
+                    display: false,
+                    drawTicks: false,
+                  },
+                  ticks: {
+                    display: false,
+                  },
+                },
+                y: {
+                  border: {
+                    display: false,
+                  },
+                  grid: {
+                    display: false,
+                    drawTicks: false,
+                  },
+                  ticks: {
+                    display: false,
+                  },
                 },
               },
             }"
@@ -186,15 +348,15 @@ onMounted(() => {
     </CCol>
     <CCol :sm="6" :xl="4" :xxl="3">
       <CWidgetStatsA color="warning">
-        <template #value>{{ dashboardStore.dashboardStats.total_qty }} Liters</template>
-        <template #title>Milk Quantity</template>
+        <template #value>{{ dashboardStore.dashboardStats.customers_count }} </template>
+        <template #title>Customers</template>
         <template #action>
           <CDropdown placement="bottom-end">
             <CDropdownToggle color="transparent" class="p-0 text-white" :caret="false">
               <CIcon icon="cil-options" class="text-white" />
             </CDropdownToggle>
             <CDropdownMenu>
-              <CDropdownItem href="/daily-milk-records">View Milk Records</CDropdownItem>
+              <CDropdownItem href="/customers">View Customers</CDropdownItem>
             </CDropdownMenu>
           </CDropdown>
         </template>
@@ -204,13 +366,13 @@ onMounted(() => {
             class="mt-3"
             style="height: 70px"
             :data="{
-              labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+              labels: filteredYearlyCustomer.map((item) => item.year),
               datasets: [
                 {
-                  label: 'My First dataset',
+                  label: 'Total Customers',
                   backgroundColor: 'rgba(255,255,255,.2)',
                   borderColor: 'rgba(255,255,255,.55)',
-                  data: [78, 81, 80, 45, 34, 12, 40],
+                  data: filteredYearlyCustomer.map((item) => item.year),
                   fill: true,
                 },
               ],
@@ -249,40 +411,125 @@ onMounted(() => {
         </template>
       </CWidgetStatsA>
     </CCol>
+
     <CCol :sm="6" :xl="4" :xxl="3">
-      <CWidgetStatsA color="danger">
-        <template #value>{{ dashboardStore.dashboardStats.total_revenue }} Rwf</template>
-        <template #title>Revenue</template>
+      <CWidgetStatsA color="secondary">
+        <template #value>{{ filteredTotalMilkSalesQty }} Rwf</template>
+        <template #title>Milk Sales ({{ selectedMilkSalesYear }})</template>
+        <template #action>
+          <CDropdown placement="bottom-end">
+            <CDropdownToggle color="transparent" class="p-0 text-white" :caret="false">
+              <CIcon icon="cil-options" class="text-white" />
+            </CDropdownToggle>
+            <CDropdownMenu>
+              <CDropdownItem href="/milk-sales">View Milk Sales</CDropdownItem>
+              <CDropdownHeader>Filter by Year</CDropdownHeader>
+              <CDropdownItem
+                v-for="year in availableMilkSalesYears"
+                :key="year"
+                @click="selectedMilkSalesYear = year"
+                :active="selectedMilkSalesYear === year"
+              >
+                {{ year }}
+              </CDropdownItem>
+            </CDropdownMenu>
+          </CDropdown>
+        </template>
         <template #chart>
           <CChart
             type="bar"
             class="mt-3 mx-3"
             style="height: 70px"
             :data="{
-              labels: [
-                'January',
-                'February',
-                'March',
-                'April',
-                'May',
-                'June',
-                'July',
-                'August',
-                'September',
-                'October',
-                'November',
-                'December',
-                'January',
-                'February',
-                'March',
-                'April',
-              ],
+              labels: filteredMonthlyMilkSales.map((item) => item.month),
               datasets: [
                 {
-                  label: 'My First dataset',
+                  label:
+                    'Qty Sold ' +
+                    filteredMonthlyMilkSales.map((item) => parseFloat(item.total_qty)) +
+                    ' lts',
                   backgroundColor: 'rgba(255,255,255,.2)',
                   borderColor: 'rgba(255,255,255,.55)',
-                  data: [78, 81, 80, 45, 34, 12, 40, 85, 65, 23, 12, 98, 34, 84, 67, 82],
+                  data: filteredMonthlyMilkSales.map((item) => parseFloat(item.total_revenue)),
+                  barPercentage: 0.6,
+                },
+              ],
+            }"
+            :options="{
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+              },
+              scales: {
+                x: {
+                  grid: {
+                    display: false,
+                    drawTicks: false,
+                  },
+                  ticks: {
+                    display: false,
+                  },
+                },
+                y: {
+                  border: {
+                    display: false,
+                  },
+                  grid: {
+                    display: false,
+                    drawTicks: false,
+                  },
+                  ticks: {
+                    display: false,
+                  },
+                },
+              },
+            }"
+          />
+        </template>
+      </CWidgetStatsA>
+    </CCol>
+
+    <CCol :sm="6" :xl="4" :xxl="3">
+      <CWidgetStatsA color="dark">
+        <template #value>{{ filteredTotalCowSalesQty }} Rwf</template>
+        <template #title>Cow Sales ({{ selectedCowSalesYear }})</template>
+        <template #action>
+          <CDropdown placement="bottom-end">
+            <CDropdownToggle color="transparent" class="p-0 text-white" :caret="false">
+              <CIcon icon="cil-options" class="text-white" />
+            </CDropdownToggle>
+            <CDropdownMenu>
+              <CDropdownItem href="/cow-sales">View Cow Sales</CDropdownItem>
+              <CDropdownHeader>Filter by Year</CDropdownHeader>
+              <CDropdownItem
+                v-for="year in availableCowSalesYears"
+                :key="year"
+                @click="selectedCowSalesYear = year"
+                :active="selectedCowSalesYear === year"
+              >
+                {{ year }}
+              </CDropdownItem>
+            </CDropdownMenu>
+          </CDropdown>
+        </template>
+        <template #chart>
+          <CChart
+            type="bar"
+            class="mt-3 mx-3"
+            style="height: 70px"
+            :data="{
+              labels: filteredMonthlyCowSales.map((item) => item.month),
+              datasets: [
+                {
+                  label:
+                    'Qty Sold ' +
+                    filteredMonthlyCowSales.map((item) => parseFloat(item.total_qty)) +
+                    ' lts',
+                  backgroundColor: 'rgba(255,255,255,.2)',
+                  borderColor: 'rgba(255,255,255,.55)',
+                  data: filteredMonthlyCowSales.map((item) => parseFloat(item.total_revenue)),
                   barPercentage: 0.6,
                 },
               ],

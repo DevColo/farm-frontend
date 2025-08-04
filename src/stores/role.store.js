@@ -2,37 +2,34 @@ import { defineStore } from 'pinia'
 import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
-export const useCowStore = defineStore('cow', {
+export const useRoleStore = defineStore('role', {
   state: () => ({
-    cows: [],
-    cow: [],
+    roles: [],
     pasture: [],
-    femaleCows: [],
-    maleCows: [],
   }),
   actions: {
-    async createCow(cowData) {
+    async createRole(userData) {
       const toast = useToast()
 
       try {
         const token = localStorage.getItem('user_token')
 
         const formData = new FormData()
-        for (const key in cowData) {
-          if (cowData[key] !== undefined && cowData[key] !== null) {
-            formData.append(key, cowData[key])
+        for (const key in userData) {
+          if (userData[key] !== undefined && userData[key] !== null) {
+            formData.append(key, userData[key])
           }
         }
 
-        await axios.post('/api/cows', formData, {
+        await axios.post('/api/roles', formData, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data',
           },
         })
 
-        toast.success('Cow created successfully!')
-        await this.fetchCows()
+        toast.success('Role created successfully!')
+        await this.fetchRoles()
       } catch (error) {
         let errorMessage = 'Something went wrong'
         if (error.response && error.response.data) {
@@ -42,18 +39,18 @@ export const useCowStore = defineStore('cow', {
       }
     },
 
-    async fetchCows() {
+    async fetchRoles() {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.get('/api/cows', {
+        const response = await axios.get('/api/roles', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        this.cows = response.data
+        this.roles = response.data
       } catch (error) {
-        let errorMessage = 'Failed to fetch cows'
+        let errorMessage = 'Failed to fetch roles'
         if (error.response && error.response.data) {
           errorMessage = error.response.data.error || error.response.data.message
         }
@@ -61,37 +58,36 @@ export const useCowStore = defineStore('cow', {
       }
     },
 
-    async editCow(id, cowData) {
+    async updateUser(id, userData) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
 
         const formData = new FormData()
-        for (const key in cowData) {
-          if (cowData[key] !== null && cowData[key] !== undefined) {
-            formData.append(key, cowData[key])
+        for (const key in userData) {
+          if (userData[key] !== null && userData[key] !== undefined) {
+            formData.append(key, userData[key])
           }
         }
-        if (cowData.image === '') {
+        if (userData.photo === '') {
           formData.append('remove_image', '1')
         }
 
-        await axios.put(`/api/cows/${id}`, formData, {
+        await axios.put(`/api/roles/${id}`, formData, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data',
           },
         })
 
-        toast.success('Cow updated successfully!')
-        await this.fetchCows()
+        toast.success('User profile updated successfully!')
+        await this.fetchUser(id)
       } catch (error) {
-        let errorMessage = 'Something went wrong'
-
-        if (error.response && error.response.data) {
-          errorMessage = error.response.data.error
-        }
-        toast.error(errorMessage)
+        // let errorMessage = 'Something went wrong'
+        // if (error.response && error.response.data) {
+        //   errorMessage = error.response.data.error
+        // }
+        // toast.error(errorMessage)
       }
     },
 
@@ -107,7 +103,7 @@ export const useCowStore = defineStore('cow', {
         })
 
         toast.success('Cow deleted successfully!')
-        await this.fetchCows()
+        await this.fetchroles()
       } catch (error) {
         toast.error(error.response?.data?.error || 'Failed to delete cow')
       }
@@ -181,65 +177,6 @@ export const useCowStore = defineStore('cow', {
           },
         })
         this.cows = response.data.cows
-      } catch (error) {
-        let errorMessage = 'Failed to fetch cows'
-        if (error.response && error.response.data) {
-          errorMessage = error.response.data.error || error.response.data.message
-        }
-        toast.error(errorMessage)
-      }
-    },
-
-    async fetchCowById(id) {
-      const toast = useToast()
-      try {
-        const token = localStorage.getItem('user_token')
-        const response = await axios.get(`/api/cows/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        this.cow = response.data
-      } catch (error) {
-        let errorMessage = 'Failed to fetch cow details'
-        if (error.response && error.response.data) {
-          errorMessage = error.response.data.error || error.response.data.message
-        }
-        toast.error(errorMessage)
-      }
-    },
-
-    async fetchMaleCows() {
-      const toast = useToast()
-      try {
-        const gender = 'Male'
-        const token = localStorage.getItem('user_token')
-        const response = await axios.get(`/api/cows/by-gender/${gender}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        this.maleCows = response.data.cows
-      } catch (error) {
-        let errorMessage = 'Failed to fetch cows'
-        if (error.response && error.response.data) {
-          errorMessage = error.response.data.error || error.response.data.message
-        }
-        toast.error(errorMessage)
-      }
-    },
-
-    async fetchFemaleCows() {
-      const toast = useToast()
-      try {
-        const gender = 'Female'
-        const token = localStorage.getItem('user_token')
-        const response = await axios.get(`/api/cows/by-gender/${gender}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        this.femaleCows = response.data.cows
       } catch (error) {
         let errorMessage = 'Failed to fetch cows'
         if (error.response && error.response.data) {

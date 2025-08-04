@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useCowStore } from '@/stores/cow.store'
-import { useMedicationStore } from '@/stores/medication.store'
+import { useCowSalesStore } from '@/stores/cow-sales.store'
+import { useCustomerStore } from '@/stores/customer.store'
 import {
   CRow,
   CCol,
@@ -33,24 +34,26 @@ import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.css'
 
 const cowStore = useCowStore()
-const medicationStore = useMedicationStore()
+const cowSalesStore = useCowSalesStore()
+const customerStore = useCustomerStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
 
-const currentMedication = ref({
+const currentCowSales = ref({
   id: null,
-  medication: '',
-  reason: '',
-  medication_date: '',
   cow_id: '',
+  customer_id: '',
+  unit_price: '',
+  sales_date: '',
 })
 
 // fetch data
 onMounted(() => {
-  medicationStore.fetchMedications()
+  cowSalesStore.fetchCowSales()
   cowStore.fetchCows()
+  customerStore.fetchCustomers()
 })
 
 // search & pagination
@@ -58,28 +61,28 @@ const searchQuery = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
-const filteredMedications = computed(() => {
+const filteredCowSales = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return medicationStore.medications
-  return medicationStore.medications.filter((m) =>
-    [m.medication, m.reason].some((f) => f?.toLowerCase().includes(q)),
+  if (!q) return cowSalesStore.cowSales
+  return cowSalesStore.cowSales.filter((m) =>
+    [m.sales_date, m.quantity].some((f) => f?.toLowerCase().includes(q)),
   )
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredMedications.value.length / itemsPerPage.value)),
+  Math.max(1, Math.ceil(filteredCowSales.value.length / itemsPerPage.value)),
 )
-const paginatedMedications = computed(() => {
+const paginatedCowSales = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredMedications.value.slice(start, start + itemsPerPage.value)
+  return filteredCowSales.value.slice(start, start + itemsPerPage.value)
 })
 
 // Fix for the prop type warning
 watch(
-  () => currentMedication.value.cow_id,
+  () => currentCowSales.value.cow_id,
   (newValue) => {
     if (typeof newValue === 'number') {
-      currentMedication.value.cow_id = String(newValue)
+      currentCowSales.value.cow_id = String(newValue)
     }
   },
 )
@@ -98,26 +101,26 @@ function resetPage() {
 function openCreate() {
   isEditing.value = false
   validated.value = false
-  currentMedication.value = {
+  currentCowSales.value = {
     id: null,
-    medication: '',
-    reason: '',
-    medication_date: '',
     cow_id: '',
+    customer_id: '',
+    unit_price: '',
+    sales_date: '',
   }
   showModal.value = true
 }
 
-function openEdit(medication) {
+function openEdit(cowSales) {
   isEditing.value = true
   validated.value = false
-  currentMedication.value = { ...medication }
+  currentCowSales.value = { ...cowSales }
   showModal.value = true
 }
 
 function confirmDelete(id) {
-  if (confirm('Are you sure you want to delete this Medication record?')) {
-    medicationStore.deleteMedication(id)
+  if (confirm('Are you sure you want to delete this cow sales record?')) {
+    cowSalesStore.deleteCowSales(id)
   }
 }
 
@@ -131,15 +134,15 @@ async function handleSubmit(e) {
   }
   e.preventDefault()
   const payload = {
-    medication: currentMedication.value.medication,
-    cow_id: currentMedication.value.cow_id.value,
-    medication_date: currentMedication.value.medication_date,
-    reason: currentMedication.value.reason,
+    cow_id: currentCowSales.value.cow_id.value,
+    customer_id: currentCowSales.value.customer_id.value,
+    unit_price: currentCowSales.value.unit_price,
+    sales_date: currentCowSales.value.sales_date,
   }
   if (isEditing.value) {
-    await medicationStore.editMedication(currentMedication.value.id, payload)
+    await cowSalesStore.editCowSales(currentCowSales.value.id, payload)
   } else {
-    await medicationStore.createMedication(payload)
+    await cowSalesStore.createCowSales(payload)
   }
   showModal.value = false
   //resetPage()
@@ -151,33 +154,33 @@ async function exportPDF() {
   const autoTable = (await import('jspdf-autotable')).default
   const doc = new jsPDF()
   doc.setFontSize(18)
-  doc.text('Cows Medication Records', 105, 15, { align: 'center' })
+  doc.text('feedings Feeding Records', 105, 15, { align: 'center' })
   doc.setFontSize(12)
   doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 25, { align: 'center' })
   autoTable(doc, {
     startY: 35,
-    head: [['ID', 'Medication', 'reason', 'Date of Medication', 'Pasture']],
-    body: filteredMedications.value.map((medication) => [
-      medication.id,
-      medication.medication,
-      medication.reason,
-      medication.medication_date,
-      medication.cow?.ear_tag,
+    head: [['ID', 'Food', 'Quantity', 'Sales Date', 'Pasture']],
+    body: filteredCowSales.value.map((feeding) => [
+      feeding.id,
+      feeding.food,
+      feeding.quantity,
+      feeding.sales_date,
+      feeding.pasture?.pasture,
     ]),
   })
-  doc.save('medications.pdf')
+  doc.save('feedings.pdf')
 }
 
 // Export in CSV
 function exportCSV() {
   const rows = [
-    ['ID', 'medication', 'reason', 'Date of Medication', 'Pasture'],
-    ...filteredMedications.value.map((medication) => [
-      medication.id,
-      medication.medication,
-      medication.reason,
-      medication.medication_date,
-      medication.cow?.ear_tag,
+    ['ID', 'Food', 'Quantity', 'Sales Date', 'Pasture'],
+    ...filteredCowSales.value.map((feeding) => [
+      feeding.id,
+      feeding.food?.food,
+      feeding.quantity,
+      feeding.sales_date,
+      feeding.pasture?.pasture,
     ]),
   ]
 
@@ -189,11 +192,22 @@ function exportCSV() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.setAttribute('href', url)
-  link.setAttribute('download', 'medications.csv')
+  link.setAttribute('download', 'feedings.csv')
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
 }
+
+const selectedCow = computed(() => {
+  return cowStore.cows.find((cow) => cow.id === currentCowSales.cow_id) || null
+})
+
+watch(
+  () => currentCowSales.value.cow_id,
+  (foodId) => {
+    selectedCow.value = cowStore.cows.find((f) => f.id === foodId) || null
+  },
+)
 </script>
 
 <template>
@@ -201,7 +215,7 @@ function exportCSV() {
     <CCol :xs="12">
       <CCard class="mb-4">
         <CCardHeader class="d-flex justify-content-between align-items-center">
-          <strong>Cows Medication List</strong>
+          <strong>Cow Sales List</strong>
           <div class="d-flex gap-2 mb-3">
             <CButton color="dark" variant="outline" title="Export CSV" @click="exportCSV"
               ><CIcon icon="cil-file"
@@ -209,7 +223,7 @@ function exportCSV() {
             <CButton color="dark" variant="outline" class="sm" title="Export PDF" @click="exportPDF"
               ><CIcon icon="cil-cloud-download"
             /></CButton>
-            <CButton color="dark" @click="openCreate">+ Add Medication Record</CButton>
+            <CButton color="dark" @click="openCreate">+ Add Sales</CButton>
           </div>
         </CCardHeader>
         <CCardBody>
@@ -220,7 +234,7 @@ function exportCSV() {
               type="text"
               v-model="searchQuery"
               class="form-control w-25"
-              placeholder="Search by medication or reason"
+              placeholder="Search by food"
               @input="resetPage"
             />
             <div class="d-flex align-items-center">
@@ -234,26 +248,31 @@ function exportCSV() {
             </div>
           </div>
 
-          <!-- cows table -->
+          <!-- sales table -->
           <CTable striped hover responsive>
             <CTableHead>
               <CTableRow>
-                <CTableHeaderCell>Medication</CTableHeaderCell>
-                <CTableHeaderCell>reason</CTableHeaderCell>
-                <CTableHeaderCell>Date of Medication</CTableHeaderCell>
                 <CTableHeaderCell>Cow</CTableHeaderCell>
+                <CTableHeaderCell>Sale Date</CTableHeaderCell>
+                <CTableHeaderCell>Cost (Rwf)</CTableHeaderCell>
                 <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
             <CTableBody>
-              <CTableRow v-for="medication in paginatedMedications" :key="medication.id">
-                <CTableDataCell>{{ medication.medication }}</CTableDataCell>
-                <CTableDataCell>{{ medication.reason }}</CTableDataCell>
-                <CTableDataCell>{{ medication.medication_date }}</CTableDataCell>
+              <CTableRow v-for="cowSales in paginatedCowSales" :key="cowSales.id">
                 <CTableDataCell
-                  ><router-link :to="`/cows`" class="text-decoration-none text-dark">{{
-                    medication.cow?.ear_tag ?? ''
-                  }}</router-link></CTableDataCell
+                  ><router-link :to="`/cows/${cowSales.cow?.id}`">
+                    {{ cowSales.cow?.ear_tag ?? '' }}
+                  </router-link></CTableDataCell
+                >
+                <CTableDataCell>{{ cowSales.sales_date }}</CTableDataCell>
+                <CTableDataCell>{{ cowSales.unit_price }}</CTableDataCell>
+                <CTableDataCell
+                  ><router-link
+                    :to="`/pasture/cow/${cowSales.pasture?.id}`"
+                    class="text-decoration-none text-dark"
+                    >{{ cowSales.pasture?.pasture ?? '' }}</router-link
+                  ></CTableDataCell
                 >
                 <CTableDataCell>
                   <!-- Edit Cow Button -->
@@ -261,8 +280,8 @@ function exportCSV() {
                     size="sm"
                     color="info"
                     class="me-2 text-white"
-                    title="Edit Medication Record"
-                    @click="openEdit(medication)"
+                    title="Edit cowSales Record"
+                    @click="openEdit(cowSales)"
                   >
                     <CIcon :icon="cilPencil" />
                   </CButton>
@@ -272,16 +291,16 @@ function exportCSV() {
                     size="sm"
                     color="danger"
                     class="text-white"
-                    title="Delete Medication Record"
-                    @click="confirmDelete(medication.id)"
+                    title="Delete cowSales Record"
+                    @click="confirmDelete(cowSales.id)"
                   >
                     <CIcon :icon="cilTrash" />
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
-              <CTableRow v-if="paginatedMedications.length === 0">
+              <CTableRow v-if="paginatedCowSales.length === 0">
                 <CTableDataCell colspan="8" class="text-center">
-                  No medication record found.
+                  No sales record found.
                 </CTableDataCell>
               </CTableRow>
             </CTableBody>
@@ -289,7 +308,7 @@ function exportCSV() {
 
           <!-- pagination controls -->
           <div class="text-end mb-3">
-            <strong>Total Records:</strong> {{ filteredMedications.length }}
+            <strong>Total Records:</strong> {{ filteredCowSales.length }}
           </div>
           <div class="d-flex justify-content-between align-items-center mt-3">
             <CButton color="dark" variant="outline" :disabled="currentPage === 1" @click="prevPage">
@@ -311,10 +330,11 @@ function exportCSV() {
   </CRow>
 
   <!-- Create/Edit Modal -->
-  <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
+  <!-- <CModal :visible="showModal" size="lg" backdrop="static" @close="() => (visible = false)"> -->
+  <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="md">
     <CModalHeader>
       <CModalTitle>{{
-        isEditing ? 'Edit Cow Medication Record' : 'Add Cow Medication Record'
+        isEditing ? 'Edit Milk Sales Record' : 'Add Milk Sales Record'
       }}</CModalTitle>
     </CModalHeader>
     <CModalBody>
@@ -324,25 +344,13 @@ function exportCSV() {
         :validated="validated"
         @submit="handleSubmit"
       >
-        <CCol :md="6">
-          <CFormLabel for="medication">Medication</CFormLabel>
-          <CFormInput id="medication" v-model="currentMedication.medication" required />
-          <CFormFeedback invalid>Medication is required.</CFormFeedback>
-        </CCol>
-
-        <CCol :md="6">
-          <CFormLabel for="reason">reason</CFormLabel>
-          <CFormInput id="reason" v-model="currentMedication.reason" required />
-          <CFormFeedback invalid>reason is required.</CFormFeedback>
-        </CCol>
-
-        <CCol :md="6">
-          <CFormLabel for="cow">cow</CFormLabel>
+        <CCol :md="12">
+          <CFormLabel for="cow">Cow</CFormLabel>
           <Multiselect
             id="cow"
-            v-model="currentMedication.cow_id"
+            v-model="currentCowSales.cow_id"
             :options="[
-              { label: 'Select cow', value: '' },
+              { label: 'Select Cow', value: '' },
               ...cowStore.cows.map((cow) => ({
                 label: cow.ear_tag,
                 value: cow.id,
@@ -353,20 +361,55 @@ function exportCSV() {
             placeholder="Select Cow"
             :searchable="true"
             :allowEmpty="true"
-            required
+            @input="validated.value = !!currentCowSales.cow_id"
           />
-          <CFormFeedback invalid v-if="!currentMedication.cow_id">Cow is required.</CFormFeedback>
+          <CFormFeedback invalid v-if="!currentCowSales.cow_id">Cow is required.</CFormFeedback>
         </CCol>
 
-        <CCol :md="6">
-          <CFormLabel for="dateOfMedication">Date of Medication</CFormLabel>
+        <CCol :md="12">
+          <CFormLabel for="unit_price">Price (Rwf)</CFormLabel>
           <CFormInput
-            id="dateOfMedication"
-            type="date"
-            v-model="currentMedication.medication_date"
+            id="unit_price"
+            v-model="currentCowSales.unit_price"
+            type="number"
+            min="1"
             required
           />
-          <CFormFeedback invalid>Date of Medication is required.</CFormFeedback>
+          <CFormFeedback invalid v-if="!currentCowSales.unit_price">
+            Price is required.
+          </CFormFeedback>
+        </CCol>
+
+        <CCol :md="12">
+          <CFormLabel for="customer">Customer</CFormLabel>
+          <Multiselect
+            id="customer"
+            v-model="currentCowSales.customer_id"
+            :options="[
+              { label: 'Select Customer', value: '' },
+              ...customerStore.customers.map((customer) => ({
+                label: customer.first_name + ' ' + customer.last_name,
+                value: customer.id,
+              })),
+            ]"
+            label="label"
+            track-by="value"
+            placeholder="Select Customer"
+            :searchable="true"
+            :allowEmpty="true"
+            :value="currentCowSales.customer_id"
+            @input="validated.value = !!currentCowSales.customer_id"
+            required
+          />
+          <CFormFeedback invalid v-if="!currentCowSales.customer_id"
+            >Customer is required.</CFormFeedback
+          >
+        </CCol>
+
+        <CCol :md="12">
+          <CFormLabel for="salesDate">Sales Date</CFormLabel>
+          <CFormInput id="salesDate" type="date" v-model="currentCowSales.sales_date" required />
+          <CFormFeedback invalid>Sales Date is required.</CFormFeedback>
         </CCol>
 
         <CCol :xs="12" class="d-flex justify-content-end">

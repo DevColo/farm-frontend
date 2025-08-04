@@ -1,8 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { usePastureStore } from '@/stores/pasture.store'
-import { useFeedingStore } from '@/stores/feeding.store'
-import { useFoodStore } from '@/stores/food.store'
+import { useMilkStore } from '@/stores/milk.store'
+import { useMilkSalesStore } from '@/stores/milk-sales.store'
+import { useCustomerStore } from '@/stores/customer.store'
 import {
   CRow,
   CCol,
@@ -33,27 +33,28 @@ import { cilPencil, cilTrash } from '@coreui/icons'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.css'
 
-const pastureStore = usePastureStore()
-const feedingStore = useFeedingStore()
-const foodStore = useFoodStore()
+const milkStore = useMilkStore()
+const milkSalesStore = useMilkSalesStore()
+const customerStore = useCustomerStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
 
-const currentFeeding = ref({
+const currentMilkSales = ref({
   id: null,
-  food_id: '',
+  milk_record_id: '',
+  customer_id: '',
   quantity: '',
-  fed_date: '',
-  pasture_id: '',
+  unit_price: '',
+  sales_date: '',
 })
 
 // fetch data
 onMounted(() => {
-  feedingStore.fetchFeedings()
-  pastureStore.fetchPastures()
-  foodStore.fetchFoods()
+  milkSalesStore.fetchMilkSales()
+  milkStore.fetchMilkRecords()
+  customerStore.fetchCustomers()
 })
 
 // search & pagination
@@ -61,26 +62,28 @@ const searchQuery = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
-const filteredFeedings = computed(() => {
+const filteredMilkSales = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return feedingStore.feedings
-  return feedingStore.feedings.filter((c) => [c.food].some((f) => f?.toLowerCase().includes(q)))
+  if (!q) return milkSalesStore.milkSales
+  return milkSalesStore.milkSales.filter((m) =>
+    [m.sales_date, m.quantity].some((f) => f?.toLowerCase().includes(q)),
+  )
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredFeedings.value.length / itemsPerPage.value)),
+  Math.max(1, Math.ceil(filteredMilkSales.value.length / itemsPerPage.value)),
 )
-const paginatedFeedings = computed(() => {
+const paginatedMilkSales = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredFeedings.value.slice(start, start + itemsPerPage.value)
+  return filteredMilkSales.value.slice(start, start + itemsPerPage.value)
 })
 
 // Fix for the prop type warning
 watch(
-  () => currentFeeding.value.pasture_id,
+  () => currentMilkSales.value.milk_record_id,
   (newValue) => {
     if (typeof newValue === 'number') {
-      currentFeeding.value.pasture_id = String(newValue)
+      currentMilkSales.value.milk_record_id = String(newValue)
     }
   },
 )
@@ -99,26 +102,27 @@ function resetPage() {
 function openCreate() {
   isEditing.value = false
   validated.value = false
-  currentFeeding.value = {
+  currentMilkSales.value = {
     id: null,
-    food_id: '',
+    milk_record_id: '',
+    customer_id: '',
     quantity: '',
-    fed_date: '',
-    pasture_id: '',
+    unit_price: '',
+    sales_date: '',
   }
   showModal.value = true
 }
 
-function openEdit(feeding) {
+function openEdit(milkSales) {
   isEditing.value = true
   validated.value = false
-  currentFeeding.value = { ...feeding }
+  currentMilkSales.value = { ...milkSales }
   showModal.value = true
 }
 
 function confirmDelete(id) {
-  if (confirm('Are you sure you want to delete this feeding record?')) {
-    feedingStore.deleteFeeding(id)
+  if (confirm('Are you sure you want to delete this milk sales record?')) {
+    milkSalesStore.deleteMilkSales(id)
   }
 }
 
@@ -132,15 +136,16 @@ async function handleSubmit(e) {
   }
   e.preventDefault()
   const payload = {
-    food_id: currentFeeding.value.food_id.value,
-    pasture_id: currentFeeding.value.pasture_id.value,
-    fed_date: currentFeeding.value.fed_date,
-    quantity: currentFeeding.value.quantity,
+    milk_record_id: currentMilkSales.value.milk_record_id.value,
+    customer_id: currentMilkSales.value.customer_id.value,
+    quantity: currentMilkSales.value.quantity,
+    unit_price: currentMilkSales.value.unit_price,
+    sales_date: currentMilkSales.value.sales_date,
   }
   if (isEditing.value) {
-    await feedingStore.editFeeding(currentFeeding.value.id, payload)
+    await milkSalesStore.editMilkSales(currentMilkSales.value.id, payload)
   } else {
-    await feedingStore.createFeeding(payload)
+    await milkSalesStore.createMilkSales(payload)
   }
   showModal.value = false
   //resetPage()
@@ -157,12 +162,12 @@ async function exportPDF() {
   doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 25, { align: 'center' })
   autoTable(doc, {
     startY: 35,
-    head: [['ID', 'Food', 'Quantity', 'Date of Feeding', 'Pasture']],
-    body: filteredFeedings.value.map((feeding) => [
+    head: [['ID', 'Food', 'Quantity', 'Sales Date', 'Pasture']],
+    body: filteredMilkSales.value.map((feeding) => [
       feeding.id,
       feeding.food,
       feeding.quantity,
-      feeding.fed_date,
+      feeding.sales_date,
       feeding.pasture?.pasture,
     ]),
   })
@@ -172,12 +177,12 @@ async function exportPDF() {
 // Export in CSV
 function exportCSV() {
   const rows = [
-    ['ID', 'Food', 'Quantity', 'Date of Feeding', 'Pasture'],
-    ...filteredFeedings.value.map((feeding) => [
+    ['ID', 'Food', 'Quantity', 'Sales Date', 'Pasture'],
+    ...filteredMilkSales.value.map((feeding) => [
       feeding.id,
       feeding.food?.food,
       feeding.quantity,
-      feeding.fed_date,
+      feeding.sales_date,
       feeding.pasture?.pasture,
     ]),
   ]
@@ -197,22 +202,29 @@ function exportCSV() {
 }
 
 // Get Comsumed Quantity
-function getConsumedQuantity(food) {
-  if (!food.Feedings || food.Feedings.length === 0) return 0
+function getConsumedQuantity(milk) {
+  if (!milk.Feedings || milk.Feedings.length === 0) return 0
 
-  return food.Feedings.reduce((total, feeding) => {
+  return milk.Feedings.reduce((total, feeding) => {
     return total + parseFloat(feeding.quantity || 0)
   }, 0)
 }
 
+// Get Revenue
+function getRevenue(milk) {
+  const quantity = parseFloat(milk.quantity) || 0
+  const unitPrice = parseFloat(milk.unit_price) || 0
+  return (quantity * unitPrice).toFixed(2)
+}
+
 const selectedFood = computed(() => {
-  return foodStore.foods.find((food) => food.id === currentFeeding.food_id) || null
+  return milkStore.milkRecords.find((milk) => milk.id === currentMilkSales.milk_record_id) || null
 })
 
 watch(
-  () => currentFeeding.value.food_id,
+  () => currentMilkSales.value.milk_record_id,
   (foodId) => {
-    selectedFood.value = foodStore.foods.find((f) => f.id === foodId) || null
+    selectedFood.value = milkStore.milkRecords.find((f) => f.id === foodId) || null
   },
 )
 
@@ -228,7 +240,7 @@ const availableQuantity = computed(() => {
     <CCol :xs="12">
       <CCard class="mb-4">
         <CCardHeader class="d-flex justify-content-between align-items-center">
-          <strong>Cows Feeding List</strong>
+          <strong>Milk Sales List</strong>
           <div class="d-flex gap-2 mb-3">
             <CButton color="dark" variant="outline" title="Export CSV" @click="exportCSV"
               ><CIcon icon="cil-file"
@@ -236,7 +248,7 @@ const availableQuantity = computed(() => {
             <CButton color="dark" variant="outline" class="sm" title="Export PDF" @click="exportPDF"
               ><CIcon icon="cil-cloud-download"
             /></CButton>
-            <CButton color="dark" @click="openCreate">+ Add Feeding Record</CButton>
+            <CButton color="dark" @click="openCreate">+ Add Sales</CButton>
           </div>
         </CCardHeader>
         <CCardBody>
@@ -261,27 +273,35 @@ const availableQuantity = computed(() => {
             </div>
           </div>
 
-          <!-- cows table -->
+          <!-- sales table -->
           <CTable striped hover responsive>
             <CTableHead>
               <CTableRow>
-                <CTableHeaderCell>Food</CTableHeaderCell>
-                <CTableHeaderCell>Quantity</CTableHeaderCell>
-                <CTableHeaderCell>Date of Feeding</CTableHeaderCell>
-                <CTableHeaderCell>Pasture</CTableHeaderCell>
+                <CTableHeaderCell>Milk Recorded Date</CTableHeaderCell>
+                <CTableHeaderCell>Quantity Recorded</CTableHeaderCell>
+                <CTableHeaderCell>Sale Date</CTableHeaderCell>
+                <CTableHeaderCell>Quantity Sold</CTableHeaderCell>
+                <CTableHeaderCell>Unit Price (Rwf)</CTableHeaderCell>
+                <CTableHeaderCell>Revenue (Rwf)</CTableHeaderCell>
                 <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
             <CTableBody>
-              <CTableRow v-for="feeding in paginatedFeedings" :key="feeding.id">
-                <CTableDataCell>{{ feeding.food?.food ?? '' }}</CTableDataCell>
-                <CTableDataCell>{{ feeding.quantity }}</CTableDataCell>
-                <CTableDataCell>{{ feeding.fed_date }}</CTableDataCell>
+              <CTableRow v-for="milkSales in paginatedMilkSales" :key="milkSales.id">
+                <CTableDataCell>{{ milkSales.milk_record?.record_date ?? '' }}</CTableDataCell>
+                <CTableDataCell>{{
+                  Number(milkSales.milk_record?.morning_qty) +
+                    Number(milkSales.milk_record?.evening_qty) ?? ''
+                }}</CTableDataCell>
+                <CTableDataCell>{{ milkSales.sales_date }}</CTableDataCell>
+                <CTableDataCell>{{ milkSales.quantity }}</CTableDataCell>
+                <CTableDataCell>{{ milkSales.unit_price }}</CTableDataCell>
+                <CTableDataCell>{{ getRevenue(milkSales) }}</CTableDataCell>
                 <CTableDataCell
                   ><router-link
-                    :to="`/pasture/cow/${feeding.pasture?.id}`"
+                    :to="`/pasture/cow/${milkSales.pasture?.id}`"
                     class="text-decoration-none text-dark"
-                    >{{ feeding.pasture?.pasture ?? '' }}</router-link
+                    >{{ milkSales.pasture?.pasture ?? '' }}</router-link
                   ></CTableDataCell
                 >
                 <CTableDataCell>
@@ -290,8 +310,8 @@ const availableQuantity = computed(() => {
                     size="sm"
                     color="info"
                     class="me-2 text-white"
-                    title="Edit Feeding Record"
-                    @click="openEdit(feeding)"
+                    title="Edit milkSales Record"
+                    @click="openEdit(milkSales)"
                   >
                     <CIcon :icon="cilPencil" />
                   </CButton>
@@ -301,16 +321,16 @@ const availableQuantity = computed(() => {
                     size="sm"
                     color="danger"
                     class="text-white"
-                    title="Delete Feeding Record"
-                    @click="confirmDelete(feeding.id)"
+                    title="Delete milkSales Record"
+                    @click="confirmDelete(milkSales.id)"
                   >
                     <CIcon :icon="cilTrash" />
                   </CButton>
                 </CTableDataCell>
               </CTableRow>
-              <CTableRow v-if="paginatedFeedings.length === 0">
+              <CTableRow v-if="paginatedMilkSales.length === 0">
                 <CTableDataCell colspan="8" class="text-center">
-                  No feeding record found.
+                  No sales record found.
                 </CTableDataCell>
               </CTableRow>
             </CTableBody>
@@ -318,7 +338,7 @@ const availableQuantity = computed(() => {
 
           <!-- pagination controls -->
           <div class="text-end mb-3">
-            <strong>Total Records:</strong> {{ filteredFeedings.length }}
+            <strong>Total Records:</strong> {{ filteredMilkSales.length }}
           </div>
           <div class="d-flex justify-content-between align-items-center mt-3">
             <CButton color="dark" variant="outline" :disabled="currentPage === 1" @click="prevPage">
@@ -344,7 +364,7 @@ const availableQuantity = computed(() => {
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="md">
     <CModalHeader>
       <CModalTitle>{{
-        isEditing ? 'Edit Cow Feeding Record' : 'Add Cow Feeding Record'
+        isEditing ? 'Edit Milk Sales Record' : 'Add Milk Sales Record'
       }}</CModalTitle>
     </CModalHeader>
     <CModalBody>
@@ -355,92 +375,93 @@ const availableQuantity = computed(() => {
         @submit="handleSubmit"
       >
         <CCol :md="12">
-          <CFormLabel for="food">Food</CFormLabel>
+          <CFormLabel for="food">Recorded Milk</CFormLabel>
           <Multiselect
             id="food"
-            v-model="currentFeeding.food_id"
+            v-model="currentMilkSales.milk_record_id"
             :options="[
-              { label: 'Select Food', value: '' },
-              ...foodStore.foods.map((food) => ({
+              { label: 'Select Recorded Milk Date', value: '' },
+              ...milkStore.milkRecords.map((milk) => ({
                 label:
-                  food.food + ' (' + (food.quantity - getConsumedQuantity(food)) + ' kg available)',
-                value: food.id,
+                  milk.record_date +
+                  ' (' +
+                  (Number(milk.morning_qty) +
+                    Number(milk.evening_qty) -
+                    Number(getConsumedQuantity(milk))) +
+                  ' kg available)',
+                value: milk.id,
               })),
             ]"
             label="label"
             track-by="value"
-            placeholder="Select Food"
+            placeholder="Select Recorded Milk Date"
             :searchable="true"
             :allowEmpty="true"
-            @input="validated.value = !!currentFeeding.food_id"
+            @input="validated.value = !!currentMilkSales.milk_record_id"
           />
-
-          <!-- <Multiselect
-            id="food"
-            v-model="currentFeeding.food_id"
-            :options="[
-              { label: 'Select Food', value: '' },
-              ...foodStore.foods.map((food) => ({
-                label: food.food + ' (' + (food.quantity - getConsumedQuantity(food)) + 'kg)',
-                value: food.id,
-              })),
-            ]"
-            label="label"
-            track-by="value"
-            placeholder="Select Food"
-            :searchable="true"
-            :allowEmpty="true"
-            :value="currentFeeding.food_id"
-            @input="validated.value = !!currentFeeding.food_id"
-            required
-          /> -->
-          <CFormFeedback invalid v-if="!currentFeeding.food_id">Food is required.</CFormFeedback>
+          <CFormFeedback invalid v-if="!currentMilkSales.milk_record_id"
+            >Recorded Milk Date is required.</CFormFeedback
+          >
         </CCol>
 
         <CCol :md="12">
           <CFormLabel for="quantity">Quantity (kg)</CFormLabel>
           <CFormInput
             id="quantity"
-            v-model="currentFeeding.quantity"
+            v-model="currentMilkSales.quantity"
             type="number"
             min="1"
             required
           />
-          <CFormFeedback invalid v-if="!currentFeeding.quantity">
+          <CFormFeedback invalid v-if="!currentMilkSales.quantity">
             Quantity is quantity.
           </CFormFeedback>
         </CCol>
 
         <CCol :md="12">
-          <CFormLabel for="pasture">Pasture</CFormLabel>
+          <CFormLabel for="unit_price">Unit Price (Rwf)</CFormLabel>
+          <CFormInput
+            id="unit_price"
+            v-model="currentMilkSales.unit_price"
+            type="number"
+            min="1"
+            required
+          />
+          <CFormFeedback invalid v-if="!currentMilkSales.unit_price">
+            Unit Price is required.
+          </CFormFeedback>
+        </CCol>
+
+        <CCol :md="12">
+          <CFormLabel for="customer">Customer</CFormLabel>
           <Multiselect
-            id="pasture"
-            v-model="currentFeeding.pasture_id"
+            id="customer"
+            v-model="currentMilkSales.customer_id"
             :options="[
-              { label: 'Select Pasture', value: '' },
-              ...pastureStore.pastures.map((pasture) => ({
-                label: pasture.pasture,
-                value: pasture.id,
+              { label: 'Select Customer', value: '' },
+              ...customerStore.customers.map((customer) => ({
+                label: customer.first_name + ' ' + customer.last_name,
+                value: customer.id,
               })),
             ]"
             label="label"
             track-by="value"
-            placeholder="Select Pasture"
+            placeholder="Select Customer"
             :searchable="true"
             :allowEmpty="true"
-            :value="currentFeeding.pasture_id"
-            @input="validated.value = !!currentFeeding.pasture_id"
+            :value="currentMilkSales.customer_id"
+            @input="validated.value = !!currentMilkSales.customer_id"
             required
           />
-          <CFormFeedback invalid v-if="!currentFeeding.pasture_id"
-            >Pasture is required.</CFormFeedback
+          <CFormFeedback invalid v-if="!currentMilkSales.customer_id"
+            >Customer is required.</CFormFeedback
           >
         </CCol>
 
         <CCol :md="12">
-          <CFormLabel for="dateOfFeeding">Date of Feeding</CFormLabel>
-          <CFormInput id="dateOfFeeding" type="date" v-model="currentFeeding.fed_date" required />
-          <CFormFeedback invalid>Date of Feeding is required.</CFormFeedback>
+          <CFormLabel for="salesDate">Sales Date</CFormLabel>
+          <CFormInput id="salesDate" type="date" v-model="currentMilkSales.sales_date" required />
+          <CFormFeedback invalid>Sales Date is required.</CFormFeedback>
         </CCol>
 
         <CCol :xs="12" class="d-flex justify-content-end">
