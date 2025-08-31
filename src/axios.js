@@ -2,11 +2,39 @@
 import axios from 'axios'
 
 const instance = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: 'http://jakaja.site/api', // Ensure this matches your Laravel URL
   headers: {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
   },
-  withCredentials: true, // optional: for handling cookies
+  withCredentials: true, // Keep true if using sessions/cookies
 })
+
+// Add request interceptor
+instance.interceptors.request.use(
+  (config) => {
+    // You can modify requests here (e.g., add auth token)
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  },
+)
+
+// Add response interceptor
+instance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Handle specific error statuses
+    if (error.response?.status === 401) {
+      // Handle unauthorized
+    }
+    if (error.response?.status === 404) {
+      // Handle not found
+    }
+    return Promise.reject(error)
+  },
+)
 
 export default instance

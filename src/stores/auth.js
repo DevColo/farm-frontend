@@ -21,18 +21,16 @@ export const useAuthStore = defineStore('auth', {
       try {
         const res = await axios.post('/login', { email, password })
         this.token = res.data.token
-        this.user = res.data.user
-
         localStorage.setItem('user_token', this.token)
-        localStorage.setItem('user', JSON.stringify(this.user))
-        this.fetchUser(this.user.id)
+
+        axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`
+
+        await this.fetchUser()
 
         if (router) {
-          //toast.success('Logged in successfully')
           router.push('/dashboard')
         }
       } catch (err) {
-        //console.log('Login error response:', err.response?.data?.message)
         const message = err.response?.data?.message || 'Login failed'
         toast.error(message)
       } finally {
