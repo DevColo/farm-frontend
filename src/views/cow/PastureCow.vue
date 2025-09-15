@@ -28,11 +28,13 @@ import {
   CFormCheck,
   CFormFeedback,
 } from '@coreui/vue'
-import { cilPencil, cilTrash, cilUser } from '@coreui/icons'
+import { cilPencil, cilTrash } from '@coreui/icons'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import defaultCowImage from '@/assets/images/default-cow.jpg'
 import { useRoute } from 'vue-router'
+import Multiselect from 'vue-multiselect'
+import 'vue-multiselect/dist/vue-multiselect.css'
 
 const route = useRoute()
 const pastureId = route.params.pastureId
@@ -202,15 +204,6 @@ function exportCSV() {
   link.click()
   document.body.removeChild(link)
 }
-// Cow Profile Modal
-const activeTab = ref('profile')
-const showProfileModal = ref(false)
-const selectedCow = ref({})
-
-function openProfile(cow) {
-  selectedCow.value = cow
-  showProfileModal.value = true
-}
 
 // Get Cow Image
 function getCowImage(imageUrl) {
@@ -333,13 +326,17 @@ const removeImage = () => {
                 <CTableHeaderCell>Gender</CTableHeaderCell>
                 <CTableHeaderCell>Class</CTableHeaderCell>
                 <CTableHeaderCell>Breed</CTableHeaderCell>
-                <CTableHeaderCell>Status</CTableHeaderCell>
+                <!-- <CTableHeaderCell>Status</CTableHeaderCell> -->
                 <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
             <CTableBody>
               <CTableRow v-for="cow in paginatedCows" :key="cow.id">
-                <CTableDataCell>{{ cow.name }}</CTableDataCell>
+                <CTableDataCell
+                  ><router-link :to="`/cows/${cow.id}`">
+                    {{ cow.name }}
+                  </router-link></CTableDataCell
+                >
                 <CTableDataCell>{{ cow.ear_tag }}</CTableDataCell>
                 <CTableDataCell>{{ cow.date_of_birth }}</CTableDataCell>
                 <CTableDataCell>{{ calculateAgeAndClass(cow.date_of_birth).age }}</CTableDataCell>
@@ -347,7 +344,8 @@ const removeImage = () => {
                   ><router-link
                     :to="`/gender/cow/${cow.type}`"
                     class="text-decoration-none text-dark"
-                    >{{ cow.type == 'cow' ? 'Female' : cow.type }}</router-link
+                    >{{ cow.type
+                    }}{{ cow.male_type != null ? ' - ' + cow.male_type : '' }}</router-link
                   ></CTableDataCell
                 >
                 <CTableDataCell
@@ -364,23 +362,12 @@ const removeImage = () => {
                     >{{ cow.breed || '—' }}</router-link
                   ></CTableDataCell
                 >
-                <CTableDataCell>
+                <!-- <CTableDataCell>
                   <span :class="['badge', cow.status === '1' ? 'bg-success' : 'bg-danger']">
                     {{ cow.status === '1' ? 'Active' : 'Inactive' }}
                   </span>
-                </CTableDataCell>
+                </CTableDataCell> -->
                 <CTableDataCell>
-                  <!-- View Profile Button -->
-                  <CButton
-                    size="sm"
-                    color="secondary"
-                    class="me-2 text-white"
-                    title="View Profile"
-                    @click="openProfile(cow)"
-                  >
-                    <CIcon :icon="cilUser" />
-                  </CButton>
-
                   <!-- Edit Cow Button -->
                   <CButton
                     size="sm"
@@ -431,73 +418,6 @@ const removeImage = () => {
     </CCol>
   </CRow>
 
-  <!-- Profile Modal -->
-  <CModal :visible="showProfileModal" @close="showProfileModal = false" size="lg">
-    <CModalHeader
-      ><CModalTitle
-        >{{ selectedCow.name ? selectedCow.name + ' - ' : '' }}
-        {{ selectedCow.ear_tag }}</CModalTitle
-      ></CModalHeader
-    >
-    <CModalBody>
-      <CNav variant="tabs">
-        <CNavItem
-          ><CNavLink :active="activeTab === 'profile'" @click="activeTab = 'profile'"
-            >Profile</CNavLink
-          ></CNavItem
-        >
-        <CNavItem
-          ><CNavLink :active="activeTab === 'health'" @click="activeTab = 'health'"
-            >Health</CNavLink
-          ></CNavItem
-        >
-        <CNavItem
-          ><CNavLink :active="activeTab === 'history'" @click="activeTab = 'history'"
-            >History</CNavLink
-          ></CNavItem
-        >
-      </CNav>
-
-      <CTabContent class="mt-3">
-        <CTabPane :visible="activeTab === 'profile'">
-          <div class="text-center mb-3">
-            <img
-              :src="getCowImage(selectedCow.image)"
-              class="img-fluid rounded"
-              style="max-height: 200px"
-            />
-          </div>
-          <p><strong>Name:</strong> {{ selectedCow.name ?? '' }}</p>
-          <p><strong>Ear Tag:</strong> {{ selectedCow.ear_tag ?? '' }}</p>
-          <p><strong>Date of Birth:</strong> {{ selectedCow.date_of_birth ?? '' }}</p>
-          <p><strong>Type:</strong> {{ selectedCow.type ?? '' }}</p>
-          <p><strong>Breed:</strong> {{ selectedCow.breed ?? '' }}</p>
-          <p>
-            <strong>Herd:</strong>
-            {{ selectedCow.herd === 'from_farm' ? 'From Farm' : 'From Another Farm' }}
-          </p>
-          <p v-if="selectedCow.herd != 'from_farm'">
-            <strong>Source Location:</strong>
-            {{ selectedCow.from_location ?? '' }}
-          </p>
-          <p><strong>Description:</strong> {{ selectedCow.description ?? '' }}</p>
-          <p><strong>Status:</strong> {{ selectedCow.status === '1' ? 'Active' : 'Inactive' }}</p>
-          <CButton color="dark" @click="exportCowProfile(selectedCow)"
-            ><CIcon icon="cil-cloud-download" /> Download</CButton
-          >
-        </CTabPane>
-
-        <CTabPane :visible="activeTab === 'health'">
-          <p>Health info placeholder</p>
-        </CTabPane>
-
-        <CTabPane :visible="activeTab === 'history'">
-          <p>History info placeholder</p>
-        </CTabPane>
-      </CTabContent>
-    </CModalBody>
-  </CModal>
-
   <!-- Create/Edit Modal -->
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
     <CModalHeader>
@@ -530,18 +450,48 @@ const removeImage = () => {
         </CCol>
 
         <CCol :md="6">
-          <CFormLabel for="type">Type</CFormLabel>
+          <CFormLabel for="type">Gender</CFormLabel>
           <CFormSelect
             id="type"
             v-model="currentCow.type"
             :options="[
               { label: 'Select Type', value: '' },
-              { label: 'Cow', value: 'cow' },
-              { label: 'Bull', value: 'bull' },
+              { label: 'Female', value: 'Female' },
+              { label: 'Male', value: 'Male' },
             ]"
             required
           />
           <CFormFeedback invalid>Type is required.</CFormFeedback>
+        </CCol>
+
+        <CCol :md="6" v-if="currentCow.type === 'Female'">
+          <CFormLabel for="given_birth">Has Given Birth</CFormLabel>
+          <CFormSelect
+            id="given_birth"
+            v-model="currentCow.given_birth"
+            :options="[
+              { label: 'Select Option', value: '' },
+              { label: 'Yes', value: '1' },
+              { label: 'No', value: '0' },
+            ]"
+            required
+          />
+          <CFormFeedback invalid>This field is required for females.</CFormFeedback>
+        </CCol>
+
+        <CCol :md="6" v-if="currentCow.type === 'Male'">
+          <CFormLabel for="male_type">Male Type</CFormLabel>
+          <CFormSelect
+            id="male_type"
+            v-model="currentCow.male_type"
+            :options="[
+              { label: 'Select Type', value: '' },
+              { label: 'Bull', value: 'Bull' },
+              { label: 'Steer', value: 'Steer' },
+            ]"
+            required
+          />
+          <CFormFeedback invalid>This field is required for males.</CFormFeedback>
         </CCol>
 
         <CCol :md="6">
@@ -582,6 +532,36 @@ const removeImage = () => {
             required
           />
           <CFormFeedback invalid>Herd is required.</CFormFeedback>
+        </CCol>
+
+        <CCol :md="6" v-if="currentCow.herd === 'from_farm'">
+          <CFormLabel for="mother_ear_tag">Mother Ear Tag</CFormLabel>
+          <Multiselect
+            id="mother_ear_tag"
+            v-model="currentCow.mother_ear_tag"
+            :options="
+              cowStore.cows.filter((cow) => cow.type === 'Female').map((cow) => cow.ear_tag)
+            "
+            placeholder="Select Mother"
+            :searchable="true"
+            :allowEmpty="true"
+            required
+          />
+          <CFormFeedback invalid>Mother ear tag is required.</CFormFeedback>
+        </CCol>
+
+        <CCol :md="6" v-if="currentCow.herd === 'from_farm'">
+          <CFormLabel for="father_ear_tag">Father Ear Tag</CFormLabel>
+          <Multiselect
+            id="father_ear_tag"
+            v-model="currentCow.father_ear_tag"
+            :options="cowStore.cows.filter((cow) => cow.type === 'Male').map((cow) => cow.ear_tag)"
+            placeholder="Select Father"
+            :searchable="true"
+            :allowEmpty="true"
+            required
+          />
+          <CFormFeedback invalid>Father ear tag is required.</CFormFeedback>
         </CCol>
 
         <CCol :md="6" v-if="herdFromOutside">

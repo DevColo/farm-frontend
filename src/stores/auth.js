@@ -19,24 +19,50 @@ export const useAuthStore = defineStore('auth', {
       const toast = useToast()
 
       try {
-        const res = await axios.post('/login', { email, password })
+        const res = await axios.post('/api/login', { email, password })
         this.token = res.data.token
+        this.user = res.data.user
+
         localStorage.setItem('user_token', this.token)
-
-        axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`
-
-        await this.fetchUser()
+        localStorage.setItem('user', JSON.stringify(this.user))
+        this.fetchUserProfile()
 
         if (router) {
+          //toast.success('Logged in successfully')
           router.push('/dashboard')
         }
       } catch (err) {
+        //console.log('Login error response:', err.response?.data?.message)
         const message = err.response?.data?.message || 'Login failed'
         toast.error(message)
       } finally {
         this.loading = false
       }
     },
+    // async login(email, password, router) {
+    //   this.loading = true
+    //   this.error = null
+    //   const toast = useToast()
+
+    //   try {
+    //     const res = await axios.post('/api/login', { email, password })
+    //     this.token = res.data.token
+    //     localStorage.setItem('user_token', this.token)
+
+    //     axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`
+
+    //     await this.fetchUser()
+
+    //     if (router) {
+    //       router.push('/dashboard')
+    //     }
+    //   } catch (err) {
+    //     const message = err.response?.data?.message || 'Login failed'
+    //     toast.error(message)
+    //   } finally {
+    //     this.loading = false
+    //   }
+    // },
 
     logout(router) {
       const toast = useToast()
@@ -66,7 +92,7 @@ export const useAuthStore = defineStore('auth', {
           formData.append('remove_image', '1')
         }
 
-        await axios.put(`/users/${id}`, formData, {
+        await axios.put(`/api/users/${id}`, formData, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data',
@@ -89,7 +115,7 @@ export const useAuthStore = defineStore('auth', {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.get(`/users/${id}`, {
+        const response = await axios.get(`/api/users/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -97,6 +123,25 @@ export const useAuthStore = defineStore('auth', {
         this.user = response.data
       } catch (error) {
         let errorMessage = 'Failed to fetch user'
+        if (error.response && error.response.data) {
+          errorMessage = error.response.data.error || error.response.data.message
+        }
+        toast.error(errorMessage)
+      }
+    },
+
+    async fetchUserProfile() {
+      const toast = useToast()
+      try {
+        const token = localStorage.getItem('user_token')
+        const response = await axios.get(`/api/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        this.user = response.data
+      } catch (error) {
+        let errorMessage = 'Failed to fetch your profile'
         if (error.response && error.response.data) {
           errorMessage = error.response.data.error || error.response.data.message
         }

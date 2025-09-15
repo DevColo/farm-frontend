@@ -1,6 +1,6 @@
 // stores/pasture.store.js
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
 export const usePastureStore = defineStore('pasture', {
@@ -10,15 +10,15 @@ export const usePastureStore = defineStore('pasture', {
   actions: {
     async createPasture(payload) {
       const toast = useToast()
-      this.pastures.push(payload)
       try {
         const token = localStorage.getItem('user_token')
-        await axios.post('/api/pastures', payload, {
+        await axios.post('/api/add-pasture', payload, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
         toast.success('Pasture created successfully!')
+        this.fetchPastures()
       } catch (error) {
         let errorMessage = 'Something went wrong'
 
@@ -37,7 +37,7 @@ export const usePastureStore = defineStore('pasture', {
             Authorization: `Bearer ${token}`,
           },
         })
-        this.pastures = response.data
+        this.pastures = response.data.data
       } catch (error) {
         let errorMessage = 'Failed to fetch pastures'
         if (error.response && error.response.data) {
@@ -63,23 +63,25 @@ export const usePastureStore = defineStore('pasture', {
       }
     },
 
-    async editPasture(id, updatedData) {
+    async editPasture(updatedData) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.put(`/api/pastures/${id}`, updatedData, {
+        await axios.post(`/api/update-pasture`, updatedData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        // Update pasture in state
-        const index = this.pastures.findIndex((p) => p.id === id)
-        if (index !== -1) {
-          this.pastures[index] = response.data
-        }
+        
         toast.success('Pasture updated successfully')
+        this.fetchPastures()
       } catch (error) {
-        toast.error('Failed to update pasture')
+        let errorMessage = 'Something went wrong'
+
+        if (error.response && error.response.data) {
+          errorMessage = error.response.data.error
+        }
+        toast.error(errorMessage)
       }
     },
   },

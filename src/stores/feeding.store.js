@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
 export const useFeedingStore = defineStore('feeding', {
@@ -87,83 +87,6 @@ export const useFeedingStore = defineStore('feeding', {
         await this.fetchFeedings()
       } catch (error) {
         toast.error(error.response?.data?.error || 'Failed to delete Feeding Record')
-      }
-    },
-
-    async fetchPastureCows(pastureId) {
-      const toast = useToast()
-      try {
-        const token = localStorage.getItem('user_token')
-        const response = await axios.get(`/api/cows/by-pasture/${pastureId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        this.cows = response.data.cows
-        this.pasture = response.data.pasture
-      } catch (error) {
-        let errorMessage = 'Failed to fetch cows'
-        if (error.response && error.response.data) {
-          errorMessage = error.response.data.error || error.response.data.message
-        }
-        toast.error(errorMessage)
-      }
-    },
-
-    async fetchBreedCows(breed) {
-      const toast = useToast()
-      try {
-        const token = localStorage.getItem('user_token')
-        const response = await axios.get(`/api/cows/by-breed/${breed}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        this.cows = response.data.cows
-      } catch (error) {
-        let errorMessage = 'Failed to fetch cows'
-        if (error.response && error.response.data) {
-          errorMessage = error.response.data.error || error.response.data.message
-        }
-        toast.error(errorMessage)
-      }
-    },
-
-    async fetchGenderCows(gender) {
-      const toast = useToast()
-      try {
-        const token = localStorage.getItem('user_token')
-        const response = await axios.get(`/api/cows/by-gender/${gender}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        this.cows = response.data.cows
-      } catch (error) {
-        let errorMessage = 'Failed to fetch cows'
-        if (error.response && error.response.data) {
-          errorMessage = error.response.data.error || error.response.data.message
-        }
-        toast.error(errorMessage)
-      }
-    },
-
-    async fetchClassCows(cowClass) {
-      const toast = useToast()
-      try {
-        const token = localStorage.getItem('user_token')
-        const response = await axios.get(`/api/cows/by-class/${cowClass}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        this.cows = response.data.cows
-      } catch (error) {
-        let errorMessage = 'Failed to fetch cows'
-        if (error.response && error.response.data) {
-          errorMessage = error.response.data.error || error.response.data.message
-        }
-        toast.error(errorMessage)
       }
     },
   },

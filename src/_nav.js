@@ -26,29 +26,29 @@ export default [
   //   icon: 'cil-pencil',
   // },
   // Farm Management
-  // {
-  //   component: 'CNavTitle',
-  //   name: 'Farm Management',
-  // },
-  // Farm
-  // {
-  //   component: 'CNavGroup',
-  //   name: 'Farm',
-  //   to: '/farm',
-  //   icon: 'cil-notes',
-  //   items: [
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Add Farm',
-  //       to: '/add-farm',
-  //     },
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Farm List',
-  //       to: '/farm-list',
-  //     },
-  //   ],
-  // },
+  {
+    component: 'CNavTitle',
+    name: 'Farm Management',
+  },
+  //Farm
+  {
+    component: 'CNavGroup',
+    name: 'Farm',
+    to: '/farm',
+    icon: 'cil-notes',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'Farm List',
+        to: '/farm-list',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Block List',
+        to: '/block-list',
+      },
+    ],
+  },
   // Block
   // {
   //   component: 'CNavGroup',
@@ -109,89 +109,81 @@ export default [
     items: [
       {
         component: 'CNavItem',
-        name: 'View Cows',
+        name: 'Cow List',
         to: '/cows',
       },
       {
         component: 'CNavItem',
         name: 'Feeding',
-        to: '/cows/feeding',
+        to: '/feedings',
       },
       {
         component: 'CNavItem',
         name: 'Medication',
-        to: '/cows/medication',
+        to: '/medications',
       },
       {
         component: 'CNavItem',
         name: 'Maternity',
-        to: '/cows/maternity',
+        to: '/maternity',
       },
     ],
   },
-  // Cattle Log
-  // {
-  //   component: 'CNavGroup',
-  //   name: 'Cattle Log',
-  //   to: '/base',
-  //   icon: 'cil-layers',
-  //   items: [
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Add Cattle Log',
-  //       to: '/base/accordion',
-  //     },
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Cattle Log List',
-  //       to: '/base/breadcrumbs',
-  //     },
-  //   ],
-  // },
 
-  // Milk Management
+  // /Stock Management
   {
     component: 'CNavTitle',
-    name: 'Milk Management',
+    name: 'Stock Management',
   },
-  // Daily Milk Record
   {
-    component: 'CNavItem',
-    name: 'Daily Milk Record',
-    to: '/daily-milk-records',
-    icon: 'cil-layers',
+    component: 'router-link',
+    name: 'Stock Management',
+    icon: 'cil-basket',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'Daily Milk Record',
+        to: '/daily-milk-records',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Cow Food',
+        to: '/foods',
+      },
+      // {
+      //   component: 'CNavItem',
+      //   name: 'Crops',
+      //   to: '/roles',
+      // },
+    ],
   },
-  // Milk Record
-  // {
-  //   component: 'CNavGroup',
-  //   name: 'Milk Record',
-  //   to: '/milk',
-  //   icon: 'cil-notes',
-  //   items: [
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Add Dialy Record',
-  //       to: '/add-daily-record',
-  //     },
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Dialy Record List',
-  //       to: '/daily-record-list',
-  //     },
-  //   ],
-  // },
 
-  // Customers Management
+  // Sales Management
   {
     component: 'CNavTitle',
-    name: 'Customers Management',
+    name: 'Sales Management',
   },
-  // Customers
   {
-    component: 'CNavItem',
-    name: 'Customers',
-    to: '/daily-milk-records',
-    icon: 'cil-user',
+    component: 'router-link',
+    name: 'Sales Management',
+    icon: 'cil-dollar',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'Milk Sales',
+        to: '/milk-sales',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Cow Sales',
+        to: '/cow-sales',
+      },
+      // {
+      //   component: 'CNavItem',
+      //   name: 'Product Sales',
+      //   to: '/product-sales',
+      // },
+    ],
   },
 
   // General Settings
@@ -199,12 +191,38 @@ export default [
     component: 'CNavTitle',
     name: 'General Settings',
   },
-  // Price Settings
+  //User Management
   {
-    component: 'CNavItem',
-    name: 'Price Settings',
-    to: '/daily-milk-records',
-    icon: 'cil-dollar',
+    component: 'router-link',
+    name: 'User Management',
+    icon: 'cil-user',
+    items: [
+      {
+        component: 'CNavItem',
+        name: 'System User',
+        to: '/users',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Customer',
+        to: '/customers',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Country',
+        to: '/countries',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Role',
+        to: '/roles',
+      },
+      // {
+      //   component: 'CNavItem',
+      //   name: 'Permission',
+      //   to: '/medications',
+      // },
+    ],
   },
 
   // {

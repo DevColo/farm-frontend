@@ -39,4 +39,6 @@ onBeforeMount(() => {
 @use 'styles/style';
 // We use those styles to show code examples, you should remove them in your application.
 @use 'styles/examples';
+// Import Custom style
+@use 'styles/custom';
 </style>

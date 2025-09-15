@@ -2,7 +2,9 @@
 import axios from 'axios'
 
 const instance = axios.create({
-  baseURL: 'http://jakaja.site/api', // Ensure this matches your Laravel URL
+  //baseURL: 'http://127.0.0.1:8000', 
+  baseURL: 'http://jakaja.site', 
+  //baseURL: 'https://api.jakaja.net',
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',

@@ -51,10 +51,15 @@ export default defineConfig(() => {
     //     // https://vitejs.dev/config/server-options.html
     //   },
     // },
-    server: {
-      proxy: {
-        '/api': 'http://jakaja.site',
-      },
-    },
+    // server: {
+    //   proxy: {
+    //     '/api': 'http://jakaja.site',
+    //   },
+    // },
+    // server: {
+    //   proxy: {
+    //     '/api': 'https://api.jakaja.net',
+    //   },
+    // },
   }
 })

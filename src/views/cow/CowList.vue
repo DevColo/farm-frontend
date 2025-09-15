@@ -27,11 +27,23 @@ import {
   CFormSelect,
   CFormCheck,
   CFormFeedback,
+  CNav,
+  CNavItem,
+  CNavLink,
+  CTabContent,
+  CTabPane,
+  CInputGroup,
+  CBadge,
+  CDropdown,
+  CDropdownToggle,
+  CDropdownMenu,
+  CDropdownItem,
+  CSpinner,
 } from '@coreui/vue'
-import { cilHealing, cilPencil, cilTrash, cilUser } from '@coreui/icons'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import { cilPencil, cilTrash, cilPlus, cilCloudDownload, cilFile, cilSearch, cilFilter } from '@coreui/icons'
 import defaultCowImage from '@/assets/images/default-cow.jpg'
+import Multiselect from 'vue-multiselect'
+import 'vue-multiselect/dist/vue-multiselect.css'
 
 const cowStore = useCowStore()
 const pastureStore = usePastureStore()
@@ -39,88 +51,262 @@ const pastureStore = usePastureStore()
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
+const activeTab = ref('details')
+const loading = ref(false)
+const showFilters = ref(false)
 
 const currentCow = ref({
   id: null,
   name: '',
   ear_tag: '',
   date_of_birth: '',
-  type: '',
+  class: '',
+  gender: '',
   breed: '',
-  herd: '',
-  from_location: '',
+  from_farm: '',
+  source_location: '',
   description: '',
   pasture_id: '',
   status: true,
   image: null,
 })
 
-const herdFromOutside = computed(() => currentCow.value.herd === 'from_outside')
-
-// fetch data
-onMounted(() => {
-  cowStore.fetchCows()
-  pastureStore.fetchPastures()
+const currentCowParent = ref({
+  mother_id: '',
+  father_id: '',
 })
 
-// search & pagination
+const isFromFarm = computed(() => currentCow.value.from_farm === 'yes')
+
+// Enhanced search and filter states
 const searchQuery = ref('')
+const filterYear = ref('')
+const filterGender = ref('')
+const filterBreed = ref('')
+const filterPasture = ref('')
+const filterStatus = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
+const sortField = ref('name')
+const sortOrder = ref('asc')
 
+// fetch data
+onMounted(async () => {
+  loading.value = true
+  try {
+    await Promise.all([
+      cowStore.fetchCows(),
+      pastureStore.fetchPastures(),
+      cowStore.loadParentOptions()
+    ])
+  } finally {
+    loading.value = false
+  }
+})
+
+// Generate filter options
+const availableYears = computed(() => {
+  const years = cowStore.cows.map((cow) => new Date(cow.date_of_birth).getFullYear())
+  return Array.from(new Set(years)).sort((a, b) => b - a)
+})
+
+const availableGenders = computed(() => {
+  const genders = cowStore.cows.map(cow => cow.gender).filter(Boolean)
+  return Array.from(new Set(genders))
+})
+
+const availableBreeds = computed(() => {
+  const breeds = cowStore.cows.map(cow => cow.breed).filter(Boolean)
+  return Array.from(new Set(breeds))
+})
+
+const availablePastures = computed(() => {
+  return pastureStore.pastures.map(p => ({ id: p.id, name: p.pasture }))
+})
+
+// Enhanced filtering and sorting
 const filteredCows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return cowStore.cows
-  return cowStore.cows.filter((c) =>
-    [c.name, c.ear_tag, c.breed].some((f) => f?.toLowerCase().includes(q)),
-  )
+  let filtered = cowStore.cows.filter((cow) => {
+    const matchesQuery = !q || [cow.name, cow.ear_tag, cow.breed].some((field) => 
+      field?.toLowerCase().includes(q)
+    )
+    const matchesYear = !filterYear.value || 
+      new Date(cow.date_of_birth).getFullYear() === parseInt(filterYear.value)
+    const matchesGender = !filterGender.value || cow.gender === filterGender.value
+    const matchesBreed = !filterBreed.value || cow.breed === filterBreed.value
+    const matchesPasture = !filterPasture.value || cow.pasture?.id === parseInt(filterPasture.value)
+    const matchesStatus = !filterStatus.value || 
+      (filterStatus.value === 'active' && cow.status === '1') ||
+      (filterStatus.value === 'inactive' && cow.status === '0')
+    
+    return matchesQuery && matchesYear && matchesGender && matchesBreed && matchesPasture && matchesStatus
+  })
+
+  // Apply sorting
+  filtered.sort((a, b) => {
+    let aValue = a[sortField.value]
+    let bValue = b[sortField.value]
+    
+    // Handle special cases
+    if (sortField.value === 'age') {
+      aValue = calculateAge(a.date_of_birth)
+      bValue = calculateAge(b.date_of_birth)
+    } else if (sortField.value === 'pasture') {
+      aValue = a.pasture?.pasture || ''
+      bValue = b.pasture?.pasture || ''
+    }
+    
+    // Convert to strings for comparison
+    aValue = String(aValue || '').toLowerCase()
+    bValue = String(bValue || '').toLowerCase()
+    
+    if (sortOrder.value === 'asc') {
+      return aValue.localeCompare(bValue)
+    } else {
+      return bValue.localeCompare(aValue)
+    }
+  })
+
+  return filtered
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredCows.value.length / itemsPerPage.value)),
+  Math.max(1, Math.ceil(filteredCows.value.length / itemsPerPage.value))
 )
+
 const paginatedCows = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return filteredCows.value.slice(start, start + itemsPerPage.value)
 })
 
-// Fix for the prop type warning
-watch(
-  () => currentCow.value.pasture_id,
-  (newValue) => {
-    if (typeof newValue === 'number') {
-      currentCow.value.pasture_id = String(newValue)
-    }
-  },
-)
+// Statistics
+const stats = computed(() => {
+  const total = cowStore.cows.length
+  const active = cowStore.cows.filter(c => c.status === '1').length
+  const male = cowStore.cows.filter(c => c.gender === 'Male').length
+  const female = cowStore.cows.filter(c => c.gender === 'Female').length
+  
+  return { total, active, inactive: total - active, male, female }
+})
 
+// Helper functions
+function calculateAge(dateStr) {
+  if (!dateStr) return 0
+  const dob = new Date(dateStr)
+  const now = new Date()
+  return Math.floor((now - dob) / (365.25 * 24 * 60 * 60 * 1000))
+}
+
+function calculateAgeAndClass(dateStr, cow) {
+  if (!dateStr) return { age: '—', ageClass: '—' }
+
+  const dob = new Date(dateStr)
+  const now = new Date()
+  let months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth())
+
+  if (now.getDate() < dob.getDate()) months--
+
+  const years = Math.floor(months / 12)
+  const remainingMonths = months % 12
+
+  let ageString = ''
+  if (years > 0) ageString += `${years}y`
+  if (remainingMonths > 0) {
+    if (ageString) ageString += ' '
+    ageString += `${remainingMonths} months`
+  }
+  if (!ageString) ageString = 'less than 1 month'
+
+  const ageClass =
+    months >= 1 && months <= 11
+      ? 'Calf'
+      : months >= 12 && months < 23
+      ? 'Yearling'
+      : cow.gender === 'Female' && !cow.has_given_birth
+      ? 'Heifer'
+      : 'Adult'
+
+  return { age: ageString, ageClass }
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—'
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
+function getStatusBadge(status) {
+  return status === '1' ? { color: 'success', text: 'Active' } : { color: 'danger', text: 'Inactive' }
+}
+
+// Sorting
+function sortBy(field) {
+  if (sortField.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortOrder.value = 'asc'
+  }
+}
+
+function getSortIcon(field) {
+  if (sortField.value !== field) return '↕️'
+  return sortOrder.value === 'asc' ? '↑' : '↓'
+}
+
+// Filter management
+function clearAllFilters() {
+  searchQuery.value = ''
+  filterYear.value = ''
+  filterGender.value = ''
+  filterBreed.value = ''
+  filterPasture.value = ''
+  filterStatus.value = ''
+  resetPage()
+}
+
+function resetPage() {
+  currentPage.value = 1
+}
+
+// Pagination
 function nextPage() {
   if (currentPage.value < totalPages.value) currentPage.value++
 }
 function prevPage() {
   if (currentPage.value > 1) currentPage.value--
 }
-function resetPage() {
-  currentPage.value = 1
+function goToPage(page) {
+  currentPage.value = page
 }
 
-// modal handlers
+// Modal handlers
 function openCreate() {
   isEditing.value = false
   validated.value = false
+  activeTab.value = 'details'
   currentCow.value = {
     id: null,
     name: '',
     ear_tag: '',
     date_of_birth: '',
-    type: '',
+    class: '',
+    gender: '',
     breed: '',
-    herd: '',
-    from_location: '',
+    from_farm: '',
+    source_location: '',
     description: '',
     pasture_id: '',
     status: true,
     image: null,
+  }
+  currentCowParent.value = {
+    mother_id: '',
+    father_id: '',
   }
   showModal.value = true
 }
@@ -128,17 +314,28 @@ function openCreate() {
 function openEdit(cow) {
   isEditing.value = true
   validated.value = false
+  activeTab.value = 'details'
   currentCow.value = { ...cow, status: cow.status === '1' }
+  currentCowParent.value = {
+    mother_id: cow.parent?.mother_id || '',
+    father_id: cow.parent?.father_id || '',
+  }
+  currentCow.value.date_of_birth = cow.date_of_birth ? cow.date_of_birth.split('T')[0] : ''
   showModal.value = true
 }
 
-function confirmDelete(id) {
-  if (confirm('Are you sure you want to delete this cow?')) {
-    cowStore.deleteCow(id)
+async function confirmDelete(id, name) {
+  if (confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
+    loading.value = true
+    try {
+      await cowStore.deleteCow(id)
+    } finally {
+      loading.value = false
+    }
   }
 }
 
-// sync boolean checkbox with string status
+// Form handling
 const isActive = computed({
   get: () => currentCow.value.status === '1' || currentCow.value.status === true,
   set: (v) => {
@@ -155,88 +352,105 @@ async function handleSubmit(e) {
     return
   }
   e.preventDefault()
-  const payload = {
-    name: currentCow.value.name,
-    ear_tag: currentCow.value.ear_tag,
-    date_of_birth: currentCow.value.date_of_birth,
-    type: currentCow.value.type,
-    breed: currentCow.value.breed,
-    herd: currentCow.value.herd,
-    from_location: currentCow.value.herd === 'from_outside' ? currentCow.value.from_location : '',
-    description: currentCow.value.description,
-    pasture_id: currentCow.value.pasture_id,
-    status: currentCow.value.status ? '1' : '0',
-    image: currentCow.value.image,
+  
+  loading.value = true
+  try {
+    const payload = {
+      name: currentCow.value.name,
+      ear_tag: currentCow.value.ear_tag,
+      date_of_birth: currentCow.value.date_of_birth,
+      class: currentCow.value.class,
+      gender: currentCow.value.gender,
+      breed: currentCow.value.breed,
+      from_farm: currentCow.value.from_farm,
+      source_location: currentCow.value.from_farm === 'no' ? currentCow.value.source_location : '',
+      description: currentCow.value.description,
+      pasture_id: currentCow.value.pasture_id,
+      status: currentCow.value.status ? '1' : '0',
+      image: currentCow.value.image,
+      mother_id: currentCowParent.value.mother_id,
+      father_id: currentCowParent.value.father_id,
+    }
+    
+    if (isEditing.value) {
+      await cowStore.editCow(currentCow.value.id, payload)
+    } else {
+      await cowStore.createCow(payload)
+    }
+    showModal.value = false
+  } finally {
+    loading.value = false
   }
-  if (isEditing.value) {
-    await cowStore.editCow(currentCow.value.id, payload)
-  } else {
-    await cowStore.createCow(payload)
-  }
-  showModal.value = false
-  //resetPage()
 }
 
-// Get Cow Age and Class
-function calculateAgeAndClass(dateStr, cow) {
-  if (!dateStr) return { age: '—', ageClass: '—' }
-
-  const dob = new Date(dateStr)
-  const now = new Date()
-  let months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth())
-
-  if (now.getDate() < dob.getDate()) months--
-
-  const years = Math.floor(months / 12)
-  const remainingMonths = months % 12
-
-  let ageString = ''
-  if (years > 0) ageString += `${years} year${years > 1 ? 's' : ''}`
-  if (remainingMonths > 0) {
-    if (ageString) ageString += ' '
-    ageString += `${remainingMonths} month${remainingMonths > 1 ? 's' : ''}`
-  }
-  if (!ageString) ageString = 'Less than 1 month'
-
-  const ageClass =
-    months >= 1 && months <= 11
-      ? 'Calf'
-      : months >= 12 && months < 23
-      ? 'Yearling'
-      : cow.given_birth == '1'
-      ? 'Heifer'
-      : 'Adult'
-
-  return { age: ageString, ageClass }
-}
-
-// Export in PDF
+// Export functions
 async function exportPDF() {
-  const { default: jsPDF } = await import('jspdf')
-  const autoTable = (await import('jspdf-autotable')).default
+  loading.value = true
+  try {
+    const { default: jsPDF } = await import('jspdf')
+    const autoTable = (await import('jspdf-autotable')).default
 
-  const doc = new jsPDF()
-  autoTable(doc, {
-    head: [['ID', 'Name', 'Ear Tag', 'DOB', 'Breed', 'Age', 'Class']],
-    body: filteredCows.value.map((cow) => {
-      const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
-      return [cow.id, cow.name, cow.ear_tag, cow.date_of_birth, cow.breed, age, ageClass]
-    }),
-  })
-  doc.save('cows.pdf')
+    const doc = new jsPDF()
+
+    // Header
+    doc.setFontSize(18)
+    doc.setFont(undefined, 'bold')
+    doc.text('Cattle Management System', 105, 15, { align: 'center' })
+    doc.setFontSize(14)
+    doc.setFont(undefined, 'normal')
+    doc.text('Cow Inventory Report', 105, 23, { align: 'center' })
+    
+    // Summary stats
+    doc.setFontSize(10)
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 35)
+    doc.text(`Total Records: ${filteredCows.value.length}`, 14, 42)
+
+    autoTable(doc, {
+      startY: 50,
+      head: [['Name', 'Ear Tag', 'DOB', 'Age', 'Gender', 'Class', 'Breed', 'Pasture', 'Status']],
+      body: filteredCows.value.map((cow) => {
+        const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
+        return [
+          cow.name,
+          cow.ear_tag,
+          formatDate(cow.date_of_birth),
+          age,
+          cow.gender,
+          cow.class || ageClass,
+          cow.breed,
+          cow.pasture?.pasture || '—',
+          cow.status === '1' ? 'Active' : 'Inactive'
+        ]
+      }),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [52, 152, 219] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    })
+    
+    doc.save(`cow-inventory-${new Date().toISOString().split('T')[0]}.pdf`)
+  } finally {
+    loading.value = false
+  }
 }
 
-// Export in CSV
 function exportCSV() {
-  const rows = [
-    ['ID', 'Name', 'Ear Tag', 'DOB', 'Breed', 'Age', 'Class'],
-    ...filteredCows.value.map((cow) => {
-      const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
-      return [cow.id, cow.name, cow.ear_tag, cow.date_of_birth, cow.breed, age, ageClass]
-    }),
-  ]
+  const headers = ['Name', 'Ear Tag', 'DOB', 'Age', 'Gender', 'Class', 'Breed', 'Pasture', 'Status']
+  const rows = filteredCows.value.map((cow) => {
+    const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
+    return [
+      cow.name,
+      cow.ear_tag,
+      cow.date_of_birth,
+      age,
+      cow.gender,
+      cow.class || ageClass,
+      cow.breed,
+      cow.pasture?.pasture || '',
+      cow.status === '1' ? 'Active' : 'Inactive'
+    ]
+  })
 
-  const csvContent = rows
+  const csvContent = [headers, ...rows]
     .map((row) => row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(','))
     .join('\n')
 
@@ -244,700 +458,647 @@ function exportCSV() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.setAttribute('href', url)
-  link.setAttribute('download', 'cows.csv')
+  link.setAttribute('download', `cow-inventory-${new Date().toISOString().split('T')[0]}.csv`)
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
 }
-// Cow Profile Modal
-const activeTab = ref('profile')
-const showProfileModal = ref(false)
-const selectedCow = ref({})
 
-function openProfile(cow) {
-  selectedCow.value = cow
-  showProfileModal.value = true
-}
-
-// Get Cow Image
+// Image handling
 function getCowImage(imageUrl) {
-  return imageUrl ? `${import.meta.env.VITE_API_BASE_URL}/${imageUrl}` : defaultCowImage
+  return `${import.meta.env.VITE_API_BASE_URL}/${imageUrl.replace(/\\/g, '/')}` || defaultCowImage
 }
 
-// Export Cow Profile as PDF
-function exportCowProfile(cow) {
-  const doc = new jsPDF()
-
-  const { age, ageClass } = calculateAgeAndClass(cow.date_of_birth, cow)
-
-  // Load cow image (or fallback) and generate PDF once it's ready
-  const imageUrl = cow.image ? `${import.meta.env.VITE_API_BASE_URL}/${cow.image}` : defaultCowImage
-  toDataURL(imageUrl, (dataUrl) => {
-    // Add image
-    doc.addImage(dataUrl, 'JPEG', 15, 10, 40, 40)
-
-    // Title
-    doc.setFontSize(16)
-    doc.text('Cow Profile', 105, 20, null, null, 'center')
-
-    // Profile table
-    autoTable(doc, {
-      startY: 55,
-      styles: { fontSize: 11 },
-      head: [['Field', 'Value']],
-      body: [
-        ['Name', cow.name],
-        ['Ear Tag', cow.ear_tag],
-        ['Date of Birth', cow.date_of_birth],
-        ['Age', age],
-        ['Class', ageClass],
-        ['Type', cow.type],
-        ['Breed', cow.breed],
-        ['Herd', cow.herd === 'from_outside' ? 'From Outside' : 'From Farm'],
-        ['From Location', cow.from_location || '—'],
-        ['Pasture', cow.pasture?.pasture || '—'],
-        ['Status', cow.status === '1' ? 'Active' : 'Inactive'],
-        ['Description', cow.description || '—'],
-      ],
-    })
-
-    doc.save(`Cow_Profile_${cow.name || cow.ear_tag}.pdf`)
-  })
-}
-
-function toDataURL(url, callback) {
-  const img = new Image()
-  img.crossOrigin = 'Anonymous'
-  img.onload = function () {
-    const canvas = document.createElement('canvas')
-    canvas.width = this.naturalWidth
-    canvas.height = this.naturalHeight
-
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(this, 0, 0)
-
-    const dataURL = canvas.toDataURL('image/jpeg')
-    callback(dataURL)
-  }
-  img.onerror = function () {
-    console.warn('Could not load image:', url)
-    callback('')
-  }
-  img.src = url
-}
-
-// Remove image
-const removeImage = () => {
+function removeImage() {
   currentCow.value.image = null
 }
 
-const showHealthModal = ref(false)
-const activeHealthTab = ref('medication')
-const medication = ref({ type: '', reason: '' })
-const feeding = ref({ type: '', date: '' })
-const maternity = ref({ bullId: '', date: '' })
-const bulls = computed(() => cowStore.cows.filter((cow) => cow.type === 'bull'))
-
-function openHealthModal(cow) {
-  selectedCow.value = cow // Ensure selectedCow is set
-  showHealthModal.value = true
-  activeHealthTab.value = 'medication'
-}
-
-// function handleMedicationSubmit() {
-//   if (!medication.value.type || !medication.value.reason) {
-//     alert('Please fill out all required fields for medication.')
-//     return
-//   }
-//   console.log('Medication saved:', medication.value)
-//   medication.value = { type: '', reason: '' }
-//   showHealthModal.value = false
-// }
-
-// function handleFeedingSubmit() {
-//   if (!feeding.value.type || !feeding.value.date) {
-//     alert('Please fill out all required fields for feeding.')
-//     return
-//   }
-//   console.log('Feeding saved:', feeding.value)
-//   feeding.value = { type: '', date: '' }
-//   showHealthModal.value = false
-// }
-
-// function handleMaternitySubmit() {
-//   if (!maternity.value.bullId || !maternity.value.date) {
-//     alert('Please fill out all required fields for maternity.')
-//     return
-//   }
-//   console.log('Maternity saved:', maternity.value)
-//   maternity.value = { bullId: '', date: '' }
-//   showHealthModal.value = false
-// }
-
-const healthRecords = ref({
-  medication: [],
-  feeding: [],
-  maternity: [],
+// Watch for changes
+watch([searchQuery, filterYear, filterGender, filterBreed, filterPasture, filterStatus], () => {
+  resetPage()
 })
-
-function handleMedicationSubmit() {
-  if (!medication.value.type || !medication.value.reason) {
-    alert('Please fill out all required fields for medication.')
-    return
-  }
-  healthRecords.value.medication.push({ ...medication.value })
-  alert('Medication record saved successfully!')
-  medication.value = { type: '', reason: '' }
-  showHealthModal.value = false
-}
-
-function handleFeedingSubmit() {
-  if (!feeding.value.type || !feeding.value.date) {
-    alert('Please fill out all required fields for feeding.')
-    return
-  }
-  healthRecords.value.feeding.push({ ...feeding.value })
-  alert('Feeding record saved successfully!')
-  feeding.value = { type: '', date: '' }
-  showHealthModal.value = false
-}
-
-function handleMaternitySubmit() {
-  if (!maternity.value.bullId || !maternity.value.date) {
-    alert('Please fill out all required fields for maternity.')
-    return
-  }
-  healthRecords.value.maternity.push({ ...maternity.value })
-  alert('Maternity record saved successfully!')
-  maternity.value = { bullId: '', date: '' }
-  showHealthModal.value = false
-}
 </script>
 
 <template>
-  <CRow>
-    <CCol :xs="12">
-      <CCard class="mb-4">
-        <CCardHeader class="d-flex justify-content-between align-items-center">
-          <strong>Cow List</strong>
-          <div class="d-flex gap-2 mb-3">
-            <CButton color="dark" variant="outline" title="Export CSV" @click="exportCSV"
-              ><CIcon icon="cil-file"
-            /></CButton>
-            <CButton color="dark" variant="outline" class="sm" title="Export PDF" @click="exportPDF"
-              ><CIcon icon="cil-cloud-download"
-            /></CButton>
-            <CButton color="dark" @click="openCreate">+ Create Cow</CButton>
-          </div>
-        </CCardHeader>
-        <CCardBody>
-          <!-- search + page-size -->
+  <div class="position-relative">
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="loading-overlay">
+      <CSpinner color="primary" variant="grow" />
+    </div>
 
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <input
-              type="text"
-              v-model="searchQuery"
-              class="form-control w-25"
-              placeholder="Search by name, tag or breed..."
-              @input="resetPage"
-            />
-            <div class="d-flex align-items-center">
-              <label class="me-2">Show:</label>
-              <select v-model="itemsPerPage" @change="resetPage" class="form-select">
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-                <option :value="100">100</option>
-              </select>
+    <!-- Main Content -->
+      <!-- Statistics Cards -->
+      <CCol cols="12">
+        <CRow class="g-3 mb-4">
+          <CCol md="2" sm="4" cols="6">
+            <CCard class="stat-card border-0 shadow-sm">
+              <CCardBody class="text-center py-3">
+                <div class="stat-number h4 mb-0 text-primary">{{ stats.total }}</div>
+                <div class="stat-label text-muted small">Total Cows</div>
+              </CCardBody>
+            </CCard>
+          </CCol>
+          <CCol md="2" sm="4" cols="6">
+            <CCard class="stat-card border-0 shadow-sm">
+              <CCardBody class="text-center py-3">
+                <div class="stat-number h4 mb-0 text-success">{{ stats.active }}</div>
+                <div class="stat-label text-muted small">Active</div>
+              </CCardBody>
+            </CCard>
+          </CCol>
+          <CCol md="2" sm="4" cols="6">
+            <CCard class="stat-card border-0 shadow-sm">
+              <CCardBody class="text-center py-3">
+                <div class="stat-number h4 mb-0 text-danger">{{ stats.inactive }}</div>
+                <div class="stat-label text-muted small">Inactive</div>
+              </CCardBody>
+            </CCard>
+          </CCol>
+          <CCol md="2" sm="4" cols="6">
+            <CCard class="stat-card border-0 shadow-sm">
+              <CCardBody class="text-center py-3">
+                <div class="stat-number h4 mb-0 text-info">{{ stats.female }}</div>
+                <div class="stat-label text-muted small">Female</div>
+              </CCardBody>
+            </CCard>
+          </CCol>
+          <CCol md="2" sm="4" cols="6">
+            <CCard class="stat-card border-0 shadow-sm">
+              <CCardBody class="text-center py-3">
+                <div class="stat-number h4 mb-0 text-warning">{{ stats.male }}</div>
+                <div class="stat-label text-muted small">Male</div>
+              </CCardBody>
+            </CCard>
+          </CCol>
+          <CCol md="2" sm="4" cols="6">
+            <CCard class="stat-card border-0 shadow-sm">
+              <CCardBody class="text-center py-3">
+                <div class="stat-number h4 mb-0 text-secondary">{{ filteredCows.length }}</div>
+                <div class="stat-label text-muted small">Filtered</div>
+              </CCardBody>
+            </CCard>
+          </CCol>
+        </CRow>
+      </CCol>
+
+      <!-- Main Table Card -->
+      <CCol cols="12">
+        <CCard class="shadow-sm border-0">
+          <!-- Enhanced Header -->
+          <CCardHeader class="bg-white border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h5 class="mb-1">
+                  <i class="fas fa-list-ul me-2 text-primary"></i>Cows Inventory
+                </h5>
+              </div>
+              <div class="d-flex gap-2">
+                <CDropdown>
+                  <CDropdownToggle color="outline-secondary" size="sm">
+                    <CIcon :icon="cilCloudDownload" class="me-1" />Export
+                  </CDropdownToggle>
+                  <CDropdownMenu>
+                    <CDropdownItem @click="exportPDF">
+                      <i class="fas fa-file-pdf me-2 text-danger"></i>Export PDF
+                    </CDropdownItem>
+                    <CDropdownItem @click="exportCSV">
+                      <i class="fas fa-file-csv me-2 text-success"></i>Export CSV
+                    </CDropdownItem>
+                  </CDropdownMenu>
+                </CDropdown>
+                <CButton color="dark" @click="openCreate">
+                  <CIcon :icon="cilPlus" class="me-1" />Add New Cow
+                </CButton>
+              </div>
             </div>
-          </div>
+          </CCardHeader>
 
-          <!-- cows table -->
-          <CTable striped hover responsive>
-            <CTableHead>
-              <CTableRow>
-                <CTableHeaderCell>ID</CTableHeaderCell>
-                <CTableHeaderCell>Name</CTableHeaderCell>
-                <CTableHeaderCell>Ear Tag</CTableHeaderCell>
-                <CTableHeaderCell>DOB</CTableHeaderCell>
-                <CTableHeaderCell>Age</CTableHeaderCell>
-                <CTableHeaderCell>Gender</CTableHeaderCell>
-                <CTableHeaderCell>Class</CTableHeaderCell>
-                <CTableHeaderCell>Breed</CTableHeaderCell>
-                <CTableHeaderCell>Pasture</CTableHeaderCell>
-                <CTableHeaderCell>Status</CTableHeaderCell>
-                <CTableHeaderCell>Action</CTableHeaderCell>
-              </CTableRow>
-            </CTableHead>
-            <CTableBody>
-              <CTableRow v-for="cow in paginatedCows" :key="cow.id">
-                <CTableDataCell>{{ cow.id }}</CTableDataCell>
-                <CTableDataCell>{{ cow.name }}</CTableDataCell>
-                <CTableDataCell>{{ cow.ear_tag }}</CTableDataCell>
-                <CTableDataCell>{{ cow.date_of_birth }}</CTableDataCell>
-                <CTableDataCell>{{
-                  calculateAgeAndClass(cow.date_of_birth, cow).age
-                }}</CTableDataCell>
-                <CTableDataCell
-                  ><router-link
-                    :to="`/gender/cow/${cow.type}`"
-                    class="text-decoration-none text-dark"
-                    >{{ cow.type == 'cow' ? 'Female' : 'Male' }}</router-link
-                  ></CTableDataCell
-                >
-                <CTableDataCell
-                  ><router-link
-                    :to="`/class/cow/${calculateAgeAndClass(cow.date_of_birth, cow).ageClass}`"
-                    class="text-decoration-none text-dark"
-                    >{{ calculateAgeAndClass(cow.date_of_birth, cow).ageClass }}</router-link
-                  ></CTableDataCell
-                >
-                <CTableDataCell
-                  ><router-link
-                    :to="`/breed/cow/${cow.breed}`"
-                    class="text-decoration-none text-dark"
-                    >{{ cow.breed || '—' }}</router-link
-                  ></CTableDataCell
-                >
-                <CTableDataCell
-                  ><router-link
-                    :to="`/pasture/cow/${cow.pasture?.id}`"
-                    class="text-decoration-none text-dark"
-                    >{{ cow.pasture?.pasture || '—' }}</router-link
-                  ></CTableDataCell
-                >
-                <CTableDataCell>
-                  <span :class="['badge', cow.status === '1' ? 'bg-success' : 'bg-danger']">
-                    {{ cow.status === '1' ? 'Active' : 'Inactive' }}
+          <CCardBody class="p-0">
+            <!-- Enhanced Search and Filter Controls -->
+            <div class="search-filter-section p-4 bg-light border-bottom">
+              <!-- Main Search -->
+              <div class="row g-3 mb-3">
+                <div  class="col-md-11" style="display: flex; gap: 10px;">
+                  <div class="col-md-3">
+                    <CInputGroup>
+                      <span class="input-group-text">
+                        <CIcon :icon="cilSearch" />
+                      </span>
+                      <CFormInput
+                        v-model="searchQuery"
+                        placeholder="Search by name, ear tag, or breed..."
+                        @input="resetPage"
+                      />
+                    </CInputGroup>
+                  </div>
+                  <div>
+                    <CButton 
+                      :color="showFilters ? 'primary' : 'outline-primary'" 
+                      @click="showFilters = !showFilters"
+                      class="w-100"
+                    >
+                      <CIcon :icon="cilFilter"/>
+                    </CButton>
+                  </div>
+                </div>
+
+                <div class="col-md-1">
+                  <CFormSelect v-model="itemsPerPage" @change="resetPage">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                  </CFormSelect>
+                </div>
+              </div>
+
+              <!-- Advanced Filters -->
+              <div v-if="showFilters" class="advanced-filters">
+                <div class="row g-3">
+                  <div class="col-md-2">
+                    <CFormSelect v-model="filterYear" @change="resetPage">
+                      <option value="">All Years</option>
+                      <option v-for="year in availableYears" :key="year" :value="year">
+                        {{ year }}
+                      </option>
+                    </CFormSelect>
+                  </div>
+                  <div class="col-md-2">
+                    <CFormSelect v-model="filterGender" @change="resetPage">
+                      <option value="">All Genders</option>
+                      <option v-for="gender in availableGenders" :key="gender" :value="gender">
+                        {{ gender }}
+                      </option>
+                    </CFormSelect>
+                  </div>
+                  <div class="col-md-2">
+                    <CFormSelect v-model="filterBreed" @change="resetPage">
+                      <option value="">All Breeds</option>
+                      <option v-for="breed in availableBreeds" :key="breed" :value="breed">
+                        {{ breed }}
+                      </option>
+                    </CFormSelect>
+                  </div>
+                  <div class="col-md-2">
+                    <CFormSelect v-model="filterPasture" @change="resetPage">
+                      <option value="">All Pastures</option>
+                      <option v-for="pasture in availablePastures" :key="pasture.id" :value="pasture.id">
+                        {{ pasture.name }}
+                      </option>
+                    </CFormSelect>
+                  </div>
+                  <div class="col-md-2">
+                    <CFormSelect v-model="filterStatus" @change="resetPage">
+                      <option value="">All Status</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </CFormSelect>
+                  </div>
+                  <div class="col-md-2">
+                    <CButton color="outline-secondary" @click="clearAllFilters" class="w-100">
+                      Clear All
+                    </CButton>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Enhanced Table -->
+            <div class="table-responsive">
+              <CTable hover class="mb-0 modern-table">
+                <CTableHead class="table-light">
+                  <CTableRow>
+                    <CTableHeaderCell class="sortable" @click="sortBy('name')">
+                      Name {{ getSortIcon('name') }}
+                    </CTableHeaderCell>
+                    <CTableHeaderCell class="sortable" @click="sortBy('ear_tag')">
+                      Ear Tag {{ getSortIcon('ear_tag') }}
+                    </CTableHeaderCell>
+                    <CTableHeaderCell class="sortable" @click="sortBy('age')">
+                      Age {{ getSortIcon('age') }}
+                    </CTableHeaderCell>
+                    <CTableHeaderCell class="sortable" @click="sortBy('gender')">
+                      Gender {{ getSortIcon('gender') }}
+                    </CTableHeaderCell>
+                    <CTableHeaderCell class="sortable" @click="sortBy('class')">
+                      Class {{ getSortIcon('class') }}
+                    </CTableHeaderCell>
+                    <CTableHeaderCell class="sortable" @click="sortBy('breed')">
+                      Breed {{ getSortIcon('breed') }}
+                    </CTableHeaderCell>
+                    <CTableHeaderCell class="sortable" @click="sortBy('pasture')">
+                      Pasture {{ getSortIcon('pasture') }}
+                    </CTableHeaderCell>
+                    <CTableHeaderCell>Status</CTableHeaderCell>
+                    <CTableHeaderCell width="120">Actions</CTableHeaderCell>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
+                  <CTableRow v-for="cow in paginatedCows" :key="cow.id" class="table-row">
+                    <CTableDataCell>
+                      <router-link :to="`/cows/${cow.id}`" class="text-decoration-none cow-link">
+                        {{ cow.name }}
+                      </router-link>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      {{ cow.ear_tag }}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      {{ calculateAgeAndClass(cow.date_of_birth, cow).age }}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                        {{ cow.gender }}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      <router-link 
+                        :to="`/class/cow/${cow.class || calculateAgeAndClass(cow.date_of_birth, cow).ageClass}`"
+                        class="text-decoration-none text-dark"
+                      >{{ cow.class || calculateAgeAndClass(cow.date_of_birth, cow).ageClass }}
+                      </router-link>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      <router-link 
+                        :to="`/breed/cow/${cow.breed}`" 
+                        class="text-decoration-none text-dark"
+                      >
+                        {{ cow.breed || '—' }}
+                      </router-link>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      <router-link 
+                        :to="`/pasture/cow/${cow.pasture?.id}`" 
+                        class="text-decoration-none text-dark"
+                      >
+                        {{ cow.pasture?.pasture || '' }}
+                      </router-link>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      <CBadge 
+                        :color="getStatusBadge(cow.status).color" 
+                        class="px-2 py-1"
+                      >
+                        {{ getStatusBadge(cow.status).text }}
+                      </CBadge>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      <div class="d-flex gap-1">
+                        <CButton
+                          size="sm"
+                          color="info"
+                          variant="outline"
+                          title="Edit Cow"
+                          @click="openEdit(cow)"
+                        >
+                          <CIcon :icon="cilPencil" size="sm" />
+                        </CButton>
+                        <CButton
+                          size="sm"
+                          color="danger"
+                          variant="outline"
+                          title="Delete Cow"
+                          @click="confirmDelete(cow.id, cow.name)"
+                        >
+                          <CIcon :icon="cilTrash" size="sm" />
+                        </CButton>
+                      </div>
+                    </CTableDataCell>
+                  </CTableRow>
+                  <CTableRow v-if="paginatedCows.length === 0">
+                    <CTableDataCell colspan="10" class="text-center py-5">
+                      <div class="empty-state">
+                        <i class="fas fa-cow fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No cows found</h5>
+                        <p class="text-muted mb-3">Try adjusting your search criteria or add a new cow</p>
+                        <CButton color="primary" @click="openCreate">
+                          <CIcon :icon="cilPlus" class="me-1" />Add Your First Cow
+                        </CButton>
+                      </div>
+                    </CTableDataCell>
+                  </CTableRow>
+                </CTableBody>
+              </CTable>
+            </div>
+
+            <!-- Enhanced Pagination -->
+            <div class="pagination-section p-3 bg-light border-top">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="pagination-info">
+                  <span class="text-muted small">
+                    Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
+                    {{ Math.min(currentPage * itemsPerPage, filteredCows.length) }} 
+                    of {{ filteredCows.length }} entries
+                    <span v-if="filteredCows.length !== cowStore.cows.length">
+                      (filtered from {{ cowStore.cows.length }} total)
+                    </span>
                   </span>
-                </CTableDataCell>
-                <CTableDataCell>
-                  <!-- View Profile Button -->
-                  <CButton
-                    size="sm"
-                    color="secondary"
-                    class="me-2 text-white"
-                    title="View Profile"
-                    @click="openProfile(cow)"
+                </div>
+                <div class="pagination-controls d-flex align-items-center gap-2" v-if="totalPages > 1">
+                  <CButton 
+                    size="sm" 
+                    variant="outline" 
+                    :disabled="currentPage === 1"
+                    @click="prevPage"
                   >
-                    <CIcon :icon="cilUser" />
+                    <i class="fas fa-chevron-left"></i>
                   </CButton>
-                  <!-- Health Button -->
-                  <CButton
-                    size="sm"
-                    color="warning"
-                    class="me-2 text-white"
-                    title="Cow Health"
-                    @click="openHealthModal(cow)"
+                  
+                  <CButton 
+                    size="sm" 
+                    v-for="page in Math.min(totalPages, 5)" 
+                    :key="page"
+                    :color="page === currentPage ? 'primary' : 'outline-secondary'"
+                    @click="goToPage(page)"
                   >
-                    <CIcon :icon="cilHealing" />
+                    {{ page }}
                   </CButton>
-
-                  <!-- Edit Cow Button -->
-                  <CButton
-                    size="sm"
-                    color="info"
-                    class="me-2 text-white"
-                    title="Edit Cow"
-                    @click="openEdit(cow)"
+                  
+                  <CButton 
+                    size="sm" 
+                    variant="outline" 
+                    :disabled="currentPage === totalPages"
+                    @click="nextPage"
                   >
-                    <CIcon :icon="cilPencil" />
+                    <i class="fas fa-chevron-right"></i>
                   </CButton>
+                </div>
+              </div>
+            </div>
+          </CCardBody>
+        </CCard>
+      </CCol>
+  </div>
 
-                  <!-- Delete Cow Button -->
-                  <CButton
-                    size="sm"
-                    color="danger"
-                    class="text-white"
-                    title="Delete Cow"
-                    @click="confirmDelete(cow.id)"
-                  >
-                    <CIcon :icon="cilTrash" />
-                  </CButton>
-                </CTableDataCell>
-              </CTableRow>
-              <CTableRow v-if="paginatedCows.length === 0">
-                <CTableDataCell colspan="8" class="text-center"> No cows found. </CTableDataCell>
-              </CTableRow>
-            </CTableBody>
-          </CTable>
-
-          <!-- pagination controls -->
-          <div class="text-end mb-3"><strong>Total Records:</strong> {{ filteredCows.length }}</div>
-          <div class="d-flex justify-content-between align-items-center mt-3">
-            <CButton color="dark" variant="outline" :disabled="currentPage === 1" @click="prevPage">
-              Previous
-            </CButton>
-            <div>Page {{ currentPage }} of {{ totalPages }}</div>
-            <CButton
-              color="dark"
-              variant="outline"
-              :disabled="currentPage === totalPages"
-              @click="nextPage"
-            >
-              Next
-            </CButton>
-          </div>
-        </CCardBody>
-      </CCard>
-    </CCol>
-  </CRow>
-
-  <!-- Profile Modal -->
-  <CModal :visible="showProfileModal" @close="showProfileModal = false" size="lg">
-    <CModalHeader
-      ><CModalTitle
-        >{{ selectedCow.name ? selectedCow.name + ' - ' : '' }}
-        {{ selectedCow.ear_tag }}</CModalTitle
-      ></CModalHeader
-    >
-    <CModalBody>
-      <CNav variant="tabs">
-        <CNavItem
-          ><CNavLink :active="activeTab === 'profile'" @click="activeTab = 'profile'"
-            >Profile</CNavLink
-          ></CNavItem
-        >
-        <CNavItem
-          ><CNavLink :active="activeTab === 'health'" @click="activeTab = 'health'"
-            >Health</CNavLink
-          ></CNavItem
-        >
-        <CNavItem
-          ><CNavLink :active="activeTab === 'history'" @click="activeTab = 'history'"
-            >History</CNavLink
-          ></CNavItem
-        >
-      </CNav>
-
-      <CTabContent class="mt-3">
-        <CTabPane :visible="activeTab === 'profile'">
-          <div class="text-center mb-3">
-            <img
-              :src="getCowImage(selectedCow.image)"
-              class="img-fluid rounded"
-              style="max-height: 200px"
-            />
-          </div>
-          <p><strong>Name:</strong> {{ selectedCow.name ?? '' }}</p>
-          <p><strong>Ear Tag:</strong> {{ selectedCow.ear_tag ?? '' }}</p>
-          <p><strong>Date of Birth:</strong> {{ selectedCow.date_of_birth ?? '' }}</p>
-          <p><strong>Type:</strong> {{ selectedCow.type ?? '' }}</p>
-          <p><strong>Breed:</strong> {{ selectedCow.breed ?? '' }}</p>
-          <p>
-            <strong>Herd:</strong>
-            {{ selectedCow.herd === 'from_farm' ? 'From Farm' : 'From Another Farm' }}
-          </p>
-          <p v-if="selectedCow.herd != 'from_farm'">
-            <strong>Source Location:</strong>
-            {{ selectedCow.from_location ?? '' }}
-          </p>
-          <p><strong>Description:</strong> {{ selectedCow.description ?? '' }}</p>
-          <p><strong>Status:</strong> {{ selectedCow.status === '1' ? 'Active' : 'Inactive' }}</p>
-          <CButton color="dark" @click="exportCowProfile(selectedCow)"
-            ><CIcon icon="cil-cloud-download" /> Download</CButton
-          >
-        </CTabPane>
-
-        <CTabPane :visible="activeTab === 'health'">
-          <p>Fed Corn on June 9, 2025</p>
-        </CTabPane>
-
-        <CTabPane :visible="activeTab === 'history'">
-          <p>Mate with Cow X on June 9, 2025</p>
-        </CTabPane>
-      </CTabContent>
-    </CModalBody>
-  </CModal>
-
-  <template>
-    <CTabPane :visible="activeTab === 'health'">
-      <div v-if="healthRecords.medication.length > 0">
-        <h5>Medication Records</h5>
-        <ul>
-          <li v-for="(record, index) in healthRecords.medication" :key="index">
-            Type: {{ record.type }}, Reason: {{ record.reason }}
-          </li>
-        </ul>
-      </div>
-      <div v-if="healthRecords.feeding.length > 0">
-        <h5>Feeding Records</h5>
-        <ul>
-          <li v-for="(record, index) in healthRecords.feeding" :key="index">
-            Type: {{ record.type }}, Date: {{ record.date }}
-          </li>
-        </ul>
-      </div>
-      <div v-if="healthRecords.maternity.length > 0">
-        <h5>Maternity Records</h5>
-        <ul>
-          <li v-for="(record, index) in healthRecords.maternity" :key="index">
-            Bull ID: {{ record.bullId }}, Date: {{ record.date }}
-          </li>
-        </ul>
-      </div>
-    </CTabPane>
-  </template>
-  <!-- Health Modal -->
-  <CModal :visible="showHealthModal" @close="showHealthModal = false" size="lg" v-if="selectedCow">
-    <CModalHeader>
-      <CModalTitle
-        >{{ selectedCow.name ? selectedCow.name + ' - ' : '' }} {{ selectedCow.ear_tag }} Health &
-        Feeding Records</CModalTitle
-      >
-    </CModalHeader>
-    <CModalBody>
-      <CNav variant="tabs">
-        <CNavItem>
-          <CNavLink
-            :active="activeHealthTab === 'medication'"
-            @click="activeHealthTab = 'medication'"
-          >
-            Medication
-          </CNavLink>
-        </CNavItem>
-        <CNavItem>
-          <CNavLink :active="activeHealthTab === 'feeding'" @click="activeHealthTab = 'feeding'">
-            Feeding
-          </CNavLink>
-        </CNavItem>
-        <CNavItem v-if="selectedCow.type === 'cow'">
-          <CNavLink
-            :active="activeHealthTab === 'maternity'"
-            @click="activeHealthTab = 'maternity'"
-          >
-            Maternity
-          </CNavLink>
-        </CNavItem>
-      </CNav>
-
-      <CTabContent class="mt-3">
-        <!-- Medication Tab -->
-        <CTabPane :visible="activeHealthTab === 'medication'">
-          <CForm @submit.prevent="handleMedicationSubmit">
-            <CCol :md="6">
-              <CFormLabel for="medicationType">Medication Type</CFormLabel>
-              <CFormSelect
-                id="medicationType"
-                v-model="medication.type"
-                :options="[
-                  { label: 'Select Type', value: '' },
-                  { label: 'Injection', value: 'injection' },
-                  { label: 'Oral', value: 'oral' },
-                ]"
-                required
-              />
-              <CFormFeedback invalid>Medication type is required.</CFormFeedback>
-            </CCol>
-            <CCol :md="12">
-              <CFormLabel for="medicationReason">Reason</CFormLabel>
-              <CFormTextarea id="medicationReason" v-model="medication.reason" rows="3" required />
-              <CFormFeedback invalid>Reason is required.</CFormFeedback>
-            </CCol>
-            <CCol :xs="12" class="d-flex justify-content-end mt-3">
-              <CButton color="success" type="submit">Save Medication</CButton>
-            </CCol>
-          </CForm>
-        </CTabPane>
-
-        <!-- Feeding Tab -->
-        <CTabPane :visible="activeHealthTab === 'feeding'">
-          <CForm @submit.prevent="handleFeedingSubmit">
-            <CCol :md="6">
-              <CFormLabel for="feedingType">Food Type</CFormLabel>
-              <CFormSelect
-                id="feedingType"
-                v-model="feeding.type"
-                :options="[
-                  { label: 'Select Food Type', value: '' },
-                  { label: 'Grass', value: 'grass' },
-                  { label: 'Hay', value: 'hay' },
-                  { label: 'Silage', value: 'silage' },
-                ]"
-                required
-              />
-              <CFormFeedback invalid>Food type is required.</CFormFeedback>
-            </CCol>
-            <CCol :md="6">
-              <CFormLabel for="feedingDate">Date Fed</CFormLabel>
-              <CFormInput id="feedingDate" type="date" v-model="feeding.date" required />
-              <CFormFeedback invalid>Date is required.</CFormFeedback>
-            </CCol>
-            <CCol :xs="12" class="d-flex justify-content-end mt-3">
-              <CButton color="success" type="submit">Save Feeding</CButton>
-            </CCol>
-          </CForm>
-        </CTabPane>
-
-        <!-- Maternity Tab -->
-        <CTabPane :visible="activeHealthTab === 'maternity'">
-          <CForm @submit.prevent="handleMaternitySubmit">
-            <CCol :md="6">
-              <CFormLabel for="bull">Bull</CFormLabel>
-              <CFormSelect
-                id="bull"
-                v-model="maternity.bullId"
-                :options="bulls.map((bull) => ({ label: bull.name, value: bull.id }))"
-                required
-              />
-              <CFormFeedback invalid>Bull is required.</CFormFeedback>
-            </CCol>
-            <CCol :md="6">
-              <CFormLabel for="matingDate">Date of Mating</CFormLabel>
-              <CFormInput id="matingDate" type="date" v-model="maternity.date" required />
-              <CFormFeedback invalid>Date is required.</CFormFeedback>
-            </CCol>
-            <CCol :xs="12" class="d-flex justify-content-end mt-3">
-              <CButton color="success" type="submit">Save Maternity</CButton>
-            </CCol>
-          </CForm>
-        </CTabPane>
-      </CTabContent>
-    </CModalBody>
-  </CModal>
-
-  <!-- Create/Edit Modal -->
+  <!-- Enhanced Create/Edit Modal -->
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
-    <CModalHeader>
-      <CModalTitle>{{ isEditing ? 'Edit Cow' : 'Add Cow' }}</CModalTitle>
+    <CModalHeader class="border-bottom">
+      <CModalTitle>
+        <i class="fas fa-cow me-2"></i>
+        {{ isEditing ? 'Edit Cow' : 'Add New Cow' }}
+      </CModalTitle>
     </CModalHeader>
-    <CModalBody>
+    <CModalBody class="p-0">
+      <!-- Navigation Tabs -->
+      <CNav variant="tabs" class="px-3 pt-3 bg-light">
+        <CNavItem>
+          <CNavLink 
+            :active="activeTab === 'details'" 
+            @click="activeTab = 'details'"
+            class="tab-link"
+          >
+            <i class="fas fa-info-circle me-2"></i>Basic Details
+          </CNavLink>
+        </CNavItem>
+        <CNavItem>
+          <CNavLink 
+            :active="activeTab === 'parent'" 
+            @click="activeTab = 'parent'"
+            class="tab-link"
+          >
+            <i class="fas fa-users me-2"></i>Parent Information
+          </CNavLink>
+        </CNavItem>
+      </CNav>
+
+      <!-- Tab Content -->
       <CForm
-        class="row g-3 needs-validation"
+        class="p-4"
         enctype="multipart/form-data"
         novalidate
         :validated="validated"
         @submit="handleSubmit"
       >
-        <CCol :md="6">
-          <CFormLabel for="name">Cow Name</CFormLabel>
-          <CFormInput id="name" v-model="currentCow.name" required />
-          <CFormFeedback invalid>Name is required.</CFormFeedback>
-        </CCol>
+        <CTabContent>
+          <!-- Cow Details Tab -->
+          <CTabPane :visible="activeTab === 'details'">
+            <CRow class="g-3">
+              <CCol md="6">
+                <CFormLabel for="name" class="fw-semibold">Cow Name <span style="color: red;">*</span></CFormLabel>
+                <CFormInput id="name" v-model="currentCow.name" required />
+                <CFormFeedback invalid>Name is required.</CFormFeedback>
+              </CCol>
 
-        <CCol :md="6">
-          <CFormLabel for="earTag">Ear Tag</CFormLabel>
-          <CFormInput id="earTag" v-model="currentCow.ear_tag" required />
-          <CFormFeedback invalid>Ear tag is required.</CFormFeedback>
-        </CCol>
+              <CCol md="6">
+                <CFormLabel for="earTag" class="fw-semibold">Ear Tag <span style="color: red;">*</span></CFormLabel>
+                <CFormInput id="earTag" v-model="currentCow.ear_tag" required />
+                <CFormFeedback invalid>Ear tag is required.</CFormFeedback>
+              </CCol>
 
-        <CCol :md="6">
-          <CFormLabel for="dateOfBirth">Date of Birth</CFormLabel>
-          <CFormInput id="dateOfBirth" type="date" v-model="currentCow.date_of_birth" required />
-          <CFormFeedback invalid>Date of birth is required.</CFormFeedback>
-        </CCol>
+              <CCol md="6">
+                <!-- Show formatted date only if not editing, otherwise let input handle value -->
+                <!-- This placeholder is not needed; the input below binds to currentCow.date_of_birth -->
+                <CFormLabel for="dateOfBirth" class="fw-semibold">Date of Birth <span style="color: red;">*</span></CFormLabel>
+                <CFormInput id="dateOfBirth" type="date" v-model="currentCow.date_of_birth" required />
+                <CFormFeedback invalid>Date of birth is required.</CFormFeedback>
+              </CCol>
 
-        <CCol :md="6">
-          <CFormLabel for="type">Type</CFormLabel>
-          <CFormSelect
-            id="type"
-            v-model="currentCow.type"
-            :options="[
-              { label: 'Select Type', value: '' },
-              { label: 'Cow', value: 'cow' },
-              { label: 'Bull', value: 'bull' },
-            ]"
-            required
-          />
-          <CFormFeedback invalid>Type is required.</CFormFeedback>
-        </CCol>
+              <CCol md="6">
+                <CFormLabel for="gender" class="fw-semibold">Gender <span style="color: red;">*</span></CFormLabel>
+                <CFormSelect
+                  id="gender"
+                  v-model="currentCow.gender"
+                  :options="[
+                    { label: 'Select Gender', value: '' },
+                    { label: 'Female', value: 'Female' },
+                    { label: 'Male', value: 'Male' },
+                  ]"
+                  required
+                />
+                <CFormFeedback invalid>Gender is required.</CFormFeedback>
+              </CCol>
 
-        <CCol :md="6">
-          <CFormLabel for="breed">Breed</CFormLabel>
-          <CFormSelect
-            id="breed"
-            v-model="currentCow.breed"
-            :options="
-              [
-                { label: 'Select Breed', value: '' },
-                'Holstein',
-                'Jersey',
-                'Guernsey',
-                'Angus',
-                'Hereford',
-                'Simmental',
-                'Brahman',
-                'Limousin',
-                'Charolais',
-                'Red Poll',
-              ].map((b) => (typeof b === 'string' ? { label: b, value: b } : b))
-            "
-            required
-          />
-          <CFormFeedback invalid>Breed is required.</CFormFeedback>
-        </CCol>
+              <CCol md="6">
+                <CFormLabel for="class" class="fw-semibold">Class</CFormLabel>
+                <CFormSelect
+                  id="class"
+                  v-model="currentCow.class"
+                  :options="[
+                    { label: 'Auto-calculate from age', value: '' },
+                    { label: 'Calf', value: 'Calf' },
+                    { label: 'Yearling', value: 'Yearling' },
+                    { label: 'Heifer', value: 'Heifer' },
+                    { label: 'Adult', value: 'Adult' },
+                    { label: 'Bull', value: 'Bull' },
+                    { label: 'Steer', value: 'Steer' },
+                  ]"
+                />
+              </CCol>
 
-        <CCol :md="6">
-          <CFormLabel for="herd">Herd</CFormLabel>
-          <CFormSelect
-            id="herd"
-            v-model="currentCow.herd"
-            :options="[
-              { label: 'Select Herd', value: '' },
-              { label: 'From Farm', value: 'from_farm' },
-              { label: 'From Outside', value: 'from_outside' },
-            ]"
-            required
-          />
-          <CFormFeedback invalid>Herd is required.</CFormFeedback>
-        </CCol>
+              <CCol md="6">
+                <CFormLabel for="breed" class="fw-semibold">Breed <span style="color: red;">*</span></CFormLabel>
+                <CFormSelect
+                  id="breed"
+                  v-model="currentCow.breed"
+                  :options="[
+                    { label: 'Select Breed', value: '' },
+                    { label: 'Holstein', value: 'Holstein' },
+                    { label: 'Jersey', value: 'Jersey' },
+                    { label: 'Guernsey', value: 'Guernsey' },
+                    { label: 'Angus', value: 'Angus' },
+                    { label: 'Hereford', value: 'Hereford' },
+                    { label: 'Simmental', value: 'Simmental' },
+                    { label: 'Brahman', value: 'Brahman' },
+                    { label: 'Limousin', value: 'Limousin' },
+                    { label: 'Charolais', value: 'Charolais' },
+                    { label: 'Red Poll', value: 'Red Poll' },
+                  ]"
+                  required
+                />
+                <CFormFeedback invalid>Breed is required.</CFormFeedback>
+              </CCol>
 
-        <CCol :md="6" v-if="herdFromOutside">
-          <CFormLabel for="from_location">Source Location</CFormLabel>
-          <CFormInput id="from_location" v-model="currentCow.from_location" required />
-          <CFormFeedback invalid>Source location required if from outside.</CFormFeedback>
-        </CCol>
+              <CCol md="6">
+                <CFormLabel for="from_farm" class="fw-semibold">Origin <span style="color: red;">*</span></CFormLabel>
+                <CFormSelect
+                  id="from_farm"
+                  v-model="currentCow.from_farm"
+                  :options="[
+                    { label: 'Select Origin', value: '' },
+                    { label: 'Born on Farm', value: 'yes' },
+                    { label: 'Purchased/External', value: 'no' },
+                  ]"
+                  required
+                />
+                <CFormFeedback invalid>Origin is required.</CFormFeedback>
+              </CCol>
 
-        <CCol :md="6">
-          <CFormLabel for="pasture">Pasture</CFormLabel>
-          <CFormSelect
-            id="pasture"
-            v-model="currentCow.pasture_id"
-            :options="[
-              { label: 'Select pasture', value: '' },
-              ...pastureStore.pastures.map((p) => ({ label: p.pasture, value: p.id })),
-            ]"
-            required
-          />
-          <CFormFeedback invalid>Select pasture.</CFormFeedback>
-        </CCol>
+              <CCol md="6" v-if="currentCow.from_farm === 'no'">
+                <CFormLabel for="source_location" class="fw-semibold">Source Location <span style="color: red;">*</span></CFormLabel>
+                <CFormInput id="source_location" v-model="currentCow.source_location" required />
+                <CFormFeedback invalid>Source location required for external cattle.</CFormFeedback>
+              </CCol>
 
-        <CCol :xs="12">
-          <CFormLabel for="description">Description</CFormLabel>
-          <CFormTextarea id="description" rows="3" v-model="currentCow.description" />
-        </CCol>
-        <CCol :xs="4" v-if="isEditing && currentCow.image && typeof currentCow.image === 'string'">
-          <div class="d-flex align-items-start gap-3 mb-2">
-            <img
-              :src="getCowImage(currentCow.image)"
-              class="img-fluid rounded"
-              style="max-height: 200px"
-              alt="Cow"
-            />
-            <CButton color="danger" size="sm" title="Remove Image" @click="removeImage"
-              ><CIcon :icon="cilTrash"
-            /></CButton>
-          </div>
-        </CCol>
-        <CCol :xs="12">
-          <CFormLabel for="image">Cow Image</CFormLabel>
-          <CFormInput
-            type="file"
-            id="image"
-            @change="(e) => (currentCow.image = e.target.files[0])"
-            accept="image/*"
-          />
-        </CCol>
+              <CCol md="6">
+                <CFormLabel for="pasture" class="fw-semibold">Pasture <span style="color: red;">*</span></CFormLabel>
+                <CFormSelect
+                  id="pasture"
+                  v-model="currentCow.pasture_id"
+                  :options="[
+                    { label: 'Select pasture', value: '' },
+                    ...pastureStore.pastures.map((p) => ({ label: p.pasture, value: p.id })),
+                  ]"
+                  required
+                />
+                <CFormFeedback invalid>Pasture assignment is required.</CFormFeedback>
+              </CCol>
 
-        <CCol :xs="12" class="d-flex align-items-center">
-          <CFormCheck id="status" v-model="isActive" label="Active" />
-        </CCol>
+              <CCol cols="12" md="12">
+                <CFormLabel for="description" class="fw-semibold">Description</CFormLabel>
+                <CFormTextarea 
+                  id="description" 
+                  rows="3" 
+                  v-model="currentCow.description"
+                  placeholder="Add any additional notes about this cow..."
+                />
+              </CCol>
 
-        <CCol :xs="12" class="d-flex justify-content-end">
-          <CButton color="secondary" class="me-2" @click="showModal = false">Cancel</CButton>
-          <CButton color="success" type="submit">{{ isEditing ? 'Update' : 'Create' }}</CButton>
-        </CCol>
+              <CCol cols="12" class="col-12" v-if="isEditing && currentCow.image && typeof currentCow.image === 'string'">
+                <CFormLabel class="fw-semibold">Current Image</CFormLabel>
+                <div class="d-flex align-items-center gap-3">
+                  <img
+                    :src="getCowImage(currentCow.image)"
+                    class="img-thumbnail"
+                    style="max-height: 120px; max-width: 120px;"
+                    alt="Current cow image"
+                  />
+                  <CButton color="danger" size="sm" variant="outline" title="Remove Image" @click="removeImage">
+                    <CIcon :icon="cilTrash" class="me-1" />Remove Image
+                  </CButton>
+                </div>
+              </CCol>
+
+              <CCol cols="12">
+                <CFormLabel for="image" class="fw-semibold">{{ isEditing && currentCow.image ? 'Replace' : 'Upload' }} Image</CFormLabel>
+                <CFormInput
+                  type="file"
+                  id="image"
+                  @change="(e) => (currentCow.image = e.target.files[0])"
+                  accept="image/*"
+                />
+                <div class="form-text">Accepted formats: JPG, PNG, GIF (max 5MB)</div>
+              </CCol>
+
+              <CCol cols="12" class="col-12">
+                <div class="d-flex align-items-center">
+                  <CFormCheck id="status" v-model="isActive" />
+                  <CFormLabel for="status" class="ms-2">Active cow (available for operations)</CFormLabel>
+                </div>
+              </CCol>
+            </CRow>
+          </CTabPane>
+
+          <!-- Cow Parent Tab -->
+          <CTabPane :visible="activeTab === 'parent'">
+            <div class="parent-info-section">
+              <div class="alert alert-info border-0">
+                <h6 class="alert-heading">
+                  <i class="fas fa-info-circle me-2"></i>Parent Information
+                </h6>
+                <p class="mb-0">
+                  This information helps track lineage and breeding records. 
+                  It's especially important for cows born on the farm.
+                </p>
+              </div>
+
+              <CRow class="g-4">
+                <CCol md="6">
+                  <CFormLabel for="mother_id" class="fw-semibold">
+                    <i class="fas fa-venus me-2 text-pink"></i>Mother (Dam)
+                  </CFormLabel>
+                  <Multiselect
+                    id="mother_id"
+                    v-model="currentCowParent.mother_id"
+                    :options="cowStore.femaleParentOptions"
+                    label="label"
+                    track-by="value"
+                    placeholder="Select mother..."
+                    :searchable="true"
+                    :allowEmpty="true"
+                    :showLabels="false"
+                  />
+                </CCol>
+
+                <CCol md="6">
+                  <CFormLabel for="father_id" class="fw-semibold">
+                    <i class="fas fa-mars me-2 text-blue"></i>Father (Sire)
+                  </CFormLabel>
+                  <Multiselect
+                    id="father_id"
+                    v-model="currentCowParent.father_id"
+                    :options="cowStore.maleParentOptions"
+                    label="label"
+                    track-by="value"
+                    placeholder="Select father..."
+                    :searchable="true"
+                    :allowEmpty="true"
+                    :showLabels="false"
+                  />
+                </CCol>
+
+                <CCol cols="12" v-if="currentCow.from_farm === 'no'">
+                  <div class="alert alert-warning border-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>External Source:</strong> Parent information may not be available for cattle from outside sources.
+                  </div>
+                </CCol>
+              </CRow>
+            </div>
+          </CTabPane>
+        </CTabContent>
       </CForm>
     </CModalBody>
+    <CModalFooter class="border-top">
+      <CButton color="secondary" @click="showModal = false">
+        Cancel
+      </CButton>
+      <CButton 
+        color="dark" 
+        @click="handleSubmit"
+        :disabled="loading"
+      >
+        <CSpinner v-if="loading" size="sm" class="me-2" />
+        <i v-else :class="isEditing ? 'fas fa-save' : 'fas fa-plus'" class="me-2"></i>
+        {{ isEditing ? 'Update Cow' : 'Create Cow' }}
+      </CButton>
+    </CModalFooter>
   </CModal>
 </template>
