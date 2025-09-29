@@ -61,13 +61,6 @@ const handleLogin = async () => {
               <p>Track health, breeding cycles, and growth patterns</p>
             </div>
           </div>
-          
-          <div class="feature-card">
-            <div class="feature-content">
-              <h4>Smart Automation</h4>
-              <p>Automate feeding schedules and health monitoring</p>
-            </div>
-          </div>
           <img
           src="@/assets/images/banner.png"
           alt="Dashboard Preview"

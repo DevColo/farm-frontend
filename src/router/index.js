@@ -87,7 +87,7 @@ const routes = [
         component: () => import('@/views/role/Role.vue'),
       },
       {
-        path: 'foods',
+        path: 'cow-foods',
         name: 'Cow Foods',
         component: () => import('@/views/food/FoodList.vue'),
       },
@@ -123,9 +123,37 @@ const routes = [
         component: () => import('@/views/farm/FarmList.vue'),
       },
       {
+        path: '/farm/:id',
+        name: 'Farm View',
+        component: () => import('@/views/farm/FarmView.vue'),
+        props: true,
+      },
+      {
         path: 'block-list',
         name: 'Block List',
         component: () => import('@/views/blocks/BlockList.vue'),
+      },
+      {
+        path: '/blocks/:id',
+        name: 'Block View',
+        component: () => import('@/views/blocks/BlockView.vue'),
+        props: true,
+      },
+      {
+        path: 'tree-list',
+        name: 'Tree List',
+        component: () => import('@/views/tree/TreeList.vue'),
+      },
+      {
+        path: '/trees/:id',
+        name: 'Tree View',
+        component: () => import('@/views/tree/TreeView.vue'),
+        props: true,
+      },
+      {
+        path: 'harvests',
+        name: 'Harvests',
+        component: () => import('@/views/harvest/HarvestList.vue'),
       },
       {
         path: 'parcel-list',

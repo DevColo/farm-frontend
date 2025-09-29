@@ -63,7 +63,6 @@ export const useUserStore = defineStore('user', {
           },
         })
         this.users = response.data.data
-        console.log(this.users)
       } catch (error) {
         let errorMessage = 'Failed to fetch users'
         if (error.response && error.response.data) {
@@ -74,13 +73,10 @@ export const useUserStore = defineStore('user', {
     },
 
     // Update user by ID
-    async updateUser(id, userData) {
-      console.log('id: '+ id)
-      console.log('userData: '+ userData)
+    async updateUser(userData) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-
         const formData = new FormData()
         for (const key in userData) {
           if (userData[key] !== null && userData[key] !== undefined) {
@@ -91,7 +87,7 @@ export const useUserStore = defineStore('user', {
           formData.append('remove_image', '1')
         }
 
-        await axios.put(`/api/users/${id}`, formData, {
+        await axios.post(`/api/update-user`, formData, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data',
@@ -120,7 +116,6 @@ export const useUserStore = defineStore('user', {
           },
         })
         this.user = response.data.data
-        console.log(this.user)
       } catch (error) {
         let errorMessage = 'Failed to fetch users'
         if (error.response && error.response.data) {
@@ -141,7 +136,6 @@ export const useUserStore = defineStore('user', {
           },
         })
         this.users = response.data.data
-        console.log(this.users)
       } catch (error) {
         let errorMessage = 'Failed to fetch users'
         if (error.response && error.response.data) {

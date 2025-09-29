@@ -32,18 +32,16 @@ onMounted(() => {
         component="h6"
         class="bg-body-secondary text-body-secondary fw-semibold mb-2 rounded-top"
       >
-        {{ userStore.user?.first_name }} {{ userStore.user?.other_name }}
-        {{ userStore.user?.last_name }}
       </CDropdownHeader>
       <CDropdownItem
-        ><router-link :to="`/profile`" class="text-decoration-none text-dark"
-          ><CIcon icon="cil-user" /> Profile
+        ><router-link to="/profile" class="text-decoration-none text-dark"
+          >Profile
         </router-link>
       </CDropdownItem>
-      <CDropdownItem> <CIcon icon="cil-settings" /> Settings </CDropdownItem>
+      <CDropdownItem>Settings </CDropdownItem>
       <CDropdownDivider />
       <CDropdownItem @click="authStore.logout(router)">
-        <CIcon icon="cil-lock-locked" /> Logout
+        Logout
       </CDropdownItem>
     </CDropdownMenu>
   </CDropdown>

@@ -44,6 +44,7 @@ const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
 const showFilters = ref(false)
+const editingId = ref(null)
 
 const currentUser = ref({
   id: null,
@@ -128,6 +129,7 @@ function resetPage() {
 function openCreate() {
   isEditing.value = false
   validated.value = false
+  editingId.value = null
   currentUser.value = {
     id: null,
     first_name: '',
@@ -146,6 +148,7 @@ function openCreate() {
 function openEdit(user) {
   isEditing.value = true
   validated.value = false
+  editingId.value = user.id
   currentUser.value = { ...user }
   // Set country as the object from countries array for Multiselect
   const countryObj = countries.value.find(c => c.value === user.country || c.label === user.country)
@@ -183,8 +186,8 @@ async function handleSubmit(e) {
   }
 
   if (isEditing.value) {
-    console.log('id:'+ currentUser.value.id)
-    await userStore.updateUser(currentUser.value.id, payload)
+    payload.id = editingId.value
+    await userStore.updateUser(payload)
   } else {
     await userStore.createUser(payload)
   }
@@ -368,7 +371,6 @@ function clearFilters() {
                     <CTableHeaderCell>Full Name</CTableHeaderCell>
                     <CTableHeaderCell>Country</CTableHeaderCell>
                     <CTableHeaderCell>Phone</CTableHeaderCell>
-                    <CTableHeaderCell>Email</CTableHeaderCell>
                     <CTableHeaderCell>Role</CTableHeaderCell>
                     <CTableHeaderCell>Status</CTableHeaderCell>
                     <CTableHeaderCell class="action-col">Actions</CTableHeaderCell>
@@ -393,9 +395,6 @@ function clearFilters() {
                     </CTableDataCell>
                     <CTableDataCell class="name-cell">
                       <div class="user-email">{{ user.phone }}</div>
-                    </CTableDataCell>
-                    <CTableDataCell class="name-cell">
-                      <div class="user-email">{{ user.email }}</div>
                     </CTableDataCell>
                     <CTableDataCell>
                       <CBadge 

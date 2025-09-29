@@ -373,11 +373,16 @@ async function handleSubmit(e) {
     }
     
     if (isEditing.value) {
-      await cowStore.editCow(currentCow.value.id, payload)
+      const res = await cowStore.editCow(currentCow.value.id, payload)
+      if(res == 1){
+        showModal.value = false
+      }
     } else {
-      await cowStore.createCow(payload)
+      const res = await cowStore.createCow(payload)
+      if(res == 1){
+        showModal.value = false
+      }
     }
-    showModal.value = false
   } finally {
     loading.value = false
   }
@@ -530,14 +535,6 @@ watch([searchQuery, filterYear, filterGender, filterBreed, filterPasture, filter
               </CCardBody>
             </CCard>
           </CCol>
-          <CCol md="2" sm="4" cols="6">
-            <CCard class="stat-card border-0 shadow-sm">
-              <CCardBody class="text-center py-3">
-                <div class="stat-number h4 mb-0 text-secondary">{{ filteredCows.length }}</div>
-                <div class="stat-label text-muted small">Filtered</div>
-              </CCardBody>
-            </CCard>
-          </CCol>
         </CRow>
       </CCol>
 
@@ -549,7 +546,7 @@ watch([searchQuery, filterYear, filterGender, filterBreed, filterPasture, filter
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h5 class="mb-1">
-                  <i class="fas fa-list-ul me-2 text-primary"></i>Cows Inventory
+                  <i class="fas fa-list-ul me-2 text-primary"></i>Cows
                 </h5>
               </div>
               <div class="d-flex gap-2">
@@ -804,7 +801,7 @@ watch([searchQuery, filterYear, filterGender, filterBreed, filterPasture, filter
                   
                   <CButton 
                     size="sm" 
-                    v-for="page in Math.min(totalPages, 5)" 
+                    v-for="page in Math.min(totalPages)" 
                     :key="page"
                     :color="page === currentPage ? 'primary' : 'outline-secondary'"
                     @click="goToPage(page)"

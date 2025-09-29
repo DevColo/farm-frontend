@@ -13,12 +13,13 @@ export const useMilkStore = defineStore('milk', {
       this.milkRecords.push(payload)
       try {
         const token = localStorage.getItem('user_token')
-        await axios.post('/api/daily-milk-records', payload, {
+        await axios.post('/api/add-milk-record', payload, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
         toast.success('Daily Milk Record added successfully!')
+        return 1;
       } catch (error) {
         let errorMessage = 'Something went wrong'
 
@@ -26,6 +27,7 @@ export const useMilkStore = defineStore('milk', {
           errorMessage = error.response.data.error
         }
         toast.error(errorMessage)
+        return 0;
       }
     },
     async fetchMilkRecords() {
@@ -37,7 +39,7 @@ export const useMilkStore = defineStore('milk', {
             Authorization: `Bearer ${token}`,
           },
         })
-        this.milkRecords = response.data
+        this.milkRecords = response.data.data
       } catch (error) {
         let errorMessage = 'Failed to fetch Daily Milk Record'
         if (error.response && error.response.data) {
@@ -50,7 +52,7 @@ export const useMilkStore = defineStore('milk', {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.delete(`/api/daily-milk-records/${id}`, {
+        await axios.get(`/api/delete-milk-record/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -63,23 +65,21 @@ export const useMilkStore = defineStore('milk', {
       }
     },
 
-    async editMilkRecord(id, updatedData) {
+    async editMilkRecord(updatedData) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.put(`/api/daily-milk-records/${id}`, updatedData, {
+        await axios.post(`/api/update-milk-record`, updatedData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        // Update Daily Milk Record in state
-        const index = this.milkRecords.findIndex((p) => p.id === id)
-        if (index !== -1) {
-          this.milkRecords[index] = response.data
-        }
+        
         toast.success('Daily Milk Record updated successfully')
+        return 1;
       } catch (error) {
         toast.error('Failed to update Daily Milk Record')
+        return 0;
       }
     },
   },

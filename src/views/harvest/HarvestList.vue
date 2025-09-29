@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useFarmStore } from '@/stores/farm.store'
-import { useCountryStore } from '@/stores/country.store'
+import { useTreeStore } from '@/stores/tree.store'
+import { useHarvestStore } from '@/stores/harvest.store'
 import {
   CRow,
   CCol,
@@ -23,9 +23,6 @@ import {
   CForm,
   CFormLabel,
   CFormInput,
-  CFormTextarea,
-  CFormSelect,
-  CFormCheck,
   CFormFeedback,
   CInputGroup,
   CBadge,
@@ -40,8 +37,8 @@ import { cilPencil, cilTrash, cilPlus, cilCloudDownload, cilSearch, cilFilter } 
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.css'
 
-const farmStore = useFarmStore()
-const countryStore = useCountryStore()
+const treeStore = useTreeStore()
+const harvestStore = useHarvestStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
@@ -50,67 +47,67 @@ const loading = ref(false)
 const showFilters = ref(false)
 const editingId = ref(null)
 
-const currentFarm = ref({
-  name: '',
-  country: '',
-  description: '',
-  status: '1',
+const currentHarvest = ref({
+  tree_id: '',
+  harvest_date: '',
+  quantity: '',
 })
 
 // Enhanced search and filter states
 const searchQuery = ref('')
-const filterCountry = ref('')
+const filterTree = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
-const sortField = ref('name')
-const sortOrder = ref('asc')
-const countries = ref([])
+const sortField = ref('harvest_date')
+const sortOrder = ref('desc')
+const trees = ref([])
 
 // fetch data
 onMounted(async () => {
   loading.value = true
   try {
     await Promise.all([
-      farmStore.fetchFarms(),
-      countryStore.fetchCountries()
+      harvestStore.fetchHarvests(),
+      treeStore.fetchTrees()
     ])
   } finally {
     loading.value = false
   }
 })
 
-// Watch the store in case countries are updated dynamically later
+// Watch the store in case trees are updated dynamically later
 watch(
-  () => countryStore.countries,
-  (newCountries) => {
-    countries.value = newCountries.map(c => ({
-      value: c.id,
-      label: c.country,
+  () => treeStore.trees,
+  (newTrees) => {
+    trees.value = newTrees.map(t => ({
+      value: t.id,
+      label: `${t?.block?.farm?.name} - ${t.tree_code}`,
+      type: t.type,
     }))
   },
   { deep: true }
 )
 
 // Generate filter options
-const availableCountries = computed(() => {
-  const countryNames = farmStore.farms.map(farm => farm.country).filter(Boolean)
-  return Array.from(new Set(countryNames))
+const availableTrees = computed(() => {
+  const treeNames = harvestStore.harvests.map(harvest => harvest.tree).filter(Boolean)
+  return Array.from(new Set(treeNames))
 })
 
 // Enhanced filtering and sorting
-const filteredFarms = computed(() => {
+const filteredHarvests = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   
   // Always work with an array
-  const farms = Array.isArray(farmStore.farms) ? farmStore.farms : []
+  const harvests = Array.isArray(harvestStore.harvests) ? harvestStore.harvests : []
   
-  let filtered = farms.filter((farm) => {
-    const matchesQuery = !q || [farm.name, farm.country].some((field) => 
+  let filtered = harvests.filter((harvest) => {
+    const matchesQuery = !q || [harvest.tree_id, harvest.harvest_date].some((field) => 
       field?.toLowerCase().includes(q)
     )
-    const matchesCountry = !filterCountry.value || farm.country === filterCountry.value
+    const matchesTree = !filterTree.value || harvest.tree_id == filterTree.value
     
-    return matchesQuery && matchesCountry
+    return matchesQuery && matchesTree
   })
 
   // Apply sorting
@@ -119,19 +116,24 @@ const filteredFarms = computed(() => {
     let bValue = b[sortField.value]
     
     // Handle special cases
-    if (sortField.value === 'country') {
-      aValue = a.country || ''
-      bValue = b.country || ''
+    if (sortField.value === 'tree_name') {
+      aValue = a.tree_name || ''
+      bValue = b.tree_name || ''
     }
     
-    // Convert to strings for comparison
-    aValue = String(aValue || '').toLowerCase()
-    bValue = String(bValue || '').toLowerCase()
+    if (sortField.value === 'harvest_date') {
+      aValue = new Date(a.harvest_date || 0).getTime()
+      bValue = new Date(b.harvest_date || 0).getTime()
+    } else {
+      // Convert to strings for comparison
+      aValue = String(aValue || '').toLowerCase()
+      bValue = String(bValue || '').toLowerCase()
+    }
     
     if (sortOrder.value === 'asc') {
-      return aValue.localeCompare(bValue)
+      return aValue > bValue ? 1 : aValue < bValue ? -1 : 0
     } else {
-      return bValue.localeCompare(aValue)
+      return bValue > aValue ? 1 : bValue < aValue ? -1 : 0
     }
   })
 
@@ -139,17 +141,13 @@ const filteredFarms = computed(() => {
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredFarms.value.length / itemsPerPage.value))
+  Math.max(1, Math.ceil(filteredHarvests.value.length / itemsPerPage.value))
 )
 
-const paginatedFarms = computed(() => {
+const paginatedHarvests = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredFarms.value.slice(start, start + itemsPerPage.value)
+  return filteredHarvests.value.slice(start, start + itemsPerPage.value)
 })
-
-function getStatusBadge(status) {
-  return status === '1' ? { color: 'success', text: 'Active' } : { color: 'danger', text: 'Inactive' }
-}
 
 // Sorting
 function sortBy(field) {
@@ -169,7 +167,7 @@ function getSortIcon(field) {
 // Filter management
 function clearAllFilters() {
   searchQuery.value = ''
-  filterCountry.value = ''
+  filterTree.value = ''
   resetPage()
 }
 
@@ -204,34 +202,38 @@ function openCreate() {
   isEditing.value = false
   validated.value = false
   editingId.value = null
-  currentFarm.value = {
-    name: '',
-    country: '',
-    description: '',
-    status: '1',
+  currentHarvest.value = {
+    tree_id: '',
+    harvest_date: '',
+    quantity: '',
   }
   showModal.value = true
 }
 
-function openEdit(farm) {
+function openEdit(harvest) {
   isEditing.value = true
   validated.value = false
-  editingId.value = farm.id
-  currentFarm.value = { ...farm, status: farm.status === '1' }
-
-  // Find matching country object from options
-  const countryObj = countries.value.find(c => 
-    c.label.toLowerCase() === farm.country?.toLowerCase()
+  editingId.value = harvest.id
+  
+  // Find matching tree object from options
+  const treeObj = trees.value.find(t => 
+    t.value == harvest.tree_id
   )
-  currentFarm.value.country = countryObj || null
+  
+  currentHarvest.value = {
+    tree_id: treeObj || null,
+    harvest_date: harvest.harvest_date,
+    quantity: harvest.quantity,
+  }
+  
   showModal.value = true
 }
 
-async function confirmDelete(id, name) {
-  if (confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
+async function confirmDelete(id, treeName) {
+  if (confirm(`Are you sure you want to delete harvest record for ${treeName}? This action cannot be undone.`)) {
     loading.value = true
     try {
-      await farmStore.deleteFarm(id)
+      await harvestStore.deleteHarvest(id)
     } finally {
       loading.value = false
     }
@@ -239,13 +241,6 @@ async function confirmDelete(id, name) {
 }
 
 // Form handling
-const isActive = computed({
-  get: () => currentFarm.value.status === '1' || currentFarm.value.status === true,
-  set: (v) => {
-    currentFarm.value.status = v ? '1' : '0'
-  },
-})
-
 async function handleSubmit(e) {
   e.preventDefault()
   e.stopPropagation()
@@ -253,7 +248,7 @@ async function handleSubmit(e) {
   const form = e.currentTarget
   
   // Check if all required fields are filled
-  if (!currentFarm.value.name || !currentFarm.value.country) {
+  if (!currentHarvest.value.tree_id || !currentHarvest.value.harvest_date || !currentHarvest.value.quantity) {
     validated.value = true
     return
   }
@@ -266,21 +261,20 @@ async function handleSubmit(e) {
   loading.value = true
   try {
     const payload = {
-      name: currentFarm.value.name,
-      description: currentFarm.value.description,
-      status: currentFarm.value.status,
-      country: currentFarm.value.country.value,
+      tree_id: currentHarvest.value.tree_id.value,
+      harvest_date: currentHarvest.value.harvest_date,
+      quantity: currentHarvest.value.quantity,
     }
     
     if (isEditing.value) {
-      payload.farm_id = editingId.value
-      const res = await farmStore.editFarm(payload)
+      payload.harvest_id = editingId.value
+      const res = await harvestStore.editHarvest(payload)
       if(res == 1){
         showModal.value = false
         validated.value = false
       }
     } else {
-      const res = await farmStore.createFarm(payload)
+      const res = await harvestStore.createHarvest(payload)
       if(res == 1){
         showModal.value = false
         validated.value = false
@@ -294,7 +288,7 @@ async function handleSubmit(e) {
 }
 
 // Watch for changes
-watch([searchQuery, filterCountry], () => {
+watch([searchQuery, filterTree], () => {
   resetPage()
 })
 </script>
@@ -315,7 +309,7 @@ watch([searchQuery, filterCountry], () => {
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h5 class="mb-1">
-                <i class="fas fa-warehouse me-2 text-primary"></i>Farms
+                <i class="fas fa-apple-alt me-2 text-success"></i>Tree Harvests
               </h5>
             </div>
             <div class="d-flex gap-2">
@@ -333,7 +327,7 @@ watch([searchQuery, filterCountry], () => {
                 </CDropdownMenu>
               </CDropdown>
               <CButton color="dark" @click="openCreate">
-                <CIcon :icon="cilPlus" class="me-1" />Add New Farm
+                <CIcon :icon="cilPlus" class="me-1" />Add New Harvest
               </CButton>
             </div>
           </div>
@@ -352,7 +346,7 @@ watch([searchQuery, filterCountry], () => {
                     </span>
                     <CFormInput
                       v-model="searchQuery"
-                      placeholder="Search by farm or country"
+                      placeholder="Search by tree name or date"
                       @input="resetPage"
                     />
                   </CInputGroup>
@@ -382,10 +376,10 @@ watch([searchQuery, filterCountry], () => {
             <div v-if="showFilters" class="advanced-filters">
               <div class="row g-3">
                 <div class="col-md-2">
-                  <CFormSelect v-model="filterCountry" @change="resetPage">
-                    <option value="">All Countries</option>
-                    <option v-for="country in availableCountries" :key="country" :value="country">
-                      {{ country }}
+                  <CFormSelect v-model="filterTree" @change="resetPage">
+                    <option value="">All Trees</option>
+                    <option v-for="tree in availableTrees" :key="tree?.id" :value="tree?.id">
+                      {{ tree?.tree_code }}
                     </option>
                   </CFormSelect>
                 </div>
@@ -403,45 +397,35 @@ watch([searchQuery, filterCountry], () => {
             <CTable hover class="mb-0 modern-table">
               <CTableHead class="table-light">
                 <CTableRow>
-                  <CTableHeaderCell class="sortable" @click="sortBy('name')">
-                    Farm Name {{ getSortIcon('name') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('tree_name')">
+                    Tree {{ getSortIcon('tree_name') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('country')">
-                    Country {{ getSortIcon('country') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('quantity')">
+                    Quantity (kg) {{ getSortIcon('quantity') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell>Amount of Blocks</CTableHeaderCell>
-                  <CTableHeaderCell>Description</CTableHeaderCell>
-                  <CTableHeaderCell>Status</CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('harvest_date')">
+                    Harvest Date {{ getSortIcon('harvest_date') }}
+                  </CTableHeaderCell>
                   <CTableHeaderCell>Created At</CTableHeaderCell>
                   <CTableHeaderCell width="120">Actions</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                <CTableRow v-for="farm in paginatedFarms" :key="farm.id" class="table-row">
+                <CTableRow v-for="harvest in paginatedHarvests" :key="harvest.id" class="table-row">
                   <CTableDataCell>
-                    <router-link :to="`/farm/${farm.id}`" class="text-decoration-none farm-link">
-                      {{ farm.name }}
+                    <router-link :to="`/trees/${harvest.tree?.id}`" class="text-decoration-none tree-link">
+                      <i class="fas fa-tree me-1 text-success"></i>
+                      {{ harvest.tree?.tree_code }}
                     </router-link>
                   </CTableDataCell>
                   <CTableDataCell>
-                    {{ farm.country ?? '' }}
+                      {{ harvest.quantity }}
                   </CTableDataCell>
                   <CTableDataCell>
-                      {{ farm.block_count || 0 }}
+                      {{ new Date(harvest.harvest_date).toLocaleDateString() }}
                   </CTableDataCell>
                   <CTableDataCell>
-                    {{ farm.description ?? '' }}
-                  </CTableDataCell>
-                  <CTableDataCell>
-                    <CBadge 
-                      :color="getStatusBadge(farm.status).color" 
-                      class="px-2 py-1"
-                    >
-                      {{ getStatusBadge(farm.status).text }}
-                    </CBadge>
-                  </CTableDataCell>
-                  <CTableDataCell>
-                    {{ new Date(farm.created_at).toLocaleDateString() ?? '' }}
+                    {{ new Date(harvest.created_at).toLocaleDateString() ?? '' }}
                   </CTableDataCell>
                   <CTableDataCell>
                     <div class="d-flex gap-1">
@@ -449,8 +433,8 @@ watch([searchQuery, filterCountry], () => {
                         size="sm"
                         color="info"
                         variant="outline"
-                        title="Edit Farm"
-                        @click="openEdit(farm)"
+                        title="Edit Harvest"
+                        @click="openEdit(harvest)"
                       >
                         <CIcon :icon="cilPencil" size="sm" />
                       </CButton>
@@ -458,22 +442,22 @@ watch([searchQuery, filterCountry], () => {
                         size="sm"
                         color="danger"
                         variant="outline"
-                        title="Delete Farm"
-                        @click="confirmDelete(farm.id, farm.name)"
+                        title="Delete Harvest"
+                        @click="confirmDelete(harvest.id, harvest.tree_name)"
                       >
                         <CIcon :icon="cilTrash" size="sm" />
                       </CButton>
                     </div>
                   </CTableDataCell>
                 </CTableRow>
-                <CTableRow v-if="paginatedFarms.length === 0">
-                  <CTableDataCell colspan="7" class="text-center py-5">
+                <CTableRow v-if="paginatedHarvests.length === 0">
+                  <CTableDataCell colspan="5" class="text-center py-5">
                     <div class="empty-state">
-                      <i class="fas fa-warehouse fa-3x text-muted mb-3"></i>
-                      <h5 class="text-muted">No farms found</h5>
-                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new farm</p>
+                      <i class="fas fa-apple-alt fa-3x text-muted mb-3"></i>
+                      <h5 class="text-muted">No harvest records found</h5>
+                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new harvest record</p>
                       <CButton color="primary" @click="openCreate">
-                        <CIcon :icon="cilPlus" class="me-1" />Add Your First Farm
+                        <CIcon :icon="cilPlus" class="me-1" />Add Your First Harvest
                       </CButton>
                     </div>
                   </CTableDataCell>
@@ -488,10 +472,10 @@ watch([searchQuery, filterCountry], () => {
               <div class="pagination-info">
                 <span class="text-muted small">
                   Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
-                  {{ Math.min(currentPage * itemsPerPage, filteredFarms.length) }} 
-                  of {{ filteredFarms.length }} entries
-                  <span v-if="filteredFarms.length !== farmStore.farms.length">
-                    (filtered from {{ farmStore.farms.length }} total)
+                  {{ Math.min(currentPage * itemsPerPage, filteredHarvests.length) }} 
+                  of {{ filteredHarvests.length }} entries
+                  <span v-if="filteredHarvests.length !== harvestStore.harvests.length">
+                    (filtered from {{ harvestStore.harvests.length }} total)
                   </span>
                 </span>
               </div>
@@ -535,60 +519,70 @@ watch([searchQuery, filterCountry], () => {
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
     <CModalHeader class="border-bottom">
       <CModalTitle>
-        <i class="fas fa-warehouse me-2"></i>
-        {{ isEditing ? 'Edit Farm' : 'Add New Farm' }}
+        <i class="fas fa-apple-alt me-2 text-success"></i>
+        {{ isEditing ? 'Edit Harvest' : 'Add New Harvest' }}
       </CModalTitle>
     </CModalHeader>
     <CModalBody class="p-0">
       <!-- Tab Content -->
       <CForm
-        id="farm-form"
+        id="harvest-form"
         class="p-4"
         novalidate
         :validated="validated"
         @submit="handleSubmit"
       >
         <CRow class="g-3">
-          <CCol md="6">
-            <CFormLabel for="farm-name" class="fw-semibold">Farm Name <span style="color: red;">*</span></CFormLabel>
-            <CFormInput id="farm-name" v-model="currentFarm.name" required />
-            <CFormFeedback invalid>Farm name is required.</CFormFeedback>
-          </CCol>
-
-          <CCol md="6">
-            <CFormLabel for="country" class="fw-semibold">Country <span style="color: red;">*</span></CFormLabel>
+          <CCol md="12">
+            <CFormLabel for="tree" class="fw-semibold">Tree <span style="color: red;">*</span></CFormLabel>
             <Multiselect
-              v-model="currentFarm.country"
-              placeholder="Select Country"
+              v-model="currentHarvest.tree_id"
+              placeholder="Select Tree"
               track-by="value"
               label="label"
-              :options="countries"
+              :options="trees"
               :show-no-results="false"
               :close-on-select="true"
               :clear-on-select="false"
               :preserve-search="true"
               :preselect-first="false"
-            />
-            <div v-if="validated && !currentFarm.country" class="invalid-feedback d-block">
-              Country is required.
+            >
+              <template #option="{ option }">
+                <i class="fas fa-tree me-2 text-success"></i>{{ option.label }}
+                <small class="text-muted ms-2">({{ option.type }})</small>
+              </template>
+              <template #singleLabel="{ option }">
+                <i class="fas fa-tree me-2 text-success"></i>{{ option.label }}
+              </template>
+            </Multiselect>
+            <div v-if="validated && !currentHarvest.tree_id" class="invalid-feedback d-block">
+              Tree is required.
             </div>
           </CCol>
 
-          <CCol cols="12" md="12">
-            <CFormLabel for="description" class="fw-semibold">Description</CFormLabel>
-            <CFormTextarea 
-              id="description" 
-              rows="3" 
-              v-model="currentFarm.description"
-              placeholder="Add any additional notes about this farm..."
+          <CCol md="12">
+            <CFormLabel for="harvest-date" class="fw-semibold">Harvest Date <span style="color: red;">*</span></CFormLabel>
+            <CFormInput 
+              id="harvest-date" 
+              type="date" 
+              v-model="currentHarvest.harvest_date" 
+              required 
             />
+            <CFormFeedback invalid>Harvest date is required.</CFormFeedback>
           </CCol>
 
-          <CCol cols="12" class="col-12">
-            <div class="d-flex align-items-center">
-              <CFormCheck id="status" v-model="isActive" />
-              <CFormLabel for="status" class="ms-2">Active Farm (available for operations)</CFormLabel>
-            </div>
+          <CCol md="12">
+            <CFormLabel for="quantity" class="fw-semibold">Quantity (kg) <span style="color: red;">*</span></CFormLabel>
+            <CFormInput 
+              id="quantity" 
+              type="number" 
+              step="0.01"
+              min="0"
+              v-model="currentHarvest.quantity" 
+              placeholder="Enter quantity in kilograms"
+              required 
+            />
+            <CFormFeedback invalid>Quantity is required.</CFormFeedback>
           </CCol>
         </CRow>
       </CForm>
@@ -600,12 +594,12 @@ watch([searchQuery, filterCountry], () => {
       <CButton 
         color="dark" 
         type="submit"
-        form="farm-form"
+        form="harvest-form"
         :disabled="loading"
       >
         <CSpinner v-if="loading" size="sm" class="me-2" />
         <i v-else :class="isEditing ? 'fas fa-save' : 'fas fa-plus'" class="me-2"></i>
-        {{ isEditing ? 'Update Farm' : 'Create Farm' }}
+        {{ isEditing ? 'Update Harvest' : 'Create Harvest' }}
       </CButton>
     </CModalFooter>
   </CModal>
@@ -645,16 +639,6 @@ watch([searchQuery, filterCountry], () => {
 
 .table-row:hover {
   background-color: rgba(0, 123, 255, 0.05);
-}
-
-.farm-link {
-  font-weight: 500;
-  color: #0d6efd;
-}
-
-.farm-link:hover {
-  color: #0b5ed7;
-  text-decoration: underline !important;
 }
 
 .empty-state {

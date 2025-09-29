@@ -66,8 +66,10 @@ export const useCowStore = defineStore('cow', {
           toast.success(response.data.message || 'Cow created successfully!')
           await this.fetchCows()
         }
+        return 1;
       } catch (error) {
         this.handleError(error, 'Failed to create cow')
+        return 0;
       } finally {
         this.loading = false
       }

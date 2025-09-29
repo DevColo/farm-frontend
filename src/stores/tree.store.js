@@ -1,25 +1,25 @@
-// stores/farm.store.js
+// stores/tree.store.js
 import { defineStore } from 'pinia'
 import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
-export const useBlockStore = defineStore('block', {
+export const useTreeStore = defineStore('tree', {
   state: () => ({
-    blocks: [],
-    block: [],
+    trees: [],
+    tree: [],
   }),
   actions: {
-    async createBlock(payload) {
+    async createTree(payload) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.post('/api/add-block', payload, {
+        await axios.post('/api/add-tree', payload, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        toast.success('Block created successfully!')
-        this.fetchBlocks()
+        toast.success('tree created successfully!')
+        this.fetchTrees()
         return 1;
       } catch (error) {
         let errorMessage = 'Something went wrong'
@@ -31,53 +31,53 @@ export const useBlockStore = defineStore('block', {
         return 0;
       }
     },
-    async fetchBlocks() {
+    async fetchTrees() {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.get('/api/blocks', {
+        const response = await axios.get('/api/trees', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        this.blocks = response.data.data
+        this.trees = response.data.data
       } catch (error) {
-        let errorMessage = 'Failed to fetch Farm'
+        let errorMessage = 'Failed to fetch tree'
         if (error.response && error.response.data) {
           errorMessage = error.response.data.error || error.response.data.message
         }
         toast.error(errorMessage)
       }
     },
-    async deleteBlock(id) {
+    async deleteTree(id) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.delete(`/api/blocks/${id}`, {
+        await axios.delete(`/api/trees/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        // Remove deleted Block from state
-        this.blocks = this.blocks.filter((p) => p.id !== id)
-        toast.success('Block deleted successfully')
+        // Remove deleted tree from state
+        this.trees = this.trees.filter((p) => p.id !== id)
+        toast.success('tree deleted successfully')
       } catch (error) {
-        toast.error('Failed to delete farm')
+        toast.error('Failed to delete tree')
       }
     },
 
-    async editBlock(updatedData) {
+    async editTree(updatedData) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.post(`/api/update-block`, updatedData, {
+        await axios.post(`/api/update-tree`, updatedData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
         
-        toast.success('Block updated successfully')
-        this.fetchBlocks()
+        toast.success('tree updated successfully')
+        this.fetchTrees()
         return 1;
       } catch (error) {
         // let errorMessage = 'Something went wrong'
@@ -90,26 +90,26 @@ export const useBlockStore = defineStore('block', {
       }
     },
 
-    async fetchBlockById(id) {
+    async fetchTreeById(id) {
           const toast = useToast()
           this.loading = true
           
           try {
             const token = localStorage.getItem('user_token')
-            const response = await axios.get(`/api/get-block/${id}`, {
+            const response = await axios.get(`/api/get-tree/${id}`, {
               headers: {
                 Authorization: `Bearer ${token}`,
               },
             })
             
             if (response.data.success) {
-              this.block = response.data.data
+              this.tree = response.data.data
             } else {
-              this.block = null
+              this.tree = null
             }
           } catch (error) {
-            this.handleError(error, 'Failed to fetch block details')
-            this.block = null
+            this.handleError(error, 'Failed to fetch tree details')
+            this.tree = null
           } finally {
             this.loading = false
           }

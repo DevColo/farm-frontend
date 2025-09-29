@@ -1,25 +1,25 @@
-// stores/farm.store.js
+// stores/harvest.store.js
 import { defineStore } from 'pinia'
 import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
-export const useBlockStore = defineStore('block', {
+export const useHarvestStore = defineStore('harvest', {
   state: () => ({
-    blocks: [],
-    block: [],
+    harvests: [],
+    harvest: [],
   }),
   actions: {
-    async createBlock(payload) {
+    async createHarvest(payload) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.post('/api/add-block', payload, {
+        await axios.post('/api/add-harvest', payload, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        toast.success('Block created successfully!')
-        this.fetchBlocks()
+        toast.success('Harvest created successfully!')
+        this.fetchHarvests()
         return 1;
       } catch (error) {
         let errorMessage = 'Something went wrong'
@@ -31,53 +31,53 @@ export const useBlockStore = defineStore('block', {
         return 0;
       }
     },
-    async fetchBlocks() {
+    async fetchHarvests() {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.get('/api/blocks', {
+        const response = await axios.get('/api/harvests', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        this.blocks = response.data.data
+        this.harvests = response.data.data
       } catch (error) {
-        let errorMessage = 'Failed to fetch Farm'
+        let errorMessage = 'Failed to fetch harvest'
         if (error.response && error.response.data) {
           errorMessage = error.response.data.error || error.response.data.message
         }
         toast.error(errorMessage)
       }
     },
-    async deleteBlock(id) {
+    async deleteHarvest(id) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.delete(`/api/blocks/${id}`, {
+        await axios.delete(`/api/harvests/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        // Remove deleted Block from state
-        this.blocks = this.blocks.filter((p) => p.id !== id)
-        toast.success('Block deleted successfully')
+        // Remove deleted Harvest from state
+        this.harvests = this.harvests.filter((p) => p.id !== id)
+        toast.success('Harvest deleted successfully')
       } catch (error) {
-        toast.error('Failed to delete farm')
+        toast.error('Failed to delete harvest')
       }
     },
 
-    async editBlock(updatedData) {
+    async editHarvest(updatedData) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.post(`/api/update-block`, updatedData, {
+        await axios.post(`/api/update-harvest`, updatedData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
         
-        toast.success('Block updated successfully')
-        this.fetchBlocks()
+        toast.success('Harvest updated successfully')
+        this.fetchHarvests()
         return 1;
       } catch (error) {
         // let errorMessage = 'Something went wrong'
@@ -90,26 +90,26 @@ export const useBlockStore = defineStore('block', {
       }
     },
 
-    async fetchBlockById(id) {
+    async fetchHarvestById(id) {
           const toast = useToast()
           this.loading = true
           
           try {
             const token = localStorage.getItem('user_token')
-            const response = await axios.get(`/api/get-block/${id}`, {
+            const response = await axios.get(`/api/get-harvest/${id}`, {
               headers: {
                 Authorization: `Bearer ${token}`,
               },
             })
             
             if (response.data.success) {
-              this.block = response.data.data
+              this.harvest = response.data.data
             } else {
-              this.block = null
+              this.harvest = null
             }
           } catch (error) {
-            this.handleError(error, 'Failed to fetch block details')
-            this.block = null
+            this.handleError(error, 'Failed to fetch harvest details')
+            this.harvest = null
           } finally {
             this.loading = false
           }

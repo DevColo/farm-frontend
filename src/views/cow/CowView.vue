@@ -229,11 +229,11 @@ function formatDate(dateString) {
     <!-- Enhanced Breadcrumb -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <nav class="breadcrumb-nav">
-        <router-link to="/cows" class="text-decoration-none">
+        <router-link to="/cows" class="text-decoration-none text-primary">
           <i class="fas fa-arrow-left me-2"></i>Back to Cows
         </router-link>
         <span class="mx-2 text-muted">></span>
-        <span class="fw-semibold">{{ cow.ear_tag || 'Cow Profile' }}</span>
+        <span class="fw-semibold">{{ cow.name }} - {{ cow.ear_tag }}</span>
       </nav>
     </div>
 

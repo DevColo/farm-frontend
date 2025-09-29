@@ -35,7 +35,7 @@ export const useDashboardStore = defineStore('dashboardData', {
             Authorization: `Bearer ${token}`,
           },
         })
-        this.dashboardStats = response.data
+        this.dashboardStats = response.data.data
       } catch (error) {
         let errorMessage = 'Failed to fetch Dashboard Data'
         if (error.response && error.response.data) {

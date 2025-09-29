@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useFarmStore } from '@/stores/farm.store'
-import { useCountryStore } from '@/stores/country.store'
+import { useTreeStore } from '@/stores/tree.store'
+import { useBlockStore } from '@/stores/block.store'
 import {
   CRow,
   CCol,
@@ -40,8 +40,8 @@ import { cilPencil, cilTrash, cilPlus, cilCloudDownload, cilSearch, cilFilter } 
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.css'
 
-const farmStore = useFarmStore()
-const countryStore = useCountryStore()
+const treeStore = useTreeStore()
+const blockStore = useBlockStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
@@ -50,67 +50,82 @@ const loading = ref(false)
 const showFilters = ref(false)
 const editingId = ref(null)
 
-const currentFarm = ref({
+// Tree types
+const types = [
+  { value: 'Orange', label: 'Orange', color: 'warning', icon: '🍊' },
+  { value: 'Avocado', label: 'Avocado', color: 'success', icon: '🥑' },
+  { value: 'Lemon', label: 'Lemon', color: 'warning', icon: '🍋' },
+  { value: 'Apple', label: 'Apple', color: 'danger', icon: '🍎' }
+]
+
+const currentTree = ref({
   name: '',
-  country: '',
+  type: '',
+  block_id: '',
   description: '',
   status: '1',
 })
 
 // Enhanced search and filter states
 const searchQuery = ref('')
-const filterCountry = ref('')
+const filterType = ref('')
+const filterBlock = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 const sortField = ref('name')
 const sortOrder = ref('asc')
-const countries = ref([])
+const blocks = ref([])
 
 // fetch data
 onMounted(async () => {
   loading.value = true
   try {
     await Promise.all([
-      farmStore.fetchFarms(),
-      countryStore.fetchCountries()
+      treeStore.fetchTrees(),
+      blockStore.fetchBlocks()
     ])
   } finally {
     loading.value = false
   }
 })
 
-// Watch the store in case countries are updated dynamically later
+// Watch the store in case blocks are updated dynamically later
 watch(
-  () => countryStore.countries,
-  (newCountries) => {
-    countries.value = newCountries.map(c => ({
-      value: c.id,
-      label: c.country,
+  () => blockStore.blocks,
+  (newBlocks) => {
+    blocks.value = newBlocks.map(b => ({
+      value: b.id,
+      label: `${b.country} - ${b.block_code}`,
     }))
   },
   { deep: true }
 )
 
 // Generate filter options
-const availableCountries = computed(() => {
-  const countryNames = farmStore.farms.map(farm => farm.country).filter(Boolean)
-  return Array.from(new Set(countryNames))
+const availabletypes = computed(() => {
+  return types.map(c => c.value)
+})
+
+const availableBlocks = computed(() => {
+  const blockNames = treeStore.trees.map(tree => tree.block_name).filter(Boolean)
+  return Array.from(new Set(blockNames))
 })
 
 // Enhanced filtering and sorting
-const filteredFarms = computed(() => {
+const filteredTrees = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   
   // Always work with an array
-  const farms = Array.isArray(farmStore.farms) ? farmStore.farms : []
+  const trees = Array.isArray(treeStore.trees) ? treeStore.trees : []
   
-  let filtered = farms.filter((farm) => {
-    const matchesQuery = !q || [farm.name, farm.country].some((field) => 
+  let filtered = trees.filter((tree) => {
+    const matchesQuery = !q || [tree.name, tree.type, tree.block_name].some((field) => 
       field?.toLowerCase().includes(q)
     )
-    const matchesCountry = !filterCountry.value || farm.country === filterCountry.value
+    const matchesType = !filterType.value || tree.type === filterType.value
+    const matchesBlock = !filterBlock.value || tree.block_name === filterBlock.value
     
-    return matchesQuery && matchesCountry
+    return matchesQuery && matchesType && matchesBlock
   })
 
   // Apply sorting
@@ -119,9 +134,9 @@ const filteredFarms = computed(() => {
     let bValue = b[sortField.value]
     
     // Handle special cases
-    if (sortField.value === 'country') {
-      aValue = a.country || ''
-      bValue = b.country || ''
+    if (sortField.value === 'block_name') {
+      aValue = a.block_name || ''
+      bValue = b.block_name || ''
     }
     
     // Convert to strings for comparison
@@ -139,16 +154,21 @@ const filteredFarms = computed(() => {
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredFarms.value.length / itemsPerPage.value))
+  Math.max(1, Math.ceil(filteredTrees.value.length / itemsPerPage.value))
 )
 
-const paginatedFarms = computed(() => {
+const paginatedTrees = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredFarms.value.slice(start, start + itemsPerPage.value)
+  return filteredTrees.value.slice(start, start + itemsPerPage.value)
 })
 
 function getStatusBadge(status) {
   return status === '1' ? { color: 'success', text: 'Active' } : { color: 'danger', text: 'Inactive' }
+}
+
+function getTypeBadge(type) {
+  const cat = types.find(c => c.value === type)
+  return cat || { color: 'secondary', icon: '🌳', label: type }
 }
 
 // Sorting
@@ -169,7 +189,8 @@ function getSortIcon(field) {
 // Filter management
 function clearAllFilters() {
   searchQuery.value = ''
-  filterCountry.value = ''
+  filterType.value = ''
+  filterBlock.value = ''
   resetPage()
 }
 
@@ -204,26 +225,32 @@ function openCreate() {
   isEditing.value = false
   validated.value = false
   editingId.value = null
-  currentFarm.value = {
+  currentTree.value = {
     name: '',
-    country: '',
+    type: '',
+    block_id: '',
     description: '',
     status: '1',
   }
   showModal.value = true
 }
 
-function openEdit(farm) {
+function openEdit(tree) {
   isEditing.value = true
   validated.value = false
-  editingId.value = farm.id
-  currentFarm.value = { ...farm, status: farm.status === '1' }
+  editingId.value = tree.id
+  currentTree.value = { ...tree, status: tree.status === '1' }
 
-  // Find matching country object from options
-  const countryObj = countries.value.find(c => 
-    c.label.toLowerCase() === farm.country?.toLowerCase()
+  // Find matching block object from options
+  const blockObj = blocks.value.find(b => 
+    b.value == tree.block_id
   )
-  currentFarm.value.country = countryObj || null
+  currentTree.value.block_id = blockObj || null
+
+  // Find matching type object
+  const typeObj = types.find(c => c.value === tree.type)
+  currentTree.value.type = typeObj || null
+  
   showModal.value = true
 }
 
@@ -231,7 +258,7 @@ async function confirmDelete(id, name) {
   if (confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
     loading.value = true
     try {
-      await farmStore.deleteFarm(id)
+      await treeStore.deleteTree(id)
     } finally {
       loading.value = false
     }
@@ -240,9 +267,9 @@ async function confirmDelete(id, name) {
 
 // Form handling
 const isActive = computed({
-  get: () => currentFarm.value.status === '1' || currentFarm.value.status === true,
+  get: () => currentTree.value.status === '1' || currentTree.value.status === true,
   set: (v) => {
-    currentFarm.value.status = v ? '1' : '0'
+    currentTree.value.status = v ? '1' : '0'
   },
 })
 
@@ -253,7 +280,7 @@ async function handleSubmit(e) {
   const form = e.currentTarget
   
   // Check if all required fields are filled
-  if (!currentFarm.value.name || !currentFarm.value.country) {
+  if (!currentTree.value.name || !currentTree.value.type || !currentTree.value.block_id) {
     validated.value = true
     return
   }
@@ -266,21 +293,22 @@ async function handleSubmit(e) {
   loading.value = true
   try {
     const payload = {
-      name: currentFarm.value.name,
-      description: currentFarm.value.description,
-      status: currentFarm.value.status,
-      country: currentFarm.value.country.value,
+      name: currentTree.value.name,
+      type: currentTree.value.type.value,
+      block_id: currentTree.value.block_id.value,
+      description: currentTree.value.description,
+      status: currentTree.value.status,
     }
     
     if (isEditing.value) {
-      payload.farm_id = editingId.value
-      const res = await farmStore.editFarm(payload)
+      payload.tree_id = editingId.value
+      const res = await treeStore.editTree(payload)
       if(res == 1){
         showModal.value = false
         validated.value = false
       }
     } else {
-      const res = await farmStore.createFarm(payload)
+      const res = await treeStore.createTree(payload)
       if(res == 1){
         showModal.value = false
         validated.value = false
@@ -294,7 +322,7 @@ async function handleSubmit(e) {
 }
 
 // Watch for changes
-watch([searchQuery, filterCountry], () => {
+watch([searchQuery, filterType, filterBlock], () => {
   resetPage()
 })
 </script>
@@ -315,7 +343,7 @@ watch([searchQuery, filterCountry], () => {
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h5 class="mb-1">
-                <i class="fas fa-warehouse me-2 text-primary"></i>Farms
+                <i class="fas fa-tree me-2 text-success"></i>Trees
               </h5>
             </div>
             <div class="d-flex gap-2">
@@ -333,7 +361,7 @@ watch([searchQuery, filterCountry], () => {
                 </CDropdownMenu>
               </CDropdown>
               <CButton color="dark" @click="openCreate">
-                <CIcon :icon="cilPlus" class="me-1" />Add New Farm
+                <CIcon :icon="cilPlus" class="me-1" />Add New Tree
               </CButton>
             </div>
           </div>
@@ -352,7 +380,7 @@ watch([searchQuery, filterCountry], () => {
                     </span>
                     <CFormInput
                       v-model="searchQuery"
-                      placeholder="Search by farm or country"
+                      placeholder="Search by name, type or block"
                       @input="resetPage"
                     />
                   </CInputGroup>
@@ -382,10 +410,18 @@ watch([searchQuery, filterCountry], () => {
             <div v-if="showFilters" class="advanced-filters">
               <div class="row g-3">
                 <div class="col-md-2">
-                  <CFormSelect v-model="filterCountry" @change="resetPage">
-                    <option value="">All Countries</option>
-                    <option v-for="country in availableCountries" :key="country" :value="country">
-                      {{ country }}
+                  <CFormSelect v-model="filterType" @change="resetPage">
+                    <option value="">All types</option>
+                    <option v-for="type in availabletypes" :key="type" :value="type">
+                      {{ type }}
+                    </option>
+                  </CFormSelect>
+                </div>
+                <div class="col-md-2">
+                  <CFormSelect v-model="filterBlock" @change="resetPage">
+                    <option value="">All Blocks</option>
+                    <option v-for="block in availableBlocks" :key="block" :value="block">
+                      {{ block }}
                     </option>
                   </CFormSelect>
                 </div>
@@ -403,13 +439,16 @@ watch([searchQuery, filterCountry], () => {
             <CTable hover class="mb-0 modern-table">
               <CTableHead class="table-light">
                 <CTableRow>
-                  <CTableHeaderCell class="sortable" @click="sortBy('name')">
-                    Farm Name {{ getSortIcon('name') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('tree_code')">
+                    Tree Code {{ getSortIcon('tree_code') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('country')">
-                    Country {{ getSortIcon('country') }}
+                  <CTableHeaderCell>Tree Name</CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('type')">
+                    Type {{ getSortIcon('type') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell>Amount of Blocks</CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('block_name')">
+                    Block {{ getSortIcon('block_name') }}
+                  </CTableHeaderCell>
                   <CTableHeaderCell>Description</CTableHeaderCell>
                   <CTableHeaderCell>Status</CTableHeaderCell>
                   <CTableHeaderCell>Created At</CTableHeaderCell>
@@ -417,31 +456,40 @@ watch([searchQuery, filterCountry], () => {
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                <CTableRow v-for="farm in paginatedFarms" :key="farm.id" class="table-row">
+                <CTableRow v-for="tree in paginatedTrees" :key="tree.id" class="table-row">
                   <CTableDataCell>
-                    <router-link :to="`/farm/${farm.id}`" class="text-decoration-none farm-link">
-                      {{ farm.name }}
+                    <router-link :to="`/trees/${tree.id}`" class="text-decoration-none tree-link">
+                      <i class="fas fa-tree me-1 text-success"></i>
+                      {{ tree.tree_code }}
                     </router-link>
                   </CTableDataCell>
                   <CTableDataCell>
-                    {{ farm.country ?? '' }}
+                      {{ tree?.name }}
                   </CTableDataCell>
                   <CTableDataCell>
-                      {{ farm.block_count || 0 }}
+                      {{ tree?.type }}
                   </CTableDataCell>
                   <CTableDataCell>
-                    {{ farm.description ?? '' }}
+                    <router-link :to="`/blocks/${tree.block?.id}`" class="text-decoration-none tree-link">
+                      <i class="fas fa-tree me-1 text-success"></i>
+                      {{ tree.block?.name }}
+                    </router-link>
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <span class="text-truncate d-inline-block" style="max-width: 250px;">
+                      {{ tree.description ?? '—' }}
+                    </span>
                   </CTableDataCell>
                   <CTableDataCell>
                     <CBadge 
-                      :color="getStatusBadge(farm.status).color" 
+                      :color="getStatusBadge(tree.status).color" 
                       class="px-2 py-1"
                     >
-                      {{ getStatusBadge(farm.status).text }}
+                      {{ getStatusBadge(tree.status).text }}
                     </CBadge>
                   </CTableDataCell>
                   <CTableDataCell>
-                    {{ new Date(farm.created_at).toLocaleDateString() ?? '' }}
+                    {{ new Date(tree.created_at).toLocaleDateString() ?? '' }}
                   </CTableDataCell>
                   <CTableDataCell>
                     <div class="d-flex gap-1">
@@ -449,8 +497,8 @@ watch([searchQuery, filterCountry], () => {
                         size="sm"
                         color="info"
                         variant="outline"
-                        title="Edit Farm"
-                        @click="openEdit(farm)"
+                        title="Edit Tree"
+                        @click="openEdit(tree)"
                       >
                         <CIcon :icon="cilPencil" size="sm" />
                       </CButton>
@@ -458,22 +506,22 @@ watch([searchQuery, filterCountry], () => {
                         size="sm"
                         color="danger"
                         variant="outline"
-                        title="Delete Farm"
-                        @click="confirmDelete(farm.id, farm.name)"
+                        title="Delete Tree"
+                        @click="confirmDelete(tree.id, tree.name)"
                       >
                         <CIcon :icon="cilTrash" size="sm" />
                       </CButton>
                     </div>
                   </CTableDataCell>
                 </CTableRow>
-                <CTableRow v-if="paginatedFarms.length === 0">
+                <CTableRow v-if="paginatedTrees.length === 0">
                   <CTableDataCell colspan="7" class="text-center py-5">
                     <div class="empty-state">
-                      <i class="fas fa-warehouse fa-3x text-muted mb-3"></i>
-                      <h5 class="text-muted">No farms found</h5>
-                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new farm</p>
+                      <i class="fas fa-tree fa-3x text-muted mb-3"></i>
+                      <h5 class="text-muted">No trees found</h5>
+                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new tree</p>
                       <CButton color="primary" @click="openCreate">
-                        <CIcon :icon="cilPlus" class="me-1" />Add Your First Farm
+                        <CIcon :icon="cilPlus" class="me-1" />Add Your First Tree
                       </CButton>
                     </div>
                   </CTableDataCell>
@@ -488,10 +536,10 @@ watch([searchQuery, filterCountry], () => {
               <div class="pagination-info">
                 <span class="text-muted small">
                   Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
-                  {{ Math.min(currentPage * itemsPerPage, filteredFarms.length) }} 
-                  of {{ filteredFarms.length }} entries
-                  <span v-if="filteredFarms.length !== farmStore.farms.length">
-                    (filtered from {{ farmStore.farms.length }} total)
+                  {{ Math.min(currentPage * itemsPerPage, filteredTrees.length) }} 
+                  of {{ filteredTrees.length }} entries
+                  <span v-if="filteredTrees.length !== treeStore.trees.length">
+                    (filtered from {{ treeStore.trees.length }} total)
                   </span>
                 </span>
               </div>
@@ -535,14 +583,14 @@ watch([searchQuery, filterCountry], () => {
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
     <CModalHeader class="border-bottom">
       <CModalTitle>
-        <i class="fas fa-warehouse me-2"></i>
-        {{ isEditing ? 'Edit Farm' : 'Add New Farm' }}
+        <i class="fas fa-tree me-2 text-success"></i>
+        {{ isEditing ? 'Edit Tree' : 'Add New Tree' }}
       </CModalTitle>
     </CModalHeader>
     <CModalBody class="p-0">
       <!-- Tab Content -->
       <CForm
-        id="farm-form"
+        id="tree-form"
         class="p-4"
         novalidate
         :validated="validated"
@@ -550,27 +598,53 @@ watch([searchQuery, filterCountry], () => {
       >
         <CRow class="g-3">
           <CCol md="6">
-            <CFormLabel for="farm-name" class="fw-semibold">Farm Name <span style="color: red;">*</span></CFormLabel>
-            <CFormInput id="farm-name" v-model="currentFarm.name" required />
-            <CFormFeedback invalid>Farm name is required.</CFormFeedback>
+            <CFormLabel for="tree-name" class="fw-semibold">Tree Name <span style="color: red;">*</span></CFormLabel>
+            <CFormInput id="tree-name" v-model="currentTree.name" required />
+            <CFormFeedback invalid>Tree name is required.</CFormFeedback>
           </CCol>
 
           <CCol md="6">
-            <CFormLabel for="country" class="fw-semibold">Country <span style="color: red;">*</span></CFormLabel>
+            <CFormLabel for="type" class="fw-semibold">Tree Type <span style="color: red;">*</span></CFormLabel>
             <Multiselect
-              v-model="currentFarm.country"
-              placeholder="Select Country"
+              v-model="currentTree.type"
+              placeholder="Select type"
               track-by="value"
               label="label"
-              :options="countries"
+              :options="types"
+              :show-no-results="false"
+              :close-on-select="true"
+              :clear-on-select="false"
+              :preserve-search="true"
+              :preselect-first="false"
+            >
+              <template #option="{ option }">
+                <span class="me-2">{{ option.icon }}</span>{{ option.label }}
+              </template>
+              <template #singleLabel="{ option }">
+                <span class="me-2">{{ option.icon }}</span>{{ option.label }}
+              </template>
+            </Multiselect>
+            <div v-if="validated && !currentTree.type" class="invalid-feedback d-block">
+              type is required.
+            </div>
+          </CCol>
+
+          <CCol md="12">
+            <CFormLabel for="block" class="fw-semibold">Block <span style="color: red;">*</span></CFormLabel>
+            <Multiselect
+              v-model="currentTree.block_id"
+              placeholder="Select Block"
+              track-by="value"
+              label="label"
+              :options="blocks"
               :show-no-results="false"
               :close-on-select="true"
               :clear-on-select="false"
               :preserve-search="true"
               :preselect-first="false"
             />
-            <div v-if="validated && !currentFarm.country" class="invalid-feedback d-block">
-              Country is required.
+            <div v-if="validated && !currentTree.block_id" class="invalid-feedback d-block">
+              Block is required.
             </div>
           </CCol>
 
@@ -579,15 +653,15 @@ watch([searchQuery, filterCountry], () => {
             <CFormTextarea 
               id="description" 
               rows="3" 
-              v-model="currentFarm.description"
-              placeholder="Add any additional notes about this farm..."
+              v-model="currentTree.description"
+              placeholder="Add any additional notes about this tree..."
             />
           </CCol>
 
           <CCol cols="12" class="col-12">
             <div class="d-flex align-items-center">
               <CFormCheck id="status" v-model="isActive" />
-              <CFormLabel for="status" class="ms-2">Active Farm (available for operations)</CFormLabel>
+              <CFormLabel for="status" class="ms-2">Active Tree (healthy and growing)</CFormLabel>
             </div>
           </CCol>
         </CRow>
@@ -600,12 +674,12 @@ watch([searchQuery, filterCountry], () => {
       <CButton 
         color="dark" 
         type="submit"
-        form="farm-form"
+        form="tree-form"
         :disabled="loading"
       >
         <CSpinner v-if="loading" size="sm" class="me-2" />
         <i v-else :class="isEditing ? 'fas fa-save' : 'fas fa-plus'" class="me-2"></i>
-        {{ isEditing ? 'Update Farm' : 'Create Farm' }}
+        {{ isEditing ? 'Update Tree' : 'Create Tree' }}
       </CButton>
     </CModalFooter>
   </CModal>
@@ -647,12 +721,12 @@ watch([searchQuery, filterCountry], () => {
   background-color: rgba(0, 123, 255, 0.05);
 }
 
-.farm-link {
+.tree-link {
   font-weight: 500;
   color: #0d6efd;
 }
 
-.farm-link:hover {
+.tree-link:hover {
   color: #0b5ed7;
   text-decoration: underline !important;
 }
@@ -673,5 +747,11 @@ watch([searchQuery, filterCountry], () => {
   padding-top: 1rem;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
   margin-top: 1rem;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

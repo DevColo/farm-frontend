@@ -19,6 +19,7 @@ export const usePastureStore = defineStore('pasture', {
         })
         toast.success('Pasture created successfully!')
         this.fetchPastures()
+        return 1;
       } catch (error) {
         let errorMessage = 'Something went wrong'
 
@@ -26,6 +27,7 @@ export const usePastureStore = defineStore('pasture', {
           errorMessage = error.response.data.error
         }
         toast.error(errorMessage)
+        return 0;
       }
     },
     async fetchPastures() {
@@ -75,6 +77,7 @@ export const usePastureStore = defineStore('pasture', {
         
         toast.success('Pasture updated successfully')
         this.fetchPastures()
+        return 1;
       } catch (error) {
         let errorMessage = 'Something went wrong'
 
@@ -82,6 +85,7 @@ export const usePastureStore = defineStore('pasture', {
           errorMessage = error.response.data.error
         }
         toast.error(errorMessage)
+        return 0;
       }
     },
   },

@@ -6,6 +6,7 @@ import { useToast } from 'vue-toastification'
 export const useFarmStore = defineStore('farm', {
   state: () => ({
     farms: [],
+    farm: [],
   }),
   actions: {
     async createFarm(payload) {
@@ -19,6 +20,7 @@ export const useFarmStore = defineStore('farm', {
         })
         toast.success('Farm created successfully!')
         this.fetchFarms()
+        return 1;
       } catch (error) {
         let errorMessage = 'Something went wrong'
 
@@ -26,6 +28,7 @@ export const useFarmStore = defineStore('farm', {
           errorMessage = error.response.data.error
         }
         toast.error(errorMessage)
+        return 0;
       }
     },
     async fetchFarms() {
@@ -75,6 +78,7 @@ export const useFarmStore = defineStore('farm', {
         
         toast.success('Farm updated successfully')
         this.fetchFarms()
+        return 1;
       } catch (error) {
         // let errorMessage = 'Something went wrong'
 
@@ -82,6 +86,31 @@ export const useFarmStore = defineStore('farm', {
         //   errorMessage = error.response.data.error
         // }
         // toast.error(errorMessage)
+        return 0;
+      }
+    },
+    async fetchFarmById(id) {
+      const toast = useToast()
+      this.loading = true
+      
+      try {
+        const token = localStorage.getItem('user_token')
+        const response = await axios.get(`/api/get-farm/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        
+        if (response.data.success) {
+          this.farm = response.data.data
+        } else {
+          this.farm = null
+        }
+      } catch (error) {
+        this.handleError(error, 'Failed to fetch farm details')
+        this.farm = null
+      } finally {
+        this.loading = false
       }
     },
   },

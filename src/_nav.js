@@ -44,49 +44,27 @@ export default [
       },
       {
         component: 'CNavItem',
-        name: 'Block List',
+        name: 'Blocks',
         to: '/block-list',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Trees',
+        to: '/tree-list',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Activities',
+        items: [
+          {
+            component: 'CNavItem',
+            name: 'Harvest',
+            to: '/harvests',
+          },
+        ],
       },
     ],
   },
-  // Block
-  // {
-  //   component: 'CNavGroup',
-  //   name: 'Block',
-  //   to: '/blocks',
-  //   icon: 'cil-layers',
-  //   items: [
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Add Block',
-  //       to: '/add-block',
-  //     },
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Block List',
-  //       to: '/block-list',
-  //     },
-  //   ],
-  // },
-  // Parcel
-  // {
-  //   component: 'CNavGroup',
-  //   name: 'Parcel',
-  //   to: '/parcel',
-  //   icon: 'cil-puzzle',
-  //   items: [
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Add Parcel',
-  //       to: '/add-parcel',
-  //     },
-  //     {
-  //       component: 'CNavItem',
-  //       name: 'Parcel List',
-  //       to: '/parcel-list',
-  //     },
-  //   ],
-  // },
 
   // Cattle Management
   {
@@ -103,9 +81,9 @@ export default [
   // Cow
   {
     component: 'router-link',
-    name: 'Cows',
+    name: 'Cow',
     //to: '/cows',
-    icon: 'cil-notes',
+    icon: 'cil-layers',
     items: [
       {
         component: 'CNavItem',
@@ -114,18 +92,40 @@ export default [
       },
       {
         component: 'CNavItem',
-        name: 'Feeding',
-        to: '/feedings',
-      },
-      {
-        component: 'CNavItem',
-        name: 'Medication',
-        to: '/medications',
-      },
-      {
-        component: 'CNavItem',
         name: 'Maternity',
         to: '/maternity',
+      },
+      {
+        component: 'CNavItem',
+        name: 'Nutrition',
+        items: [
+          {
+            component: 'CNavItem',
+            name: 'Food Stock',
+            to: '/cow-foods',
+          },
+          {
+            component: 'CNavItem',
+            name: 'Feeding',
+            to: '/feedings',
+          }
+        ],
+      },
+      {
+        component: 'router-link',
+        name: 'Health',
+        items: [
+          {
+            component: 'CNavItem',
+            name: 'Medication',
+            to: '/medications',
+          },
+          {
+            component: 'CNavItem',
+            name: 'Clinical Care',
+            to: '/clinical-cares',
+          }
+        ],
       },
     ],
   },

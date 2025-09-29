@@ -1,9 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-//import { useCowStore } from '@/stores/cow.store'
 import { useMilkStore } from '@/stores/milk.store'
-import {
-  CRow,
+import { usePastureStore } from '@/stores/pasture.store'
+import {CRow,
   CCol,
   CCard,
   CCardHeader,
@@ -23,86 +22,244 @@ import {
   CForm,
   CFormLabel,
   CFormInput,
-  CFormTextarea,
   CFormSelect,
-  CFormCheck,
   CFormFeedback,
+  CTabContent,
+  CTabPane,
+  CInputGroup,
+  CDropdown,
+  CDropdownToggle,
+  CDropdownMenu,
+  CDropdownItem,
+  CSpinner,
 } from '@coreui/vue'
-import { cilPencil, cilTrash, cilUser } from '@coreui/icons'
+import { cilPencil, cilTrash, cilPlus, cilCloudDownload, cilSearch, cilFilter } from '@coreui/icons'
+import Swal from 'sweetalert2'
+import Multiselect from 'vue-multiselect'
+import 'vue-multiselect/dist/vue-multiselect.css'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import logo from '@/assets/images/logo.png'
 
-//const cowStore = useCowStore()
 const milkStore = useMilkStore()
+const pastureStore = usePastureStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
-const filterDate = ref('')
+const loading = ref(false)
+const showFilters = ref(false)
 
 const currentMilkRecord = ref({
   id: null,
   morning_qty: '',
   evening_qty: '',
   record_date: '',
-  // cow_id: '',
+  pasture_id: '',
 })
 
-// fetch data
-onMounted(() => {
-  // cowStore.fetchCows()
-  milkStore.fetchMilkRecords()
-})
-
-// search & pagination
+// Enhanced search and filter states
 const searchQuery = ref('')
+const filterPasture = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
+const sortField = ref('name')
+const sortOrder = ref('asc')
+const pastureList = ref([])
+const editingId = ref(null)
+const filterYearAndMonth = ref('')
+const filterYear = ref('')
 
-// const filteredMilkRecords = computed(() => {
-//   const q = searchQuery.value.trim().toLowerCase()
-//   if (!q) return milkStore.milkRecords
-//   return milkStore.milkRecords.filter((c) =>
-//     [c.record_date, c.morning_qty, c.evening_qty].some((f) => f?.toLowerCase().includes(q)),
-//   )
-// })
+// fetch data
+onMounted(async () => {
+  loading.value = true
+  try {
+    await Promise.all([
+      milkStore.fetchMilkRecords(),
+      pastureStore.fetchPastures(),
+    ])
+  } finally {
+    loading.value = false
+  }
+})
+
+// Watch the store in case pastures are updated dynamically later
+watch(
+  () => pastureStore.pastures,
+  (newPastures) => {
+    pastureList.value = newPastures.map(c => ({
+      value: c.id,
+      label: c.pasture,
+    }))
+  },
+  { deep: true }
+)
+
+// Generate filter options
+const availablePastures = computed(() => {
+  const pastures = milkStore.milkRecords
+    .map(milk => milk.pasture)
+    .filter(Boolean);
+
+  // deduplicate by pasture.id
+  const unique = new Map(pastures.map(p => [p.id, p]));
+  return Array.from(unique.values());
+});
+
+const availableYearMonth = computed(() => {
+  const pastures = milkStore.milkRecords
+    .map(milk => milk.record_date)
+    .filter(Boolean);
+
+  // Convert to Date objects first
+  const parsedDates = pastures.map(dateStr => new Date(dateStr));
+
+  // Deduplicate by year+month key
+  const uniqueMap = new Map(
+    parsedDates.map(d => [
+      `${d.getFullYear()}-${d.getMonth()}`, // key like "2025-4"
+      d
+    ])
+  );
+
+  // Sort by actual date
+  const sorted = [...uniqueMap.values()].sort((a, b) => a - b);
+
+  // Convert to "YYYY Month"
+  return sorted.map(d =>
+    d.toLocaleDateString("en-US", { year: "numeric", month: "long" })
+  );
+});
+
+const availableYears = computed(() => {
+  const years = milkStore.milkRecords
+    .map(milk => new Date(milk.record_date).getFullYear())
+    .filter(Boolean);
+
+  // Deduplicate + sort ascending
+  return [...new Set(years)].sort((a, b) => a - b);
+});
+
+// Enhanced filtering and sorting
+const filteredMilkRecords = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  let filtered = milkStore.milkRecords.filter((milk) => {
+  const matchesQuery = !q || [milk.pasture.pasture, milk.record_date, milk.morning_qty, milk.evening_qty].some((field) =>
+    field?.toString().toLowerCase().includes(q)
+  );
+
+  const matchesPasture =
+    !filterPasture.value || milk.pasture_id === filterPasture.value;
+
+  // format Year + Month
+  const recordYearMonth = new Date(milk.record_date).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long"
+  });
+
+  const matchesYearMonth =
+    !filterYearAndMonth.value || recordYearMonth === filterYearAndMonth.value;
+
+  // extract Year only
+  const recordYear = new Date(milk.record_date).getFullYear();
+
+  const matchesYear =
+    !filterYear.value || recordYear === Number(filterYear.value);
+
+  return matchesQuery && matchesPasture && matchesYearMonth && matchesYear;
+});
+
+
+  // Apply sorting
+  filtered.sort((a, b) => {
+    let aValue = a[sortField.value]
+    let bValue = b[sortField.value]
+    
+    // Handle special cases
+    if (sortField.value === 'age') {
+      aValue = calculateAge(a.date_of_birth)
+      bValue = calculateAge(b.date_of_birth)
+    } else if (sortField.value === 'pasture') {
+      aValue = a.pasture?.pasture || ''
+      bValue = b.pasture?.pasture || ''
+    }
+    
+    // Convert to strings for comparison
+    aValue = String(aValue || '').toLowerCase()
+    bValue = String(bValue || '').toLowerCase()
+    
+    if (sortOrder.value === 'asc') {
+      return aValue.localeCompare(bValue)
+    } else {
+      return bValue.localeCompare(aValue)
+    }
+  })
+
+  return filtered
+})
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredMilkRecords.value.length / itemsPerPage.value)),
+  Math.max(1, Math.ceil(filteredMilkRecords.value.length / itemsPerPage.value))
 )
+
 const paginatedMilkRecords = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return filteredMilkRecords.value.slice(start, start + itemsPerPage.value)
 })
 
-// Fix for the prop type warning
-watch(
-  () => currentMilkRecord.value.cow_id,
-  (newValue) => {
-    if (typeof newValue === 'number') {
-      currentMilkRecord.value.cow_id = String(newValue)
-    }
-  },
-)
+function getStatusBadge(status) {
+  return status === '1' ? { color: 'success', text: 'Active' } : { color: 'danger', text: 'Inactive' }
+}
 
+// Sorting
+function sortBy(field) {
+  if (sortField.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortOrder.value = 'asc'
+  }
+}
+
+function getSortIcon(field) {
+  if (sortField.value !== field) return '↕️'
+  return sortOrder.value === 'asc' ? '↑' : '↓'
+}
+
+// Filter management
+function clearAllFilters() {
+  searchQuery.value = ''
+  filterPasture.value = ''
+  filterYearAndMonth.value = ''
+  filterYear.value = ''
+  resetPage()
+}
+
+function resetPage() {
+  currentPage.value = 1
+}
+
+// Pagination
 function nextPage() {
   if (currentPage.value < totalPages.value) currentPage.value++
 }
 function prevPage() {
   if (currentPage.value > 1) currentPage.value--
 }
-function resetPage() {
-  currentPage.value = 1
+function goToPage(page) {
+  currentPage.value = page
 }
 
-// modal handlers
+// Modal handlers
 function openCreate() {
   isEditing.value = false
   validated.value = false
+  editingId.value = null
   currentMilkRecord.value = {
-    id: null,
     morning_qty: '',
     evening_qty: '',
     record_date: '',
-    // cow_id: '',
+    pasture_id: '',
   }
   showModal.value = true
 }
@@ -110,336 +267,475 @@ function openCreate() {
 function openEdit(milkRecord) {
   isEditing.value = true
   validated.value = false
+  editingId.value = milkRecord.id
   currentMilkRecord.value = { ...milkRecord }
+  // Find matching pasture object from options
+  const pastureObj = pastureList.value.find(c => 
+    c.value == milkRecord.pasture_id
+  )
+  currentMilkRecord.value.pasture_id = pastureObj || null
   showModal.value = true
 }
 
-function confirmDelete(id) {
-  if (confirm('Are you sure you want to delete this milk record ?')) {
-    milkStore.deleteMilkRecord(id)
-  }
+const confirmDelete = async (id, record_date) => {
+  Swal.fire({
+    html: `
+      <div class="custom-modal-header d-flex align-items-center justify-content-center flex-column">
+        <h3 class="custom-modal-title d-flex align-items-center justify-content-center flex-row font-inter fw-semibold text-grey-v13 py-3">
+          <i class="material-symbols-rounded text-red rounded-circle position-relative d-flex align-items-center justify-content-center me-3">delete</i>
+          <span></span>
+        </h3>
+        <p class="custom-modal-description font-inter fw-normal text-grey-v6">
+          Are you sure to delete ${record_date} record?
+        </p>
+      </div>
+    `,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Yes, delete it!',
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      loading.value = true
+      try {
+        await milkStore.deleteMilkRecord(id)
+        // optional: show success message
+        //Swal.fire('Deleted!', 'The record has been deleted.', 'success')
+      } finally {
+        loading.value = false
+      }
+    }
+  })
 }
 
 async function handleSubmit(e) {
-  const form = e.currentTarget
-  if (!form.checkValidity()) {
-    e.preventDefault()
-    e.stopPropagation()
+  if (e) e.preventDefault()
+
+  // Manual validation for required fields
+  if (
+    !currentMilkRecord.value.record_date ||
+    !currentMilkRecord.value.pasture_id ||
+    !currentMilkRecord.value.morning_qty
+  ) {
     validated.value = true
     return
   }
-  e.preventDefault()
-  const today = new Date()
-  const payload = {
-    // cow_id: currentMilkRecord.value.cow_id,
-    morning_qty: currentMilkRecord.value.morning_qty,
-    evening_qty: currentMilkRecord.value.evening_qty,
-    record_date: currentMilkRecord.value.record_date ?? today,
-    //record_date: today,
+
+  loading.value = true
+  try {
+    const payload = {
+      pasture_id: currentMilkRecord.value.pasture_id.value || currentMilkRecord.value.pasture_id, 
+      morning_qty: currentMilkRecord.value.morning_qty,
+      evening_qty: currentMilkRecord.value.evening_qty || 0,
+      record_date: currentMilkRecord.value.record_date,
+    }
+
+    if (isEditing.value) {
+      payload.milk_id = editingId.value // pass record id for update
+      const res = await milkStore.editMilkRecord(payload)
+      if(res == 1){
+        showModal.value = false
+      }
+    } else {
+      const res = await milkStore.createMilkRecord(payload)
+      if(res == 1){
+        showModal.value = false
+      }
+    }
+
+    
+  } finally {
+    loading.value = false
   }
-  if (isEditing.value) {
-    await milkStore.editMilkRecord(currentMilkRecord.value.id, payload)
-  } else {
-    await milkStore.createMilkRecord(payload)
-  }
-  showModal.value = false
-  milkStore.fetchMilkRecords()
 }
 
-// Export in PDF
-async function exportPDF() {
-  const { default: jsPDF } = await import('jspdf')
-  const autoTable = (await import('jspdf-autotable')).default
+// Watch for changes
+watch([searchQuery, filterPasture, filterYearAndMonth, filterYear], () => {
+  resetPage()
+})
 
-  const doc = new jsPDF()
-  autoTable(doc, {
-    head: [
-      [
-        'RECORDED DATE',
-        // 'COW NAME',
-        // 'EAR TAG',
-        'MORNING QTY (L)',
-        'EVENING QTY (L)',
-        'TOTAL QTY (L)',
-      ],
-    ],
-    body: filteredMilkRecords.value.map((milk) => {
-      return [
-        milk.record_date,
-        // milk.cow.name,
-        // milk.cow.ear_tag,
-        milk.morning_qty,
-        milk.evening_qty,
-        (milk.morning_qty ?? 0) + (milk.evening_qty ?? 0),
-      ]
-    }),
-  })
-  doc.save('milk-record.pdf')
-}
-
-// Export in CSV
-function exportCSV() {
-  const rows = [
-    [
-      'RECORDED DATE',
-      // 'COW NAME', 'EAR TAG',
-      'MORNING QTY (L)',
-      'EVENING QTY (L)',
-      'TOTAL QTY (L)',
-    ],
-    ...filteredMilkRecords.value.map((milk) => {
-      return [
-        milk.record_date,
-        // milk.cow.name,
-        // milk.cow.ear_tag,
-        milk.morning_qty,
-        milk.evening_qty,
-        (milk.morning_qty ?? 0) + (milk.evening_qty ?? 0),
-      ]
-    }),
-  ]
-
-  const csvContent = rows
-    .map((row) => row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(','))
-    .join('\n')
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.setAttribute('href', url)
-  link.setAttribute('download', 'milk-record.csv')
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
-
-// Calculate Revenue
+// Calculate Total Qty
 const getTotalQuantity = (morning_qty = 0, evening_qty = 0) => {
   return BigInt(morning_qty) + BigInt(evening_qty)
 }
 
-// Calculate Revenue
-const getRevenue = (morning_qty = 0, evening_qty = 0) => {
-  var total = BigInt(morning_qty) + BigInt(evening_qty)
-  return total * BigInt(1000)
+// Export PDF
+const exportPDF = () => {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'pt',
+    format: 'A4',
+  })
+
+  // Header: Add Image
+  const img = new Image()
+  img.src = logo
+  doc.addImage(img, 'PNG', 40, 20, 50, 50) // x, y, width, height
+
+  // Header: Add Text
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Jakaja', 100, 30)
+
+  // Header: Add Text
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Farm Management System', 100, 45)
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Dialy Milk Records - created: ${new Date().toLocaleDateString()}`, 100, 58)
+
+  // Calculate total quantity
+  const totalQty = filteredMilkRecords.value.reduce(
+    (sum, r) => sum + Number(r.morning_qty || 0) + Number(r.evening_qty || 0),
+    0
+  )
+  doc.text(`Total Qty: ${totalQty} liters`, 100, 70)
+
+  // Table columns
+  const tableColumn = ["Record Date", "Morning Qty (L)", "Evening Qty (L)", "Total Qty (L)", "Pasture"]
+  const tableRows = []
+
+  filteredMilkRecords.value.forEach(record => {
+    const row = [
+      record.record_date,
+      record.morning_qty,
+      record.evening_qty,
+      (Number(record.morning_qty || 0) + Number(record.evening_qty || 0)).toString(),
+      record.pasture?.pasture || ''
+    ]
+    tableRows.push(row)
+  })
+
+  // Table
+  autoTable(doc, {
+    head: [tableColumn],
+    body: tableRows,
+    startY: 100, // start after header
+    theme: 'grid',
+    headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+    styles: { fontSize: 10 },
+    columnStyles: {
+      0: { cellWidth: 100 },
+      1: { cellWidth: 80 },
+      2: { cellWidth: 80 },
+      3: { cellWidth: 80 },
+      4: { cellWidth: 150 },
+    },
+    didDrawPage: (data) => {
+      // Optional: repeat header on every page
+      // You can leave this empty if not needed
+    }
+  })
+
+  // Save PDF
+  doc.save('daily-milk-records.pdf')
 }
 
-// Extend your computed filter
-const filteredMilkRecords = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  const date = filterDate.value
-
-  return milkStore.milkRecords.filter((record) => {
-    const matchSearch =
-      !q ||
-      [record.record_date, record.morning_qty, record.evening_qty].some((f) =>
-        f?.toString().toLowerCase().includes(q),
-      )
-
-    const matchDate = !date || record.record_date === date
-
-    return matchSearch && matchDate
-  })
-})
 </script>
 
 <template>
-  <CRow>
-    <CCol :xs="12">
-      <CCard class="mb-4">
-        <CCardHeader class="d-flex justify-content-between align-items-center">
-          <strong>Daily Milk Record</strong>
-          <div class="d-flex gap-2 mb-3">
-            <CButton color="dark" variant="outline" title="Export CSV" @click="exportCSV"
-              ><CIcon icon="cil-file"
-            /></CButton>
-            <CButton color="dark" variant="outline" class="sm" title="Export PDF" @click="exportPDF"
-              ><CIcon icon="cil-cloud-download"
-            /></CButton>
-            <CButton color="dark" @click="openCreate">+ Add Milk Record</CButton>
-          </div>
-        </CCardHeader>
-        <CCardBody>
-          <!-- search + page-size -->
+  <div class="position-relative">
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="loading-overlay">
+      <CSpinner color="primary" variant="grow" />
+    </div>
 
-          <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
-            <!-- Search -->
-            <div class="d-flex align-items-center" style="gap: 8px">
-              <input
-                type="text"
-                v-model="searchQuery"
-                class="form-control"
-                style="max-width: 220px"
-                placeholder="Search by date, quantity"
-                @input="resetPage"
-              />
+    <!-- Main Content -->
+      <!-- Main Table Card -->
+      <CCol cols="12">
+        <CCard class="shadow-sm border-0">
+          <!-- Enhanced Header -->
+          <CCardHeader class="bg-white border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h5 class="mb-1">
+                  <i class="fas fa-list-ul me-2 text-primary"></i>Daily Milk Record
+                </h5>
+              </div>
+              <div class="d-flex gap-2">
+                <CDropdown>
+                  <CDropdownToggle color="outline-secondary" size="sm">
+                    <CIcon :icon="cilCloudDownload" class="me-1" />Export
+                  </CDropdownToggle>
+                  <CDropdownMenu>
+                    <CDropdownItem @click="exportPDF">
+                      <i class="fas fa-file-pdf me-2 text-danger"></i>Export PDF
+                    </CDropdownItem>
+                  </CDropdownMenu>
+                </CDropdown>
+                <CButton color="dark" @click="openCreate">
+                  <CIcon :icon="cilPlus" class="me-1" />Add Milk Record
+                </CButton>
+              </div>
+            </div>
+          </CCardHeader>
 
-              <!-- Date Filter -->
-              <input
-                type="date"
-                v-model="filterDate"
-                class="form-control"
-                @change="resetPage"
-                style="max-width: 180px"
-              />
+          <CCardBody class="p-0">
+            <!-- Enhanced Search and Filter Controls -->
+            <div class="search-filter-section p-4 bg-light border-bottom">
+              <!-- Main Search -->
+              <div class="row g-3 mb-3">
+                <div  class="col-md-11" style="display: flex; gap: 10px;">
+                  <div class="col-md-3">
+                    <CInputGroup>
+                      <span class="input-group-text">
+                        <CIcon :icon="cilSearch" />
+                      </span>
+                      <CFormInput
+                        v-model="searchQuery"
+                        placeholder="Search by pasture, date or quantity"
+                        @input="resetPage"
+                      />
+                    </CInputGroup>
+                  </div>
+                  <div>
+                    <CButton 
+                      :color="showFilters ? 'primary' : 'outline-primary'" 
+                      @click="showFilters = !showFilters"
+                      class="w-100"
+                    >
+                      <CIcon :icon="cilFilter"/>
+                    </CButton>
+                  </div>
+                </div>
+
+                <div class="col-md-1">
+                  <CFormSelect v-model="itemsPerPage" @change="resetPage">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                  </CFormSelect>
+                </div>
+              </div>
+
+              <!-- Advanced Filters -->
+              <div v-if="showFilters" class="advanced-filters">
+                <div class="row g-3">
+                  <div class="col-md-2">
+                    <CFormSelect v-model="filterPasture" @change="resetPage">
+                      <option value="">All Pasture</option>
+                      <option v-for="pasture in availablePastures" :key="pasture.id" :value="pasture.id">
+                        {{ pasture.pasture }}
+                      </option>
+                    </CFormSelect>
+                  </div>
+                  <div class="col-md-2">
+                    <CFormSelect v-model="filterYearAndMonth" @change="resetPage">
+                      <option value="">All Month</option>
+                      <option v-for="month in availableYearMonth" :key="month" :value="month">
+                        {{ month }}
+                      </option>
+                    </CFormSelect>
+                  </div>
+                  <div class="col-md-2">
+                    <CFormSelect v-model="filterYear" @change="resetPage">
+                      <option value="">All Years</option>
+                      <option v-for="year in availableYears" :key="year" :value="year">
+                        {{ year }}
+                      </option>
+                    </CFormSelect>
+                  </div>
+                  <div class="col-md-2">
+                    <CButton color="outline-secondary" @click="clearAllFilters" class="w-100">
+                      Clear All
+                    </CButton>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <!-- Items Per Page -->
-            <div class="d-flex align-items-center ms-auto" style="gap: 8px">
-              <label class="mb-0">Show:</label>
-              <select v-model="itemsPerPage" @change="resetPage" class="form-select w-auto">
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-                <option :value="100">100</option>
-              </select>
+            <!-- Enhanced Table -->
+            <div class="table-responsive">
+              <CTable hover class="mb-0 modern-table">
+                <CTableHead class="table-light">
+                  <CTableRow>
+                    <CTableHeaderCell class="sortable" @click="sortBy('record_date')">
+                      Record Date {{ getSortIcon('record_date') }}
+                    </CTableHeaderCell>
+                    <CTableHeaderCell>Morning Qty (L)</CTableHeaderCell>
+                    <CTableHeaderCell>Evening Qty (L)</CTableHeaderCell>
+                    <CTableHeaderCell>Total Qty (L)</CTableHeaderCell>
+                    <CTableHeaderCell>Pasture</CTableHeaderCell>
+                    <CTableHeaderCell width="120">Actions</CTableHeaderCell>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
+                  <CTableRow v-for="milk in paginatedMilkRecords" :key="milk.id" class="table-row">
+                    <CTableDataCell>
+                      <router-link :to="`/milks/${milk.id}`" class="text-decoration-none cow-link">
+                        {{ milk?.record_date }}
+                      </router-link>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      {{ milk?.morning_qty }}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                        {{ milk?.evening_qty }}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      {{ getTotalQuantity(milk.morning_qty, milk.evening_qty) }}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                        {{ milk?.pasture?.pasture }}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      <div class="d-flex gap-1">
+                        <CButton
+                          size="sm"
+                          color="info"
+                          variant="outline"
+                          title="Edit milk"
+                          @click="openEdit(milk)"
+                        >
+                          <CIcon :icon="cilPencil"/>
+                        </CButton>
+                        <CButton
+                          size="sm"
+                          color="danger"
+                          variant="outline"
+                          title="Delete milk"
+                          @click="confirmDelete(milk.id, milk.record_date)"
+                        >
+                          <CIcon :icon="cilTrash"/>
+                        </CButton>
+                      </div>
+                    </CTableDataCell>
+                  </CTableRow>
+                  <CTableRow v-if="paginatedMilkRecords.length === 0">
+                    <CTableDataCell colspan="10" class="text-center py-5">
+                      <div class="empty-state">
+                        <i class="fas fa-cow fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No pastures found</h5>
+                        <p class="text-muted mb-3">Try adjusting your search criteria or add a new pasture</p>
+                        <CButton color="primary" @click="openCreate">
+                          <CIcon :icon="cilPlus" class="me-1" />Add Your First Pasture
+                        </CButton>
+                      </div>
+                    </CTableDataCell>
+                  </CTableRow>
+                </CTableBody>
+              </CTable>
             </div>
-          </div>
 
-          <!-- cows table -->
-          <CTable striped hover responsive>
-            <CTableHead>
-              <CTableRow>
-                <CTableHeaderCell>Record Date</CTableHeaderCell>
-                <CTableHeaderCell>Morning Qty (L)</CTableHeaderCell>
-                <CTableHeaderCell>Evening Qty (L)</CTableHeaderCell>
-                <CTableHeaderCell>Total Qty (L)</CTableHeaderCell>
-                <CTableHeaderCell>Action</CTableHeaderCell>
-              </CTableRow>
-            </CTableHead>
-            <CTableBody>
-              <CTableRow v-for="milk in paginatedMilkRecords" :key="milk.id">
-                <CTableDataCell>{{ milk.record_date }}</CTableDataCell>
-                <CTableDataCell>{{ milk.morning_qty ?? 'NOT RECORDED' }}</CTableDataCell>
-                <CTableDataCell>{{ milk.evening_qty ?? 'NOT RECORDED' }}</CTableDataCell>
-                <CTableDataCell>{{
-                  getTotalQuantity(milk.morning_qty, milk.evening_qty)
-                }}</CTableDataCell>
-                <!-- <CTableDataCell>{{
-                  getRevenue(milk.morning_qty, milk.evening_qty)
-                }}</CTableDataCell> -->
-                <CTableDataCell>
-                  <!-- Edit Cow Button -->
-                  <CButton
-                    size="sm"
-                    color="info"
-                    class="me-2 text-white"
-                    title="Edit Daily Milk Record"
-                    @click="openEdit(milk)"
+            <!-- Enhanced Pagination -->
+            <div class="pagination-section p-3 bg-light border-top">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="pagination-info">
+                  <span class="text-muted small">
+                    Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
+                    {{ Math.min(currentPage * itemsPerPage, filteredMilkRecords.length) }} 
+                    of {{ filteredMilkRecords.length }} entries
+                    <span v-if="filteredMilkRecords.length !== milkStore.milkRecords.length">
+                      (filtered from {{ milkStore.milkRecords.length }} total)
+                    </span>
+                  </span>
+                </div>
+                <div class="pagination-controls d-flex align-items-center gap-2" v-if="totalPages > 1">
+                  <CButton 
+                    size="sm" 
+                    variant="outline" 
+                    :disabled="currentPage === 1"
+                    @click="prevPage"
                   >
-                    <CIcon :icon="cilPencil" />
+                    Previous
                   </CButton>
 
-                  <!-- Delete Cow Button -->
-                  <CButton
-                    size="sm"
-                    color="danger"
-                    class="text-white"
-                    title="Delete Daily Milk Record"
-                    @click="confirmDelete(milk.id)"
+                  <CButton 
+                    size="sm" 
+                    variant="outline" 
+                    :disabled="currentPage === totalPages"
+                    @click="nextPage"
                   >
-                    <CIcon :icon="cilTrash" />
+                    Next
                   </CButton>
-                </CTableDataCell>
-              </CTableRow>
-              <CTableRow v-if="paginatedMilkRecords.length === 0">
-                <CTableDataCell colspan="8" class="text-center">
-                  No Dail Milk Record Found.
-                </CTableDataCell>
-              </CTableRow>
-            </CTableBody>
-          </CTable>
+                </div>
 
-          <!-- pagination controls -->
-          <div class="text-end mb-3">
-            <strong>Total Records:</strong> {{ filteredMilkRecords.length }}
-          </div>
-          <div class="d-flex justify-content-between align-items-center mt-3">
-            <CButton color="dark" variant="outline" :disabled="currentPage === 1" @click="prevPage">
-              Previous
-            </CButton>
-            <div>Page {{ currentPage }} of {{ totalPages }}</div>
-            <CButton
-              color="dark"
-              variant="outline"
-              :disabled="currentPage === totalPages"
-              @click="nextPage"
-            >
-              Next
-            </CButton>
-          </div>
-        </CCardBody>
-      </CCard>
-    </CCol>
-  </CRow>
+              </div>
+            </div>
+          </CCardBody>
+        </CCard>
+      </CCol>
+  </div>
 
-  <!-- Create/Edit Modal -->
-  <CModal :visible="showModal" @close="showModal = false" backdrop="static">
-    <CModalHeader>
-      <CModalTitle>{{
-        isEditing ? 'Edit Daily Milk Record' : 'Add Daily Milk Record'
-      }}</CModalTitle>
+  <!-- Enhanced Create/Edit Modal -->
+  <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
+    <CModalHeader class="border-bottom">
+      <CModalTitle>
+        <i class="fas fa-cow me-2"></i>
+        {{ isEditing ? 'Edit Milk Record' : 'Add New Milk Record' }}
+      </CModalTitle>
     </CModalHeader>
-    <CModalBody>
+    <CModalBody class="p-0">
+
+      <!-- Tab Content -->
       <CForm
-        class="row g-3 needs-validation"
+        class="p-4"
         novalidate
         :validated="validated"
         @submit="handleSubmit"
       >
-        <!-- <CCol :md="6">
-          <CFormLabel for="cow">Cow</CFormLabel>
-          <CFormSelect
-            id="cow"
-            v-model="currentMilkRecord.cow_id"
-            :options="[
-              { label: 'Select Cow', value: '' },
-              ...cowStore.cows.map((cow) => ({
-                label: cow.name ? cow.name + '-' + cow.ear_tag : cow.ear_tag,
-                value: cow.id,
-              })),
-            ]"
-            required
-          />
-          <CFormFeedback invalid>Cow is required.</CFormFeedback>
-        </CCol> -->
+        <CTabContent>
+          <!-- Cow Details Tab -->
+          <CTabPane visible>
+            <CRow class="g-3">
+              <CCol md="6">
+                <CFormLabel for="pasture" class="fw-semibold">Record Date <span style="color: red;">*</span></CFormLabel>
+                <CFormInput type="date" v-model="currentMilkRecord.record_date" required />
+                <CFormFeedback invalid>Record Date is required.</CFormFeedback>
+              </CCol>
 
-        <CCol :md="12">
-          <CFormLabel for="record_date">Record Date</CFormLabel>
-          <CFormInput id="record_date" type="date" v-model="currentMilkRecord.record_date" />
-        </CCol>
+              <CCol md="6">
+                <CFormLabel for="from_farm" class="fw-semibold">Pasture <span style="color: red;">*</span></CFormLabel>
+                <Multiselect
+                  v-model="currentMilkRecord.pasture_id"
+                  placeholder="Select Pasture"
+                  track-by="value"
+                  label="label"
+                  :options="pastureList"
+                  :show-no-results="false"
+                  :close-on-select="true"
+                  :clear-on-select="false"
+                  :preserve-search="true"
+                  :preselect-first="false"
+                  required
+                />
+                <CFormFeedback invalid>Pasture is required.</CFormFeedback>
+              </CCol>
 
-        <CCol :md="12">
-          <CFormLabel for="type">Morning Quantity (L)</CFormLabel>
-          <CFormInput
-            id="morning_qty"
-            type="number"
-            v-model.number="currentMilkRecord.morning_qty"
-            min="0"
-            step="0.1"
-            class="mb-3"
-          />
-          <CFormFeedback invalid>Morning Quantity is required.</CFormFeedback>
-        </CCol>
+              <CCol md="6">
+                <CFormLabel for="pasture" class="fw-semibold">Morning Quantity (liters) <span style="color: red;">*</span></CFormLabel>
+                <CFormInput type="number" v-model="currentMilkRecord.morning_qty" required />
+                <CFormFeedback invalid>Morning Quantity is required.</CFormFeedback>
+              </CCol>
 
-        <CCol :md="12">
-          <CFormLabel for="type">Evening Quantity (L)</CFormLabel>
-          <CFormInput
-            id="evening_qty"
-            type="number"
-            v-model.number="currentMilkRecord.evening_qty"
-            min="0"
-            step="0.1"
-            class="mb-3"
-          />
-          <CFormFeedback invalid>Evening Quantity is required.</CFormFeedback>
-        </CCol>
-
-        <CCol :xs="12" class="d-flex justify-content-end">
-          <CButton color="secondary" class="me-2" @click="showModal = false">Cancel</CButton>
-          <CButton color="success" type="submit">{{ isEditing ? 'Update' : 'Add Record' }}</CButton>
-        </CCol>
+              <CCol md="6">
+                <CFormLabel for="pasture" class="fw-semibold">Evening Quantity (liters)</CFormLabel>
+                <CFormInput type="number" v-model="currentMilkRecord.evening_qty" />
+                <CFormFeedback invalid>Evening Quantity is required.</CFormFeedback>
+              </CCol>
+            </CRow>
+          </CTabPane>
+        </CTabContent>
       </CForm>
     </CModalBody>
+    <CModalFooter class="border-top">
+      <CButton color="secondary" @click="showModal = false">
+        Cancel
+      </CButton>
+      <CButton 
+        type="submit"
+        color="dark" 
+        @click="handleSubmit"
+        :disabled="loading"
+      >
+        <CSpinner v-if="loading" size="sm" class="me-2" />
+        <i v-else :class="isEditing ? 'fas fa-save' : 'fas fa-plus'" class="me-2"></i>
+        {{ isEditing ? 'Update Milk Record' : 'Create Milk Record' }}
+      </CButton>
+    </CModalFooter>
   </CModal>
 </template>
