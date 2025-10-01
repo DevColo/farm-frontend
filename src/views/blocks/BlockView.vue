@@ -17,12 +17,7 @@ import {
   CModalTitle,
   CModalBody,
   CModalFooter,
-  CForm,
-  CFormLabel,
   CFormInput,
-  CFormTextarea,
-  CFormCheck,
-  CFormFeedback,
   CBreadcrumb,
   CBreadcrumbItem,
   CListGroup,
@@ -30,16 +25,9 @@ import {
 } from '@coreui/vue'
 import CIcon from '@coreui/icons-vue'
 import { 
-  cilArrowLeft, 
-  cilPencil, 
-  cilTrash, 
   cilLocationPin,
   cilMap,
-  cilCalendar,
-  cilUser,
   cilDescription,
-  cilCheckCircle,
-  cilXCircle,
   cilFullscreen
 } from '@coreui/icons'
 import L from 'leaflet'
@@ -52,11 +40,10 @@ const blockStore = useBlockStore()
 const block = ref(null)
 const loading = ref(true)
 const error = ref(null)
-const showDeleteModal = ref(false)
 const showMapModal = ref(false)
 const mapContainer = ref(null)
 const fullMapContainer = ref(null)
-const trees = ref([])
+const parcels = ref([])
 let map = null
 let fullMap = null
 
@@ -66,7 +53,7 @@ onMounted(async () => {
     // Assuming there's a fetchBlock method in the store
     await blockStore.fetchBlockById(blockId)
     block.value = blockStore.block
-    trees.value = block.value.trees || []
+    parcels.value = block.value.parcels || []
     // Initialize map if coordinates are available
     if (block.value?.latitude && block.value?.longitude) {
       await nextTick()
@@ -246,15 +233,15 @@ function copyCoordinates() {
 // Compute tree counts by type
 const treeTypeCounts = computed(() => {
   const counts = {}
-  if (block.value?.trees) {
-    block.value?.trees.forEach(tree => {
+  if (block.value?.parcels) {
+    block.value?.parcels.forEach(tree => {
       counts[tree.type] = (counts[tree.type] || 0) + 1
     })
   }
   return counts
 })
 
-// Trees table controls
+// parcels table controls
 const searchQuery = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
@@ -267,10 +254,10 @@ function getSortIcon(field) {
 }
 
 // tree filtering and sorting
-const filteredTrees = computed(() => {
+const filteredParcels = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   
-  let filtered = trees.value.filter((tree) => {
+  let filtered = parcels.value.filter((tree) => {
     if (!q) return true
     return [tree.tree_code, tree.type].some((field) => 
       String(field).toLowerCase().includes(q)
@@ -297,12 +284,12 @@ const filteredTrees = computed(() => {
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredTrees.value.length / itemsPerPage.value))
+  Math.max(1, Math.ceil(filteredParcels.value.length / itemsPerPage.value))
 )
 
-const paginatedTrees = computed(() => {
+const paginatedParcels = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredTrees.value.slice(start, start + itemsPerPage.value)
+  return filteredParcels.value.slice(start, start + itemsPerPage.value)
 })
 </script>
 
@@ -407,7 +394,7 @@ const paginatedTrees = computed(() => {
                     <CListGroup flush>
                     <CListGroupItem class="border-0 ps-0">
                         <div class="d-flex justify-content-between">
-                        <span class="text-muted small">Total Tree:<br> <span class="fw-bold">{{ block.trees.length }}</span></span>
+                        <span class="text-muted small">Total Parcel:<br> <span class="fw-bold">{{ block.parcels.length }}</span></span>
                         
                         </div>
                     </CListGroupItem>
@@ -485,25 +472,6 @@ const paginatedTrees = computed(() => {
 
       <!-- Additional Information Cards -->
       <CRow class="g-4 mt-2">
-        <!-- Statistics Card -->
-        <CCol lg="4">
-    <CCard class="shadow-sm">
-      <CCardHeader class="bg-white border-bottom">
-        <h6 class="mb-0">
-          <i class="fas fa-chart-bar me-2 text-success"></i>
-          Tree Statistics
-        </h6>
-      </CCardHeader>
-      <CCardBody>
-        <!-- Tree type counts -->
-        <div v-for="(count, type) in treeTypeCounts" :key="type" class="d-flex justify-content-between align-items-center mb-1">
-          <span class="text-muted">{{ type }} Trees</span>
-          <span class="badge bg-success">{{ count }}</span>
-        </div>
-      </CCardBody>
-    </CCard>
-  </CCol>
-
         <!-- Recent Activity -->
         <CCol lg="8">
           <CCard class="shadow-sm">
@@ -542,7 +510,7 @@ const paginatedTrees = computed(() => {
         </CCol>
       </CRow>
 
-      <!-- Trees Records Table -->
+      <!-- Parcels Records Table -->
       <CRow class="mt-4">
         <CCol cols="12">
           <CCard class="shadow-sm">
@@ -550,7 +518,7 @@ const paginatedTrees = computed(() => {
               <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                   <CIcon :icon="cilList" class="me-2 text-success" />
-                  Trees Records ({{ trees.length }})
+                  Parcel Records ({{ parcels.length }})
                 </h5>
               </div>
             </CCardHeader>
@@ -589,38 +557,32 @@ const paginatedTrees = computed(() => {
                       <CTableHeaderCell class="sortable" @click="sortBy('tree_code')">
                         Tree Code
                       </CTableHeaderCell>
-                      <CTableHeaderCell class="sortable" @click="sortBy('type')">
-                        Type {{ getSortIcon('type') }}
-                      </CTableHeaderCell>
                       <CTableHeaderCell>Created At</CTableHeaderCell>
                     </CTableRow>
                   </CTableHead>
                   <CTableBody>
                     <CTableRow 
-                      v-for="tree in paginatedTrees" 
-                      :key="tree.id"
+                      v-for="parcel in paginatedParcels" 
+                      :key="parcel.id"
                       class="table-row"
                     >
                       <CTableDataCell>
-                        <router-link :to="`/trees/${tree.id}`" class="text-decoration-none tree-link">
-                      <i class="fas fa-tree me-1 text-success"></i>
-                      {{ tree.tree_code }}
+                        <router-link :to="`/parcels/${parcel.id}`" class="text-decoration-none parcel-link">
+                      <i class="fas fa-parcel me-1 text-success"></i>
+                      {{ parcel.parcel_code }}
                     </router-link>
                       </CTableDataCell>
                       <CTableDataCell>
-                          {{ tree?.type }}
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        {{ new Date(tree.created_at).toLocaleDateString() }}
+                        {{ new Date(parcel.created_at).toLocaleDateString() }}
                       </CTableDataCell>
                     </CTableRow>
-                    <CTableRow v-if="paginatedTrees.length === 0">
+                    <CTableRow v-if="paginatedParcels.length === 0">
                       <CTableDataCell colspan="4" class="text-center py-5">
                         <div class="empty-state">
                           <i class="fas fa-apple-alt fa-3x text-muted mb-3"></i>
-                          <h5 class="text-muted">No tree records found</h5>
+                          <h5 class="text-muted">No parcel records found</h5>
                           <p class="text-muted mb-3">
-                            {{ searchQuery ? 'Try adjusting your search' : 'This tree has no tree records yet' }}
+                            {{ searchQuery ? 'Try adjusting your search' : 'This parcel has no parcel records yet' }}
                           </p>
                         </div>
                       </CTableDataCell>
@@ -635,8 +597,8 @@ const paginatedTrees = computed(() => {
                   <div class="pagination-info">
                     <span class="text-muted small">
                       Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
-                      {{ Math.min(currentPage * itemsPerPage, filteredTrees.length) }} 
-                      of {{ filteredTrees.length }} records
+                      {{ Math.min(currentPage * itemsPerPage, filteredParcels.length) }} 
+                      of {{ filteredParcels.length }} records
                     </span>
                   </div>
                   <div class="pagination-controls d-flex align-items-center gap-2">

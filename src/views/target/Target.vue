@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useCustomerStore } from '@/stores/customer.store'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useTargetStore } from '@/stores/target.store'
 import {
   CRow,
   CCol,
@@ -32,11 +32,12 @@ import {
   CDropdownItem,
   CBreadcrumb,
   CBreadcrumbItem,
+  CBadge,
 } from '@coreui/vue'
-import { cilPencil, cilTrash, cilPlus, cilSearch, cilFilter, cilPeople, cilCloudDownload } from '@coreui/icons'
+import { cilPencil, cilTrash, cilPlus, cilSearch, cilFilter, cilChart, cilCloudDownload } from '@coreui/icons'
 import Swal from 'sweetalert2'
 
-const customerStore = useCustomerStore()
+const targetStore = useTargetStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
@@ -44,41 +45,64 @@ const validated = ref(false)
 const loading = ref(false)
 const showFilters = ref(false)
 
-const currentCustomer = ref({
+const currentTarget = ref({
   id: null,
-  first_name: '',
-  last_name: '',
-  email: '',
-  phone: '',
+  production_type: '',
+  annual_quantity: '',
+  fruit_type: '',
+  year: new Date().getFullYear(),
 })
 
 // search & pagination
 const searchQuery = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
-const sortField = ref('first_name')
-const sortOrder = ref('asc')
+const productionFilter = ref('')
+const sortField = ref('year')
+const sortOrder = ref('desc')
+
+// Production types
+const productionTypes = ref([
+  { value: 'milk', label: 'Milk' },
+  { value: 'fruit', label: 'Fruit' },
+])
+
+// Fruit types
+const fruitTypes = ref([
+  { value: 'orange', label: 'Orange' },
+  { value: 'lemon', label: 'Lemon' },
+  { value: 'mango', label: 'Mango' },
+  { value: 'avocado', label: 'Avocado' },
+])
+
+// Watch production type to clear fruit type if not fruit
+watch(() => currentTarget.value.production_type, (newVal) => {
+  if (newVal !== 'fruit') {
+    currentTarget.value.fruit_type = ''
+  }
+})
 
 // Fetch data on mount
 onMounted(async () => {
   loading.value = true
   try {
-    await customerStore.fetchCustomers()
+    await targetStore.fetchTargets()
   } finally {
     loading.value = false
   }
 })
 
 // Enhanced filtering and sorting
-const filteredCustomers = computed(() => {
+const filteredTargets = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  let filtered = (customerStore.customers || []).filter((customer) => {
+  let filtered = (targetStore.targets || []).filter((target) => {
     const matchesQuery =
       !q ||
-      [customer.first_name, customer.last_name, customer.email, customer.phone].some((f) =>
+      [target.production_type, target.fruit_type, String(target.annual_quantity), String(target.year)].some((f) =>
         f?.toLowerCase().includes(q),
       )
-    return matchesQuery
+    const matchesProduction = !productionFilter.value || target.production_type === productionFilter.value
+    return matchesQuery && matchesProduction
   })
 
   // Apply sorting
@@ -86,14 +110,18 @@ const filteredCustomers = computed(() => {
     let aValue = a[sortField.value]
     let bValue = b[sortField.value]
     
-    // Convert to strings for comparison
-    aValue = String(aValue || '').toLowerCase()
-    bValue = String(bValue || '').toLowerCase()
+    if (sortField.value === 'annual_quantity' || sortField.value === 'year') {
+      aValue = Number(aValue) || 0
+      bValue = Number(bValue) || 0
+    } else {
+      aValue = String(aValue || '').toLowerCase()
+      bValue = String(bValue || '').toLowerCase()
+    }
     
     if (sortOrder.value === 'asc') {
-      return aValue.localeCompare(bValue)
+      return aValue > bValue ? 1 : -1
     } else {
-      return bValue.localeCompare(aValue)
+      return aValue < bValue ? 1 : -1
     }
   })
 
@@ -101,12 +129,12 @@ const filteredCustomers = computed(() => {
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredCustomers.value.length / itemsPerPage.value)),
+  Math.max(1, Math.ceil(filteredTargets.value.length / itemsPerPage.value)),
 )
 
-const paginatedCustomers = computed(() => {
+const paginatedTargets = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredCustomers.value.slice(start, start + itemsPerPage.value)
+  return filteredTargets.value.slice(start, start + itemsPerPage.value)
 })
 
 // Sorting
@@ -127,6 +155,7 @@ function getSortIcon(field) {
 // Filter management
 function clearAllFilters() {
   searchQuery.value = ''
+  productionFilter.value = ''
   resetPage()
 }
 
@@ -147,24 +176,24 @@ function prevPage() {
 function openCreate() {
   isEditing.value = false
   validated.value = false
-  currentCustomer.value = {
+  currentTarget.value = {
     id: null,
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
+    production_type: '',
+    annual_quantity: '',
+    fruit_type: '',
+    year: new Date().getFullYear(),
   }
   showModal.value = true
 }
 
-function openEdit(customer) {
+function openEdit(target) {
   isEditing.value = true
   validated.value = false
-  currentCustomer.value = { ...customer }
+  currentTarget.value = { ...target }
   showModal.value = true
 }
 
-const confirmDelete = async (id, name) => {
+const confirmDelete = async (id, type) => {
   Swal.fire({
     html: `
       <div class="custom-modal-header d-flex align-items-center justify-content-center flex-column">
@@ -173,7 +202,7 @@ const confirmDelete = async (id, name) => {
           <span></span>
         </h3>
         <p class="custom-modal-description font-inter fw-normal text-grey-v6">
-          Are you sure to delete ${name}?
+          Are you sure to delete this ${type} target?
         </p>
       </div>
     `,
@@ -186,7 +215,7 @@ const confirmDelete = async (id, name) => {
     if (result.isConfirmed) {
       loading.value = true
       try {
-        await customerStore.deleteCustomer(id)
+        await targetStore.deleteTarget(id)
       } finally {
         loading.value = false
       }
@@ -198,7 +227,13 @@ async function handleSubmit(e) {
   if (e) e.preventDefault()
 
   // Manual validation
-  if (!currentCustomer.value.first_name || !currentCustomer.value.phone) {
+  if (!currentTarget.value.production_type || !currentTarget.value.annual_quantity || !currentTarget.value.year) {
+    validated.value = true
+    return
+  }
+
+  // Validate fruit type if production is fruit
+  if (currentTarget.value.production_type === 'fruit' && !currentTarget.value.fruit_type) {
     validated.value = true
     return
   }
@@ -206,26 +241,37 @@ async function handleSubmit(e) {
   loading.value = true
   try {
     const payload = {
-      first_name: currentCustomer.value.first_name,
-      last_name: currentCustomer.value.last_name,
-      email: currentCustomer.value.email,
-      phone: currentCustomer.value.phone,
+      production_type: currentTarget.value.production_type,
+      annual_quantity: currentTarget.value.annual_quantity,
+      fruit_type: currentTarget.value.production_type === 'fruit' ? currentTarget.value.fruit_type : null,
+      year: currentTarget.value.year,
     }
     
     if (isEditing.value) {
-      await customerStore.editCustomer(currentCustomer.value.id, payload)
+      await targetStore.updateTarget(currentTarget.value.id, payload)
     } else {
-      await customerStore.createCustomer(payload)
+      await targetStore.createTarget(payload)
     }
     
     showModal.value = false
-    await customerStore.fetchCustomers()
+    await targetStore.fetchTargets()
   } finally {
     loading.value = false
   }
 }
 
-// Export functions (placeholder for future implementation)
+// Get production badge color
+function getProductionColor(type) {
+  return type === 'milk' ? 'primary' : 'success'
+}
+
+// Format quantity
+function formatQuantity(quantity, type) {
+  const unit = type === 'milk' ? 'Liters' : 'Kg'
+  return `${Number(quantity).toLocaleString()} ${unit}`
+}
+
+// Export functions (placeholder)
 const exportPDF = () => {
   console.log('Export PDF functionality to be implemented')
 }
@@ -245,10 +291,7 @@ const exportPDF = () => {
         <CBreadcrumbItem>
           <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
         </CBreadcrumbItem>
-        <CBreadcrumbItem>
-          <router-link to="/admin" class="text-decoration-none">Administration</router-link>
-        </CBreadcrumbItem>
-        <CBreadcrumbItem active>Customers</CBreadcrumbItem>
+        <CBreadcrumbItem active>Production Targets</CBreadcrumbItem>
       </CBreadcrumb>
 
       <CCard class="shadow-sm border-0">
@@ -256,9 +299,13 @@ const exportPDF = () => {
         <CCardHeader class="bg-white border-bottom">
           <div class="d-flex justify-content-between align-items-center">
             <div>
-              <h5 class="mb-1">Customers</h5>
+              <h5 class="mb-1">Production Targets</h5>
             </div>
             <div class="d-flex gap-2">
+              <CButton color="info" variant="outline" size="sm" @click="$router.push('/targets/view')">
+                <CIcon :icon="cilChart" class="me-1" />
+                View Progress
+              </CButton>
               <CDropdown>
                 <CDropdownToggle color="secondary" size="sm">
                   <CIcon :icon="cilCloudDownload" class="me-1" />
@@ -272,7 +319,7 @@ const exportPDF = () => {
               </CDropdown>
               <CButton color="dark" @click="openCreate">
                 <CIcon :icon="cilPlus" class="me-1" />
-                Add Customer
+                Add Target
               </CButton>
             </div>
           </div>
@@ -291,10 +338,20 @@ const exportPDF = () => {
                     </span>
                     <CFormInput
                       v-model="searchQuery"
-                      placeholder="Search by name, email, or phone..."
+                      placeholder="Search targets..."
                       @input="resetPage"
                     />
                   </CInputGroup>
+                </div>
+                <div class="col-md-2">
+                  <CFormSelect
+                    v-model="productionFilter"
+                    @change="resetPage"
+                  >
+                    <option value="">All Productions</option>
+                    <option value="milk">Milk</option>
+                    <option value="fruit">Fruit</option>
+                  </CFormSelect>
                 </div>
                 <div>
                   <CButton 
@@ -337,41 +394,45 @@ const exportPDF = () => {
                   <CTableHeaderCell class="sortable" @click="sortBy('id')">
                     ID {{ getSortIcon('id') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('first_name')">
-                    Full Name {{ getSortIcon('first_name') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('year')">
+                    Year {{ getSortIcon('year') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('phone')">
-                    Phone {{ getSortIcon('phone') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('production_type')">
+                    Production Type {{ getSortIcon('production_type') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('email')">
-                    Email {{ getSortIcon('email') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('fruit_type')">
+                    Fruit Type {{ getSortIcon('fruit_type') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('createdAt')">
-                    Created At {{ getSortIcon('createdAt') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('annual_quantity')">
+                    Annual Target {{ getSortIcon('annual_quantity') }}
                   </CTableHeaderCell>
                   <CTableHeaderCell width="120">Actions</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                <CTableRow v-for="customer in paginatedCustomers" :key="customer.id" class="table-row">
+                <CTableRow v-for="target in paginatedTargets" :key="target.id" class="table-row">
                   <CTableDataCell>
-                    {{ customer.id }}
+                    {{ target.id }}
                   </CTableDataCell>
                   <CTableDataCell>
-                    <div class="d-flex align-items-center">
-                      <router-link :to="`/customers/${customer.id}`" class="text-decoration-none">
-                        <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>
-                      </router-link>
-                    </div>
+                    <strong>{{ target.year }}</strong>
                   </CTableDataCell>
                   <CTableDataCell>
-                    <small class="text-muted">{{ customer.phone }}</small>
+                    <CBadge 
+                      :color="getProductionColor(target.production_type)" 
+                      class="production-badge"
+                    >
+                      {{ target.production_type.toUpperCase() }}
+                    </CBadge>
                   </CTableDataCell>
                   <CTableDataCell>
-                    <small class="text-muted">{{ customer.email }}</small>
+                    <span v-if="target.fruit_type" class="text-capitalize">
+                      {{ target.fruit_type }}
+                    </span>
+                    <span v-else class="text-muted">N/A</span>
                   </CTableDataCell>
                   <CTableDataCell>
-                    <small class="text-muted">{{ new Date(customer.createdAt).toLocaleString() }}</small>
+                    <strong>{{ formatQuantity(target.annual_quantity, target.production_type) }}</strong>
                   </CTableDataCell>
                   <CTableDataCell>
                     <div class="d-flex gap-1">
@@ -379,8 +440,8 @@ const exportPDF = () => {
                         size="sm"
                         color="info"
                         variant="outline"
-                        title="Edit Customer"
-                        @click="openEdit(customer)"
+                        title="Edit Target"
+                        @click="openEdit(target)"
                       >
                         <CIcon :icon="cilPencil" />
                       </CButton>
@@ -388,23 +449,23 @@ const exportPDF = () => {
                         size="sm"
                         color="danger"
                         variant="outline"
-                        title="Delete Customer"
-                        @click="confirmDelete(customer.id, `${customer.first_name} ${customer.last_name}`)"
+                        title="Delete Target"
+                        @click="confirmDelete(target.id, target.production_type)"
                       >
                         <CIcon :icon="cilTrash" />
                       </CButton>
                     </div>
                   </CTableDataCell>
                 </CTableRow>
-                <CTableRow v-if="paginatedCustomers.length === 0">
+                <CTableRow v-if="paginatedTargets.length === 0">
                   <CTableDataCell colspan="6" class="text-center py-5">
                     <div class="empty-state">
-                      <CIcon :icon="cilPeople" style="font-size: 3rem;" class="text-muted mb-3" />
-                      <h5 class="text-muted">No customers found</h5>
-                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new customer</p>
+                      <CIcon :icon="cilChart" style="font-size: 3rem;" class="text-muted mb-3" />
+                      <h5 class="text-muted">No targets found</h5>
+                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new target</p>
                       <CButton color="primary" @click="openCreate">
                         <CIcon :icon="cilPlus" class="me-1" />
-                        Add Your First Customer
+                        Add Your First Target
                       </CButton>
                     </div>
                   </CTableDataCell>
@@ -419,10 +480,10 @@ const exportPDF = () => {
               <div class="pagination-info">
                 <span class="text-muted small">
                   Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
-                  {{ Math.min(currentPage * itemsPerPage, filteredCustomers.length) }} 
-                  of {{ filteredCustomers.length }} entries
-                  <span v-if="filteredCustomers.length !== customerStore.customers.length">
-                    (filtered from {{ customerStore.customers.length }} total)
+                  {{ Math.min(currentPage * itemsPerPage, filteredTargets.length) }} 
+                  of {{ filteredTargets.length }} entries
+                  <span v-if="filteredTargets.length !== targetStore.targets.length">
+                    (filtered from {{ targetStore.targets.length }} total)
                   </span>
                 </span>
               </div>
@@ -456,8 +517,8 @@ const exportPDF = () => {
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
     <CModalHeader class="border-bottom">
       <CModalTitle>
-        <CIcon :icon="cilPeople" class="me-2" />
-        {{ isEditing ? 'Edit Customer' : 'Add New Customer' }}
+        <CIcon :icon="cilChart" class="me-2" />
+        {{ isEditing ? 'Edit Production Target' : 'Add New Production Target' }}
       </CModalTitle>
     </CModalHeader>
     <CModalBody class="p-0">
@@ -469,48 +530,70 @@ const exportPDF = () => {
       >
         <CRow class="g-3">
           <CCol md="6">
-            <CFormLabel for="first_name" class="fw-semibold">
-              First Name <span style="color: red;">*</span>
+            <CFormLabel for="year" class="fw-semibold">
+              Year <span style="color: red;">*</span>
             </CFormLabel>
             <CFormInput 
-              id="first_name" 
-              v-model="currentCustomer.first_name" 
+              id="year" 
+              v-model="currentTarget.year" 
+              type="number"
               required 
-              placeholder="Enter first name"
+              placeholder="Enter year"
+              min="2000"
+              :max="new Date().getFullYear() + 10"
             />
-            <CFormFeedback invalid>First name is required.</CFormFeedback>
+            <CFormFeedback invalid>Year is required.</CFormFeedback>
           </CCol>
 
           <CCol md="6">
-            <CFormLabel for="last_name" class="fw-semibold">Last Name</CFormLabel>
-            <CFormInput 
-              id="last_name" 
-              v-model="currentCustomer.last_name" 
-              placeholder="Enter last name"
-            />
+            <CFormLabel for="production_type" class="fw-semibold">
+              Production Type <span style="color: red;">*</span>
+            </CFormLabel>
+            <CFormSelect
+              id="production_type"
+              v-model="currentTarget.production_type"
+              required
+            >
+              <option value="">Select Production Type</option>
+              <option value="milk">Milk</option>
+              <option value="fruit">Fruit</option>
+            </CFormSelect>
+            <CFormFeedback invalid>Production type is required.</CFormFeedback>
           </CCol>
 
-          <CCol md="6">
-            <CFormLabel for="phone" class="fw-semibold">
-              Phone Number <span style="color: red;">*</span>
+          <CCol md="6" v-if="currentTarget.production_type === 'fruit'">
+            <CFormLabel for="fruit_type" class="fw-semibold">
+              Type of Fruit <span style="color: red;">*</span>
+            </CFormLabel>
+            <CFormSelect
+              id="fruit_type"
+              v-model="currentTarget.fruit_type"
+              :required="currentTarget.production_type === 'fruit'"
+            >
+              <option value="">Select Fruit Type</option>
+              <option value="orange">Orange</option>
+              <option value="lemon">Lemon</option>
+              <option value="mango">Mango</option>
+              <option value="avocado">Avocado</option>
+            </CFormSelect>
+            <CFormFeedback invalid>Fruit type is required when production is Fruit.</CFormFeedback>
+          </CCol>
+
+          <CCol :md="currentTarget.production_type === 'fruit' ? 6 : 12">
+            <CFormLabel for="annual_quantity" class="fw-semibold">
+              Annual Quantity <span style="color: red;">*</span>
+              <small class="text-muted">({{ currentTarget.production_type === 'milk' ? 'Liters' : 'Kg' }})</small>
             </CFormLabel>
             <CFormInput 
-              id="phone" 
-              v-model="currentCustomer.phone" 
-              required
-              placeholder="Enter phone number"
+              id="annual_quantity" 
+              v-model="currentTarget.annual_quantity" 
+              type="number"
+              required 
+              placeholder="Enter annual quantity"
+              min="0"
+              step="0.01"
             />
-            <CFormFeedback invalid>Phone number is required.</CFormFeedback>
-          </CCol>
-
-          <CCol md="6">
-            <CFormLabel for="email" class="fw-semibold">Email Address</CFormLabel>
-            <CFormInput 
-              id="email" 
-              v-model="currentCustomer.email" 
-              type="email"
-              placeholder="Enter email address"
-            />
+            <CFormFeedback invalid>Annual quantity is required.</CFormFeedback>
           </CCol>
         </CRow>
       </CForm>
@@ -527,7 +610,7 @@ const exportPDF = () => {
       >
         <CSpinner v-if="loading" size="sm" class="me-2" />
         <CIcon v-else :icon="isEditing ? cilPencil : cilPlus" class="me-2" />
-        {{ isEditing ? 'Update Customer' : 'Create Customer' }}
+        {{ isEditing ? 'Update Target' : 'Create Target' }}
       </CButton>
     </CModalFooter>
   </CModal>
@@ -585,6 +668,15 @@ const exportPDF = () => {
 
 .sortable:hover {
   background-color: #e9ecef !important;
+}
+
+/* Production Badge */
+.production-badge {
+  padding: 0.375rem 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
 }
 
 /* Search and Filter Section */
@@ -647,7 +739,8 @@ const exportPDF = () => {
     flex-direction: column;
   }
   
-  .search-filter-section .col-md-3 {
+  .search-filter-section .col-md-3,
+  .search-filter-section .col-md-2 {
     width: 100%;
   }
   

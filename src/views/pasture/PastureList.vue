@@ -291,6 +291,16 @@ watch([searchQuery, filterCountry], () => {
     </div>
 
     <!-- Main Content -->
+     <!-- Breadcrumb -->
+      <CBreadcrumb class="mb-4">
+        <CBreadcrumbItem>
+          <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="#" class="text-decoration-none">Cattle Management</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem active>Pastures</CBreadcrumbItem>
+      </CBreadcrumb>
       <!-- Main Table Card -->
       <CCol cols="12">
         <CCard class="shadow-sm border-0">
@@ -402,7 +412,7 @@ watch([searchQuery, filterCountry], () => {
                 <CTableBody>
                   <CTableRow v-for="pasture in paginatedPastures" :key="pasture.id" class="table-row">
                     <CTableDataCell>
-                      <router-link :to="`/pastures/${pasture.id}`" class="text-decoration-none cow-link">
+                      <router-link :to="`/pastures/${pasture.id}`" class="text-decoration-none">
                         {{ pasture?.pasture }}
                       </router-link>
                     </CTableDataCell>

@@ -49,6 +49,11 @@ export default [
       },
       {
         component: 'CNavItem',
+        name: 'Parcels',
+        to: '/parcel-list',
+      },
+      {
+        component: 'CNavItem',
         name: 'Trees',
         to: '/tree-list',
       },
@@ -81,13 +86,13 @@ export default [
   // Cow
   {
     component: 'router-link',
-    name: 'Cow',
+    name: 'Cow Management',
     //to: '/cows',
     icon: 'cil-layers',
     items: [
       {
         component: 'CNavItem',
-        name: 'Cow List',
+        name: 'Cow',
         to: '/cows',
       },
       {
@@ -147,14 +152,9 @@ export default [
       },
       {
         component: 'CNavItem',
-        name: 'Cow Food',
-        to: '/foods',
+        name: 'Production Targets',
+        to: '/targets',
       },
-      // {
-      //   component: 'CNavItem',
-      //   name: 'Crops',
-      //   to: '/roles',
-      // },
     ],
   },
 
@@ -194,35 +194,9 @@ export default [
   //User Management
   {
     component: 'router-link',
-    name: 'User Management',
-    icon: 'cil-user',
-    items: [
-      {
-        component: 'CNavItem',
-        name: 'System User',
-        to: '/users',
-      },
-      {
-        component: 'CNavItem',
-        name: 'Customer',
-        to: '/customers',
-      },
-      {
-        component: 'CNavItem',
-        name: 'Country',
-        to: '/countries',
-      },
-      {
-        component: 'CNavItem',
-        name: 'Role',
-        to: '/roles',
-      },
-      // {
-      //   component: 'CNavItem',
-      //   name: 'Permission',
-      //   to: '/medications',
-      // },
-    ],
+    name: 'Administration',
+    icon: 'cil-settings',
+    to: 'admin'
   },
 
   // {

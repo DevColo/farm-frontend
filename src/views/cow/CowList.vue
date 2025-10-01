@@ -180,15 +180,6 @@ const paginatedCows = computed(() => {
   return filteredCows.value.slice(start, start + itemsPerPage.value)
 })
 
-// Statistics
-const stats = computed(() => {
-  const total = cowStore.cows.length
-  const active = cowStore.cows.filter(c => c.status === '1').length
-  const male = cowStore.cows.filter(c => c.gender === 'Male').length
-  const female = cowStore.cows.filter(c => c.gender === 'Female').length
-  
-  return { total, active, inactive: total - active, male, female }
-})
 
 // Helper functions
 function calculateAge(dateStr) {
@@ -492,51 +483,16 @@ watch([searchQuery, filterYear, filterGender, filterBreed, filterPasture, filter
     </div>
 
     <!-- Main Content -->
-      <!-- Statistics Cards -->
-      <CCol cols="12">
-        <CRow class="g-3 mb-4">
-          <CCol md="2" sm="4" cols="6">
-            <CCard class="stat-card border-0 shadow-sm">
-              <CCardBody class="text-center py-3">
-                <div class="stat-number h4 mb-0 text-primary">{{ stats.total }}</div>
-                <div class="stat-label text-muted small">Total Cows</div>
-              </CCardBody>
-            </CCard>
-          </CCol>
-          <CCol md="2" sm="4" cols="6">
-            <CCard class="stat-card border-0 shadow-sm">
-              <CCardBody class="text-center py-3">
-                <div class="stat-number h4 mb-0 text-success">{{ stats.active }}</div>
-                <div class="stat-label text-muted small">Active</div>
-              </CCardBody>
-            </CCard>
-          </CCol>
-          <CCol md="2" sm="4" cols="6">
-            <CCard class="stat-card border-0 shadow-sm">
-              <CCardBody class="text-center py-3">
-                <div class="stat-number h4 mb-0 text-danger">{{ stats.inactive }}</div>
-                <div class="stat-label text-muted small">Inactive</div>
-              </CCardBody>
-            </CCard>
-          </CCol>
-          <CCol md="2" sm="4" cols="6">
-            <CCard class="stat-card border-0 shadow-sm">
-              <CCardBody class="text-center py-3">
-                <div class="stat-number h4 mb-0 text-info">{{ stats.female }}</div>
-                <div class="stat-label text-muted small">Female</div>
-              </CCardBody>
-            </CCard>
-          </CCol>
-          <CCol md="2" sm="4" cols="6">
-            <CCard class="stat-card border-0 shadow-sm">
-              <CCardBody class="text-center py-3">
-                <div class="stat-number h4 mb-0 text-warning">{{ stats.male }}</div>
-                <div class="stat-label text-muted small">Male</div>
-              </CCardBody>
-            </CCard>
-          </CCol>
-        </CRow>
-      </CCol>
+      <!-- Breadcrumb -->
+      <CBreadcrumb class="mb-4">
+        <CBreadcrumbItem>
+          <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="#" class="text-decoration-none">Cow Management</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem active>Cows</CBreadcrumbItem>
+      </CBreadcrumb>
 
       <!-- Main Table Card -->
       <CCol cols="12">
@@ -693,7 +649,7 @@ watch([searchQuery, filterYear, filterGender, filterBreed, filterPasture, filter
                 <CTableBody>
                   <CTableRow v-for="cow in paginatedCows" :key="cow.id" class="table-row">
                     <CTableDataCell>
-                      <router-link :to="`/cows/${cow.id}`" class="text-decoration-none cow-link">
+                      <router-link :to="`/cows/${cow.id}`" class="text-decoration-none">
                         {{ cow.name }}
                       </router-link>
                     </CTableDataCell>
@@ -707,24 +663,15 @@ watch([searchQuery, filterYear, filterGender, filterBreed, filterPasture, filter
                         {{ cow.gender }}
                     </CTableDataCell>
                     <CTableDataCell>
-                      <router-link 
-                        :to="`/class/cow/${cow.class || calculateAgeAndClass(cow.date_of_birth, cow).ageClass}`"
-                        class="text-decoration-none text-dark"
-                      >{{ cow.class || calculateAgeAndClass(cow.date_of_birth, cow).ageClass }}
-                      </router-link>
+                      {{ cow.class || calculateAgeAndClass(cow.date_of_birth, cow).ageClass }}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      {{ cow?.breed}}
                     </CTableDataCell>
                     <CTableDataCell>
                       <router-link 
-                        :to="`/breed/cow/${cow.breed}`" 
-                        class="text-decoration-none text-dark"
-                      >
-                        {{ cow.breed || '—' }}
-                      </router-link>
-                    </CTableDataCell>
-                    <CTableDataCell>
-                      <router-link 
-                        :to="`/pasture/cow/${cow.pasture?.id}`" 
-                        class="text-decoration-none text-dark"
+                        :to="`/pastures/${cow.pasture?.id}`" 
+                        class="text-decoration-none"
                       >
                         {{ cow.pasture?.pasture || '' }}
                       </router-link>

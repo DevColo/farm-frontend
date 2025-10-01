@@ -459,7 +459,9 @@ if (!farm.value && !loading.value) {
                       style="cursor: pointer;"
                     >
                       <CTableDataCell>
-                        <strong class="text-primary">{{ block.name }}</strong>
+                        <router-link :to="`/block/${block.id}`" class="text-decoration-none">
+                        {{ block.name }}
+                      </router-link>
                       </CTableDataCell>
                       <CTableDataCell>
                         <span class="text-truncate d-inline-block" style="max-width: 200px;">

@@ -38,8 +38,11 @@ onMounted(() => {
           >Profile
         </router-link>
       </CDropdownItem>
-      <CDropdownItem>Settings </CDropdownItem>
-      <CDropdownDivider />
+      <CDropdownItem>
+        <router-link to="/admin" class="text-decoration-none text-dark"
+          >Administration
+        </router-link>
+      </CDropdownItem>
       <CDropdownItem @click="authStore.logout(router)">
         Logout
       </CDropdownItem>

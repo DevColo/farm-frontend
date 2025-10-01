@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useTreeStore } from '@/stores/tree.store'
+import { useParcelStore } from '@/stores/parcel.store'
 import { useHarvestStore } from '@/stores/harvest.store'
 import {
   CRow,
@@ -25,19 +25,21 @@ import {
   CFormInput,
   CFormFeedback,
   CInputGroup,
-  CBadge,
   CDropdown,
   CDropdownToggle,
   CDropdownMenu,
   CDropdownItem,
   CSpinner,
+  CFormSelect,
+  CBreadcrumb,
+  CBreadcrumbItem,
 } from '@coreui/vue'
 import CIcon from '@coreui/icons-vue'
 import { cilPencil, cilTrash, cilPlus, cilCloudDownload, cilSearch, cilFilter } from '@coreui/icons'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.css'
 
-const treeStore = useTreeStore()
+const parcelStore = useParcelStore()
 const harvestStore = useHarvestStore()
 
 const showModal = ref(false)
@@ -47,10 +49,37 @@ const loading = ref(false)
 const showFilters = ref(false)
 const editingId = ref(null)
 
+// Fruit types
+const fruitTypes = [
+  { value: 'Orange', label: 'Orange', color: 'warning', icon: '🍊' },
+  { value: 'Avocado', label: 'Avocado', color: 'success', icon: '🥑' },
+  { value: 'Lemon', label: 'Lemon', color: 'warning', icon: '🍋' },
+  { value: 'Mango', label: 'Mango', color: 'warning', icon: '🥭' }
+]
+
+// Avocado varieties
+const avocadoVarieties = [
+  { value: 'All', label: 'All Type' },
+  { value: 'Hass', label: 'Hass' },
+  { value: 'Fuerte', label: 'Fuerte' },
+  { value: 'Reed', label: 'Reed' },
+  { value: 'Pinkerton', label: 'Pinkerton' },
+  { value: 'Gwen', label: 'Gwen' },
+  { value: 'Bacon', label: 'Bacon' },
+  { value: 'Zutano', label: 'Zutano' },
+]
+
 const currentHarvest = ref({
-  tree_id: '',
+  parcel_id: '',
   harvest_date: '',
   quantity: '',
+  fruit: '',
+  type: '',
+})
+
+// Check if Avocado is selected
+const isAvocadoSelected = computed(() => {
+  return currentHarvest.value.fruit?.value === 'Avocado'
 })
 
 // Enhanced search and filter states
@@ -60,7 +89,7 @@ const itemsPerPage = ref(10)
 const currentPage = ref(1)
 const sortField = ref('harvest_date')
 const sortOrder = ref('desc')
-const trees = ref([])
+const parcels = ref([])
 
 // fetch data
 onMounted(async () => {
@@ -68,28 +97,27 @@ onMounted(async () => {
   try {
     await Promise.all([
       harvestStore.fetchHarvests(),
-      treeStore.fetchTrees()
+      parcelStore.fetchParcels()
     ])
   } finally {
     loading.value = false
   }
 })
 
-// Watch the store in case trees are updated dynamically later
+// Watch the store in case parcels are updated dynamically later
 watch(
-  () => treeStore.trees,
-  (newTrees) => {
-    trees.value = newTrees.map(t => ({
-      value: t.id,
-      label: `${t?.block?.farm?.name} - ${t.tree_code}`,
-      type: t.type,
+  () => parcelStore.parcels,
+  (newParcels) => {
+    parcels.value = newParcels.map(p => ({
+      value: p.id,
+      label: p?.parcel_code,
     }))
   },
   { deep: true }
 )
 
 // Generate filter options
-const availableTrees = computed(() => {
+const availableParcels = computed(() => {
   const treeNames = harvestStore.harvests.map(harvest => harvest.tree).filter(Boolean)
   return Array.from(new Set(treeNames))
 })
@@ -102,10 +130,10 @@ const filteredHarvests = computed(() => {
   const harvests = Array.isArray(harvestStore.harvests) ? harvestStore.harvests : []
   
   let filtered = harvests.filter((harvest) => {
-    const matchesQuery = !q || [harvest.tree_id, harvest.harvest_date].some((field) => 
+    const matchesQuery = !q || [harvest.parcel_id, harvest.harvest_date, harvest.fruit, harvest.type].some((field) => 
       field?.toLowerCase().includes(q)
     )
-    const matchesTree = !filterTree.value || harvest.tree_id == filterTree.value
+    const matchesTree = !filterTree.value || harvest.parcel_id == filterTree.value
     
     return matchesQuery && matchesTree
   })
@@ -203,9 +231,11 @@ function openCreate() {
   validated.value = false
   editingId.value = null
   currentHarvest.value = {
-    tree_id: '',
+    parcel_id: '',
     harvest_date: '',
     quantity: '',
+    fruit: '',
+    type: '',
   }
   showModal.value = true
 }
@@ -216,14 +246,25 @@ function openEdit(harvest) {
   editingId.value = harvest.id
   
   // Find matching tree object from options
-  const treeObj = trees.value.find(t => 
-    t.value == harvest.tree_id
+  const treeObj = parcels.value.find(t => 
+    t.value == harvest.parcel_id
   )
   
+  // Find matching fruit object
+  const fruitObj = fruitTypes.find(f => f.value === harvest.fruit)
+  
+  // Find matching type/variety if it's an avocado
+  let typeObj = null
+  if (harvest.fruit === 'Avocado' && harvest.type) {
+    typeObj = avocadoVarieties.find(v => v.value === harvest.type)
+  }
+  
   currentHarvest.value = {
-    tree_id: treeObj || null,
+    parcel_id: treeObj || null,
     harvest_date: harvest.harvest_date,
     quantity: harvest.quantity,
+    fruit: fruitObj || null,
+    type: typeObj || '',
   }
   
   showModal.value = true
@@ -248,7 +289,14 @@ async function handleSubmit(e) {
   const form = e.currentTarget
   
   // Check if all required fields are filled
-  if (!currentHarvest.value.tree_id || !currentHarvest.value.harvest_date || !currentHarvest.value.quantity) {
+  if (!currentHarvest.value.parcel_id || !currentHarvest.value.harvest_date || 
+      !currentHarvest.value.quantity || !currentHarvest.value.fruit) {
+    validated.value = true
+    return
+  }
+  
+  // Only validate type if Avocado is selected
+  if (isAvocadoSelected.value && !currentHarvest.value.type) {
     validated.value = true
     return
   }
@@ -261,9 +309,11 @@ async function handleSubmit(e) {
   loading.value = true
   try {
     const payload = {
-      tree_id: currentHarvest.value.tree_id.value,
+      parcel_id: currentHarvest.value.parcel_id.value,
       harvest_date: currentHarvest.value.harvest_date,
       quantity: currentHarvest.value.quantity,
+      fruit: currentHarvest.value.fruit.value,
+      type: currentHarvest.value.type?.value || currentHarvest.value.type || '',
     }
     
     if (isEditing.value) {
@@ -291,6 +341,33 @@ async function handleSubmit(e) {
 watch([searchQuery, filterTree], () => {
   resetPage()
 })
+
+// Calculate harvest statistics
+const harvestStats = computed(() => {
+  if (!harvests.value || harvests.value.length === 0) {
+    return {
+      totalHarvests: 0,
+      totalQuantity: 0,
+      averageQuantity: 0,
+      lastHarvestDate: null,
+      highestYield: 0
+    }
+  }
+
+  const total = harvests.value.reduce((sum, h) => sum + parseFloat(h.quantity || 0), 0)
+  const sorted = [...harvests.value].sort((a, b) => 
+    new Date(b.harvest_date) - new Date(a.harvest_date)
+  )
+  const quantities = harvests.value.map(h => parseFloat(h.quantity || 0))
+  
+  return {
+    totalHarvests: harvests.value.length,
+    totalQuantity: total.toFixed(2),
+    averageQuantity: (total / harvests.value.length).toFixed(2),
+    lastHarvestDate: sorted[0]?.harvest_date,
+    highestYield: Math.max(...quantities).toFixed(2)
+  }
+})
 </script>
 
 <template>
@@ -301,6 +378,16 @@ watch([searchQuery, filterTree], () => {
     </div>
 
     <!-- Main Content -->
+     <!-- Breadcrumb -->
+      <CBreadcrumb class="mb-4">
+        <CBreadcrumbItem>
+          <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="#" class="text-decoration-none">Activities</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem active>Harvests</CBreadcrumbItem>
+      </CBreadcrumb>
     <!-- Main Table Card -->
     <CCol cols="12">
       <CCard class="shadow-sm border-0">
@@ -309,7 +396,7 @@ watch([searchQuery, filterTree], () => {
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h5 class="mb-1">
-                <i class="fas fa-apple-alt me-2 text-success"></i>Tree Harvests
+                <i class="fas fa-apple-alt me-2 text-success"></i>Harvests
               </h5>
             </div>
             <div class="d-flex gap-2">
@@ -377,8 +464,8 @@ watch([searchQuery, filterTree], () => {
               <div class="row g-3">
                 <div class="col-md-2">
                   <CFormSelect v-model="filterTree" @change="resetPage">
-                    <option value="">All Trees</option>
-                    <option v-for="tree in availableTrees" :key="tree?.id" :value="tree?.id">
+                    <option value="">All parcels</option>
+                    <option v-for="tree in availableParcels" :key="tree?.id" :value="tree?.id">
                       {{ tree?.tree_code }}
                     </option>
                   </CFormSelect>
@@ -398,7 +485,13 @@ watch([searchQuery, filterTree], () => {
               <CTableHead class="table-light">
                 <CTableRow>
                   <CTableHeaderCell class="sortable" @click="sortBy('tree_name')">
-                    Tree {{ getSortIcon('tree_name') }}
+                    Parcel {{ getSortIcon('tree_name') }}
+                  </CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('fruit')">
+                    Fruit {{ getSortIcon('fruit') }}
+                  </CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('type')">
+                    Type {{ getSortIcon('type') }}
                   </CTableHeaderCell>
                   <CTableHeaderCell class="sortable" @click="sortBy('quantity')">
                     Quantity (kg) {{ getSortIcon('quantity') }}
@@ -413,10 +506,15 @@ watch([searchQuery, filterTree], () => {
               <CTableBody>
                 <CTableRow v-for="harvest in paginatedHarvests" :key="harvest.id" class="table-row">
                   <CTableDataCell>
-                    <router-link :to="`/trees/${harvest.tree?.id}`" class="text-decoration-none tree-link">
-                      <i class="fas fa-tree me-1 text-success"></i>
-                      {{ harvest.tree?.tree_code }}
+                    <router-link :to="`/parcels/${harvest.parcel?.id}`" class="text-decoration-none">
+                      {{ harvest.parcel?.parcel_code }}
                     </router-link>
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    {{ harvest.fruit || '—' }}
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    {{ harvest.type || '—' }}
                   </CTableDataCell>
                   <CTableDataCell>
                       {{ harvest.quantity }}
@@ -451,7 +549,7 @@ watch([searchQuery, filterTree], () => {
                   </CTableDataCell>
                 </CTableRow>
                 <CTableRow v-if="paginatedHarvests.length === 0">
-                  <CTableDataCell colspan="5" class="text-center py-5">
+                  <CTableDataCell colspan="7" class="text-center py-5">
                     <div class="empty-state">
                       <i class="fas fa-apple-alt fa-3x text-muted mb-3"></i>
                       <h5 class="text-muted">No harvest records found</h5>
@@ -534,13 +632,13 @@ watch([searchQuery, filterTree], () => {
       >
         <CRow class="g-3">
           <CCol md="12">
-            <CFormLabel for="tree" class="fw-semibold">Tree <span style="color: red;">*</span></CFormLabel>
+            <CFormLabel for="tree" class="fw-semibold">Parcel <span style="color: red;">*</span></CFormLabel>
             <Multiselect
-              v-model="currentHarvest.tree_id"
-              placeholder="Select Tree"
+              v-model="currentHarvest.parcel_id"
+              placeholder="Select Parcel"
               track-by="value"
               label="label"
-              :options="trees"
+              :options="parcels"
               :show-no-results="false"
               :close-on-select="true"
               :clear-on-select="false"
@@ -548,15 +646,59 @@ watch([searchQuery, filterTree], () => {
               :preselect-first="false"
             >
               <template #option="{ option }">
-                <i class="fas fa-tree me-2 text-success"></i>{{ option.label }}
-                <small class="text-muted ms-2">({{ option.type }})</small>
+                {{ option.label }}
               </template>
               <template #singleLabel="{ option }">
-                <i class="fas fa-tree me-2 text-success"></i>{{ option.label }}
+                {{ option.label }}
               </template>
             </Multiselect>
-            <div v-if="validated && !currentHarvest.tree_id" class="invalid-feedback d-block">
-              Tree is required.
+            <div v-if="validated && !currentHarvest.parcel_id" class="invalid-feedback d-block">
+              Parcel is required.
+            </div>
+          </CCol>
+
+          <CCol md="6">
+            <CFormLabel for="fruit" class="fw-semibold">Fruit <span style="color: red;">*</span></CFormLabel>
+            <Multiselect
+              v-model="currentHarvest.fruit"
+              placeholder="Select fruit"
+              track-by="value"
+              label="label"
+              :options="fruitTypes"
+              :show-no-results="false"
+              :close-on-select="true"
+              :clear-on-select="false"
+              :preserve-search="true"
+              :preselect-first="false"
+            >
+              <template #option="{ option }">
+                <span class="me-2">{{ option.icon }}</span>{{ option.label }}
+              </template>
+              <template #singleLabel="{ option }">
+                <span class="me-2">{{ option.icon }}</span>{{ option.label }}
+              </template>
+            </Multiselect>
+            <div v-if="validated && !currentHarvest.fruit" class="invalid-feedback d-block">
+              Fruit is required.
+            </div>
+          </CCol>
+
+          <CCol md="6" v-if="isAvocadoSelected">
+            <CFormLabel for="type" class="fw-semibold">Avocado Variety <span style="color: red;">*</span></CFormLabel>
+            <Multiselect
+              v-model="currentHarvest.type"
+              placeholder="Select avocado variety"
+              track-by="value"
+              label="label"
+              :options="avocadoVarieties"
+              :show-no-results="false"
+              :close-on-select="true"
+              :clear-on-select="false"
+              :preserve-search="true"
+              :preselect-first="false"
+            />
+            <div v-if="validated && isAvocadoSelected && !currentHarvest.type" class="invalid-feedback d-block">
+              Avocado variety is required.
             </div>
           </CCol>
 

@@ -25,7 +25,7 @@ export const useAuthStore = defineStore('auth', {
 
         localStorage.setItem('user_token', this.token)
         localStorage.setItem('user', JSON.stringify(this.user))
-        this.fetchUserProfile()
+        //this.fetchUserProfile()
 
         if (router) {
           //toast.success('Logged in successfully')

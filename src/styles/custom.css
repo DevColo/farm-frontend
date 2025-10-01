@@ -1432,3 +1432,12 @@
     --cui-btn-disabled-bg: #000d2a;
     --cui-btn-disabled-border-color: #000d2a;
 }
+.breadcrumb-item + .breadcrumb-item::before {
+    float: inline-start;
+    padding-inline-end: var(--cui-breadcrumb-item-padding-x);
+    color: var(--cui-breadcrumb-divider-color);
+    content: var(--cui-breadcrumb-divider, ">");
+}
+a {
+    color: #002371;
+}

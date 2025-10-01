@@ -65,7 +65,7 @@ const filteredMonthlyMilk = computed(() => {
 
 // Calculate total quantity for the selected year
 const filteredTotalMilkQty = computed(() => {
-  return filteredTreeHarvest.value.reduce(
+  return filteredMonthlyMilk.value.reduce(
     (total, item) => total + parseFloat(item.total_qty || 0),
     0,
   )
@@ -217,7 +217,7 @@ function getColor(type) {
     case 'orange': return 'orange';
     case 'avocado': return 'green';
     case 'lemon': return 'yellow';
-    case 'apple': return 'red';
+    case 'mango': return 'red';
     default: return 'gray';
   }
 }
@@ -657,7 +657,7 @@ function getColor(type) {
               type="bar"
               :height="80"
               :data="{
-                labels: filteredTreeHarvest.map((item) => item.month),
+                labels: filteredTreeHarvest.map((item) => `${item.month} - ${item.tree_type}`),
                 datasets: [
                   {
                     label: 'Harvest',

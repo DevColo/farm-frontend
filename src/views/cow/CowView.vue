@@ -226,16 +226,19 @@ function formatDate(dateString) {
 
 <template>
   <CContainer class="mt-4" fluid>
-    <!-- Enhanced Breadcrumb -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <nav class="breadcrumb-nav">
-        <router-link to="/cows" class="text-decoration-none text-primary">
-          <i class="fas fa-arrow-left me-2"></i>Back to Cows
-        </router-link>
-        <span class="mx-2 text-muted">></span>
-        <span class="fw-semibold">{{ cow.name }} - {{ cow.ear_tag }}</span>
-      </nav>
-    </div>
+    <!-- Breadcrumb -->
+      <CBreadcrumb class="mb-4">
+        <CBreadcrumbItem>
+          <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="#" class="text-decoration-none">Cow Management</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="/cows" class="text-decoration-none">Cows</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem active>{{ cow.ear_tag }}</CBreadcrumbItem>
+      </CBreadcrumb>
 
     <CRow class="g-4">
       <!-- Enhanced Profile Card -->
@@ -294,7 +297,11 @@ function formatDate(dateString) {
 
               <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                 <span class="fw-semibold text-muted">Pasture</span>
-                <span>{{ cow.pasture?.pasture || '' }}</span>
+                <span>
+                  <router-link :to="`/pastures/${cow.pasture?.id}`" class="text-decoration-none">
+                    {{ cow.pasture?.pasture }}
+                  </router-link>
+                </span>
               </div>
 
               <div class="d-flex justify-content-between align-items-center py-2 border-bottom">

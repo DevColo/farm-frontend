@@ -307,6 +307,13 @@ watch([searchQuery, filterCountry], () => {
     </div>
 
     <!-- Main Content -->
+     <!-- Breadcrumb -->
+      <CBreadcrumb class="mb-4">
+        <CBreadcrumbItem>
+          <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem active>Farms</CBreadcrumbItem>
+      </CBreadcrumb>
     <!-- Main Table Card -->
     <CCol cols="12">
       <CCard class="shadow-sm border-0">
@@ -406,6 +413,7 @@ watch([searchQuery, filterCountry], () => {
                   <CTableHeaderCell class="sortable" @click="sortBy('name')">
                     Farm Name {{ getSortIcon('name') }}
                   </CTableHeaderCell>
+                  <CTableHeaderCell>Farm Code</CTableHeaderCell>
                   <CTableHeaderCell class="sortable" @click="sortBy('country')">
                     Country {{ getSortIcon('country') }}
                   </CTableHeaderCell>
@@ -419,9 +427,12 @@ watch([searchQuery, filterCountry], () => {
               <CTableBody>
                 <CTableRow v-for="farm in paginatedFarms" :key="farm.id" class="table-row">
                   <CTableDataCell>
-                    <router-link :to="`/farm/${farm.id}`" class="text-decoration-none farm-link">
+                    <router-link :to="`/farm/${farm.id}`" class="text-decoration-none">
                       {{ farm.name }}
                     </router-link>
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    {{ farm.farm_code ?? '' }}
                   </CTableDataCell>
                   <CTableDataCell>
                     {{ farm.country ?? '' }}
@@ -645,16 +656,6 @@ watch([searchQuery, filterCountry], () => {
 
 .table-row:hover {
   background-color: rgba(0, 123, 255, 0.05);
-}
-
-.farm-link {
-  font-weight: 500;
-  color: #0d6efd;
-}
-
-.farm-link:hover {
-  color: #0b5ed7;
-  text-decoration: underline !important;
 }
 
 .empty-state {

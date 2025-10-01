@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoleStore } from '@/stores/role.store'
 import {
   CRow,
@@ -18,60 +18,120 @@ import {
   CModalHeader,
   CModalTitle,
   CModalBody,
+  CModalFooter,
   CForm,
   CFormLabel,
   CFormInput,
-  CFormSelect,
   CFormFeedback,
+  CInputGroup,
+  CFormSelect,
+  CSpinner,
+  CDropdown,
+  CDropdownToggle,
+  CDropdownMenu,
+  CDropdownItem,
 } from '@coreui/vue'
-import { cilPencil, cilTrash } from '@coreui/icons'
-import avatar from '@/assets/images/avatars/8.jpg'
+import { cilPencil, cilTrash, cilPlus, cilSearch, cilFilter, cilShieldAlt, cilCloudDownload } from '@coreui/icons'
+import Swal from 'sweetalert2'
 
 const roleStore = useRoleStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
+const loading = ref(false)
+const showFilters = ref(false)
 
 const currentRole = ref({
   id: null,
   name: '',
 })
 
-// fetch data
-onMounted(() => {
-  roleStore.fetchRoles()
-})
-
 // search & pagination
 const searchQuery = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
+const sortField = ref('name')
+const sortOrder = ref('asc')
 
+// Fetch data on mount
+onMounted(async () => {
+  loading.value = true
+  try {
+    await roleStore.fetchRoles()
+  } finally {
+    loading.value = false
+  }
+})
+
+// Enhanced filtering and sorting
 const filteredRoles = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  return roleStore.roles.filter((role) => {
+  let filtered = (roleStore.roles || []).filter((role) => {
     const matchesQuery = !q || [role.name].some((f) => f?.toLowerCase().includes(q))
     return matchesQuery
   })
+
+  // Apply sorting
+  filtered.sort((a, b) => {
+    let aValue = a[sortField.value]
+    let bValue = b[sortField.value]
+    
+    // Convert to strings for comparison
+    aValue = String(aValue || '').toLowerCase()
+    bValue = String(bValue || '').toLowerCase()
+    
+    if (sortOrder.value === 'asc') {
+      return aValue.localeCompare(bValue)
+    } else {
+      return bValue.localeCompare(aValue)
+    }
+  })
+
+  return filtered
 })
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredRoles.value.length / itemsPerPage.value)),
 )
+
 const paginatedRoles = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return filteredRoles.value.slice(start, start + itemsPerPage.value)
 })
 
+// Sorting
+function sortBy(field) {
+  if (sortField.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortOrder.value = 'asc'
+  }
+}
+
+function getSortIcon(field) {
+  if (sortField.value !== field) return '↕️'
+  return sortOrder.value === 'asc' ? '↑' : '↓'
+}
+
+// Filter management
+function clearAllFilters() {
+  searchQuery.value = ''
+  resetPage()
+}
+
+function resetPage() {
+  currentPage.value = 1
+}
+
+// Pagination
 function nextPage() {
   if (currentPage.value < totalPages.value) currentPage.value++
 }
+
 function prevPage() {
   if (currentPage.value > 1) currentPage.value--
-}
-function resetPage() {
-  currentPage.value = 1
 }
 
 // modal handlers
@@ -92,165 +152,455 @@ function openEdit(role) {
   showModal.value = true
 }
 
-function confirmDelete(id) {
-  if (confirm('Are you sure you want to delete this role?')) {
-    roleStore.deleteRole(id)
-  }
+const confirmDelete = async (id, name) => {
+  Swal.fire({
+    html: `
+      <div class="custom-modal-header d-flex align-items-center justify-content-center flex-column">
+        <h3 class="custom-modal-title d-flex align-items-center justify-content-center flex-row font-inter fw-semibold text-grey-v13 py-3">
+          <i class="material-symbols-rounded text-red rounded-circle position-relative d-flex align-items-center justify-content-center me-3">delete</i>
+          <span></span>
+        </h3>
+        <p class="custom-modal-description font-inter fw-normal text-grey-v6">
+          Are you sure to delete ${name} role?
+        </p>
+      </div>
+    `,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Yes, delete it!',
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      loading.value = true
+      try {
+        await roleStore.deleteRole(id)
+      } finally {
+        loading.value = false
+      }
+    }
+  })
 }
 
 async function handleSubmit(e) {
-  const form = e.currentTarget
-  if (!form.checkValidity()) {
-    e.preventDefault()
-    e.stopPropagation()
+  if (e) e.preventDefault()
+
+  // Manual validation
+  if (!currentRole.value.name) {
     validated.value = true
     return
   }
-  e.preventDefault()
-  const payload = {
-    name: currentRole.value.name,
+
+  loading.value = true
+  try {
+    const payload = {
+      name: currentRole.value.name,
+    }
+    
+    if (isEditing.value) {
+      await roleStore.updateRole(currentRole.value.id, payload)
+    } else {
+      await roleStore.createRole(payload)
+    }
+    
+    showModal.value = false
+    await roleStore.fetchRoles()
+  } finally {
+    loading.value = false
   }
-  if (isEditing.value) {
-    await roleStore.updateRole(currentRole.value.id, payload)
-  } else {
-    await roleStore.createRole(payload)
-  }
-  showModal.value = false
-  roleStore.fetchRoles()
+}
+
+// Export functions (placeholder for future implementation)
+const exportPDF = () => {
+  console.log('Export PDF functionality to be implemented')
 }
 </script>
 
 <template>
-  <CRow>
-    <CCol :xs="12">
-      <CCard class="mb-4">
-        <CCardHeader class="d-flex justify-content-between align-items-center">
-          <strong>Role List</strong>
-          <div class="d-flex gap-2 mb-3">
-            <CButton color="dark" @click="openCreate">+ Create Role</CButton>
+  <div class="position-relative">
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="loading-overlay">
+      <CSpinner color="primary" variant="grow" />
+    </div>
+
+    <!-- Main Content -->
+    <CCol cols="12">
+      <!-- Breadcrumb -->
+      <CBreadcrumb class="mb-4">
+        <CBreadcrumbItem>
+          <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="/admin" class="text-decoration-none">Administration</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem active>Roles</CBreadcrumbItem>
+      </CBreadcrumb>
+      <CCard class="shadow-sm border-0">
+        <!-- Enhanced Header -->
+        <CCardHeader class="bg-white border-bottom">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="mb-1">
+                Roles
+              </h5>
+            </div>
+            <div class="d-flex gap-2">
+              <CDropdown>
+                <CDropdownToggle color="secondary" size="sm">
+                  <CIcon :icon="cilCloudDownload" class="me-1" />
+                  Export
+                </CDropdownToggle>
+                <CDropdownMenu>
+                  <CDropdownItem @click="exportPDF">
+                    <i class="fas fa-file-pdf me-2 text-danger"></i>Export PDF
+                  </CDropdownItem>
+                </CDropdownMenu>
+              </CDropdown>
+              <CButton color="dark" @click="openCreate">
+                <CIcon :icon="cilPlus" class="me-1" />
+                Add Role
+              </CButton>
+            </div>
           </div>
         </CCardHeader>
-        <CCardBody>
-          <!-- search + page-size -->
-          <div class="d-flex justify-content-start align-items-center flex-wrap mb-3">
-            <!-- Search Input -->
-            <div class="d-flex align-items-center me-2" style="min-width: 250px">
-              <input
-                type="text"
-                v-model="searchQuery"
-                class="form-control"
-                style="max-width: 250px"
-                placeholder="Search by role name"
-                @input="resetPage"
-              />
+
+        <CCardBody class="p-0">
+          <!-- Enhanced Search and Filter Controls -->
+          <div class="search-filter-section p-4 bg-light border-bottom">
+            <!-- Main Search -->
+            <div class="row g-3 mb-3">
+              <div class="col-md-11" style="display: flex; gap: 10px;">
+                <div class="col-md-3">
+                  <CInputGroup>
+                    <span class="input-group-text">
+                      <CIcon :icon="cilSearch" />
+                    </span>
+                    <CFormInput
+                      v-model="searchQuery"
+                      placeholder="Search by role name..."
+                      @input="resetPage"
+                    />
+                  </CInputGroup>
+                </div>
+                <div>
+                  <CButton 
+                    :color="showFilters ? 'primary' : 'outline-primary'" 
+                    @click="showFilters = !showFilters"
+                    class="w-100"
+                  >
+                    <CIcon :icon="cilFilter" />
+                  </CButton>
+                </div>
+              </div>
+
+              <div class="col-md-1">
+                <CFormSelect v-model="itemsPerPage" @change="resetPage">
+                  <option value="5">5</option>
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                </CFormSelect>
+              </div>
             </div>
-            <!-- Items per Page -->
-            <div
-              class="d-flex align-items-center"
-              style="float: right; right: 18px; position: absolute"
-            >
-              <label class="me-2 mb-0">Show:</label>
-              <select v-model="itemsPerPage" @change="resetPage" class="form-select w-auto">
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-                <option :value="100">100</option>
-              </select>
+
+            <!-- Advanced Filters -->
+            <div v-if="showFilters" class="advanced-filters">
+              <div class="row g-3">
+                <div class="col-md-2">
+                  <CButton color="outline-secondary" @click="clearAllFilters" class="w-100">
+                    Clear All
+                  </CButton>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- roles table -->
-          <CTable striped hover responsive>
-            <CTableHead>
-              <CTableRow>
-                <CTableHeaderCell>ID</CTableHeaderCell>
-                <CTableHeaderCell>Role</CTableHeaderCell>
-                <CTableHeaderCell>Created At</CTableHeaderCell>
-                <CTableHeaderCell>Action</CTableHeaderCell>
-              </CTableRow>
-            </CTableHead>
-            <CTableBody>
-              <CTableRow v-for="role in paginatedRoles" :key="role.id">
-                <CTableDataCell>{{ role.id }}</CTableDataCell>
-                <CTableDataCell>{{ role.name }}</CTableDataCell>
-                <CTableDataCell>{{ role.createdAt }}</CTableDataCell>
-                <CTableDataCell>
-                  <!-- Edit role Button -->
-                  <CButton
-                    size="sm"
-                    color="info"
-                    class="me-2 text-white"
-                    title="Edit Role"
-                    @click="openEdit(role)"
-                  >
-                    <CIcon :icon="cilPencil" />
-                  </CButton>
-
-                  <!-- Delete Role Button -->
-                  <CButton
-                    size="sm"
-                    color="danger"
-                    class="text-white"
-                    title="Delete Role"
-                    @click="confirmDelete(role.id)"
-                  >
-                    <CIcon :icon="cilTrash" />
-                  </CButton>
-                </CTableDataCell>
-              </CTableRow>
-              <CTableRow v-if="paginatedRoles.length === 0">
-                <CTableDataCell colspan="8" class="text-center"> No role found. </CTableDataCell>
-              </CTableRow>
-            </CTableBody>
-          </CTable>
-
-          <!-- pagination controls -->
-          <div class="text-end mb-3">
-            <strong>Total Records:</strong> {{ filteredRoles.length }}
+          <!-- Enhanced Table -->
+          <div class="table-responsive">
+            <CTable hover class="mb-0 modern-table">
+              <CTableHead class="table-light">
+                <CTableRow>
+                  <CTableHeaderCell class="sortable" @click="sortBy('name')">
+                    Role Name {{ getSortIcon('name') }}
+                  </CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('createdAt')">
+                    Created At {{ getSortIcon('createdAt') }}
+                  </CTableHeaderCell>
+                  <CTableHeaderCell width="120">Actions</CTableHeaderCell>
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                <CTableRow v-for="role in paginatedRoles" :key="role.id" class="table-row">
+                  <CTableDataCell>
+                    <div class="d-flex align-items-center">
+                      {{ role.name }}
+                    </div>
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <small class="text-muted">{{ new Date(role.created_at).toLocaleString() }}</small>
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <div class="d-flex gap-1">
+                      <CButton
+                        size="sm"
+                        color="info"
+                        variant="outline"
+                        title="Edit Role"
+                        @click="openEdit(role)"
+                      >
+                        <CIcon :icon="cilPencil" />
+                      </CButton>
+                      <CButton
+                        size="sm"
+                        color="danger"
+                        variant="outline"
+                        title="Delete Role"
+                        @click="confirmDelete(role.id, role.name)"
+                      >
+                        <CIcon :icon="cilTrash" />
+                      </CButton>
+                    </div>
+                  </CTableDataCell>
+                </CTableRow>
+                <CTableRow v-if="paginatedRoles.length === 0">
+                  <CTableDataCell colspan="4" class="text-center py-5">
+                    <div class="empty-state">
+                      <CIcon :icon="cilShieldAlt" style="font-size: 3rem;" class="text-muted mb-3" />
+                      <h5 class="text-muted">No roles found</h5>
+                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new role</p>
+                      <CButton color="primary" @click="openCreate">
+                        <CIcon :icon="cilPlus" class="me-1" />
+                        Add Your First Role
+                      </CButton>
+                    </div>
+                  </CTableDataCell>
+                </CTableRow>
+              </CTableBody>
+            </CTable>
           </div>
-          <div class="d-flex justify-content-between align-items-center mt-3">
-            <CButton color="dark" variant="outline" :disabled="currentPage === 1" @click="prevPage">
-              Previous
-            </CButton>
-            <div>Page {{ currentPage }} of {{ totalPages }}</div>
-            <CButton
-              color="dark"
-              variant="outline"
-              :disabled="currentPage === totalPages"
-              @click="nextPage"
-            >
-              Next
-            </CButton>
+
+          <!-- Enhanced Pagination -->
+          <div class="pagination-section p-3 bg-light border-top">
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="pagination-info">
+                <span class="text-muted small">
+                  Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
+                  {{ Math.min(currentPage * itemsPerPage, filteredRoles.length) }} 
+                  of {{ filteredRoles.length }} entries
+                  <span v-if="filteredRoles.length !== roleStore.roles.length">
+                    (filtered from {{ roleStore.roles.length }} total)
+                  </span>
+                </span>
+              </div>
+              <div class="pagination-controls d-flex align-items-center gap-2" v-if="totalPages > 1">
+                <CButton 
+                  size="sm" 
+                  variant="outline" 
+                  :disabled="currentPage === 1"
+                  @click="prevPage"
+                >
+                  Previous
+                </CButton>
+
+                <CButton 
+                  size="sm" 
+                  variant="outline" 
+                  :disabled="currentPage === totalPages"
+                  @click="nextPage"
+                >
+                  Next
+                </CButton>
+              </div>
+            </div>
           </div>
         </CCardBody>
       </CCard>
     </CCol>
-  </CRow>
+  </div>
 
-  <!-- Create/Edit Modal -->
+  <!-- Enhanced Create/Edit Modal -->
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
-    <CModalHeader>
-      <CModalTitle>{{ isEditing ? 'Edit Role' : 'Add Role' }}</CModalTitle>
+    <CModalHeader class="border-bottom">
+      <CModalTitle>
+        <CIcon :icon="cilShieldAlt" class="me-2" />
+        {{ isEditing ? 'Edit Role' : 'Add New Role' }}
+      </CModalTitle>
     </CModalHeader>
-    <CModalBody>
+    <CModalBody class="p-0">
       <CForm
-        class="row g-3 needs-validation"
-        enctype="multipart/form-data"
+        class="p-4"
         novalidate
         :validated="validated"
         @submit="handleSubmit"
       >
-        <CCol :md="12">
-          <CFormLabel for="name">Role</CFormLabel>
-          <CFormInput id="name" v-model="currentRole.name" required />
-          <CFormFeedback invalid>Role is required.</CFormFeedback>
-        </CCol>
-
-        <CCol :md="12" class="d-flex justify-content-end">
-          <CButton color="secondary" class="me-2" @click="showModal = false">Cancel</CButton>
-          <CButton color="success" type="submit">{{ isEditing ? 'Update' : 'Create' }}</CButton>
-        </CCol>
+        <CRow class="g-3">
+          <CCol md="12">
+            <CFormLabel for="name" class="fw-semibold">
+              Role Name <span style="color: red;">*</span>
+            </CFormLabel>
+            <CFormInput 
+              id="name" 
+              v-model="currentRole.name" 
+              required 
+              placeholder="Enter role name (e.g., Administrator, Manager)"
+            />
+            <CFormFeedback invalid>Role name is required.</CFormFeedback>
+          </CCol>
+        </CRow>
       </CForm>
     </CModalBody>
+    <CModalFooter class="border-top">
+      <CButton color="secondary" @click="showModal = false">
+        Cancel
+      </CButton>
+      <CButton 
+        type="submit"
+        color="dark" 
+        @click="handleSubmit"
+        :disabled="loading"
+      >
+        <CSpinner v-if="loading" size="sm" class="me-2" />
+        <CIcon v-else :icon="isEditing ? cilPencil : cilPlus" class="me-2" />
+        {{ isEditing ? 'Update Role' : 'Create Role' }}
+      </CButton>
+    </CModalFooter>
   </CModal>
 </template>
+
+<style scoped>
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* Table Enhancements */
+.modern-table {
+  font-size: 0.95rem;
+}
+
+.modern-table thead th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.modern-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.modern-table tbody tr:hover {
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.table-row td {
+  vertical-align: middle;
+  padding: 1rem;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.sortable:hover {
+  background-color: #e9ecef !important;
+}
+
+/* Search and Filter Section */
+.search-filter-section {
+  background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+}
+
+.advanced-filters {
+  padding-top: 1rem;
+  border-top: 1px dashed #dee2e6;
+  margin-top: 1rem;
+}
+
+/* Empty State */
+.empty-state {
+  padding: 2rem;
+}
+
+/* Action Buttons */
+.d-flex.gap-1 button {
+  transition: all 0.2s ease;
+}
+
+.d-flex.gap-1 button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Pagination */
+.pagination-section {
+  background: linear-gradient(to top, #f8f9fa, #ffffff);
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+}
+
+.pagination-controls button {
+  min-width: 80px;
+  font-weight: 500;
+}
+
+/* Modal Enhancements */
+.modal-content {
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-bottom: none;
+}
+
+.modal-title {
+  font-weight: 600;
+}
+
+/* Badge Styles */
+.badge {
+  padding: 0.375rem 0.75rem;
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .search-filter-section .col-md-11 {
+    flex-direction: column;
+  }
+  
+  .search-filter-section .col-md-3 {
+    width: 100%;
+  }
+  
+  .d-flex.gap-2 {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .d-flex.gap-2 button {
+    width: 100%;
+  }
+}
+</style>

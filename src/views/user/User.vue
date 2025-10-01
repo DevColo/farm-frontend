@@ -25,16 +25,22 @@ import {
   CFormInput,
   CFormTextarea,
   CFormSelect,
-  CFormCheck,
   CFormFeedback,
   CAvatar,
   CBadge,
   CInputGroup,
-  CInputGroupText,
+  CSpinner,
+  CDropdown,
+  CDropdownToggle,
+  CDropdownMenu,
+  CDropdownItem,
+  CBreadcrumb,
+  CBreadcrumbItem,
 } from '@coreui/vue'
-import { cilPencil, cilTrash, cilUser, cilSearch, cilUserPlus, cilFilter } from '@coreui/icons'
+import { cilPencil, cilTrash, cilUser, cilSearch, cilUserPlus, cilFilter, cilCloudDownload, cilPlus } from '@coreui/icons'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.css'
+import Swal from 'sweetalert2'
 import avatar from '@/assets/images/avatars/8.jpg'
 
 const userStore = useUserStore()
@@ -43,8 +49,8 @@ const countryStore = useCountryStore()
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
+const loading = ref(false)
 const showFilters = ref(false)
-const editingId = ref(null)
 
 const currentUser = ref({
   id: null,
@@ -60,13 +66,26 @@ const currentUser = ref({
 })
 const countries = ref([])
 
+// search & pagination
+const searchQuery = ref('')
+const itemsPerPage = ref(10)
+const currentPage = ref(1)
+const roleFilter = ref('')
+const sortField = ref('first_name')
+const sortOrder = ref('asc')
+
 // Fetch data on mount
-onMounted(() => { 
-  userStore.fetchUsers()
-  countryStore.fetchCountries() 
+onMounted(async () => {
+  loading.value = true
+  try {
+    await userStore.fetchUsers()
+    await countryStore.fetchCountries()
+  } finally {
+    loading.value = false
+  }
 })
 
-// Watch the store in case countries are updated dynamically later
+// Watch the store for countries
 watch(
   () => countryStore.countries,
   (newCountries) => {
@@ -78,58 +97,92 @@ watch(
   { deep: true }
 )
 
-// search & pagination
-const searchQuery = ref('')
-const itemsPerPage = ref(10)
-const currentPage = ref(1)
-const roleFilter = ref('')
-
+// Enhanced filtering and sorting
 const filteredUsers = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  return userStore.users.filter((c) => {
+  let filtered = (userStore.users || []).filter((user) => {
     const matchesQuery =
       !q ||
-      [c.first_name, c.other_name, c.last_name, c.phone, c.email].some((f) =>
+      [user.first_name, user.other_name, user.last_name, user.phone, user.email].some((f) =>
         f?.toLowerCase().includes(q),
       )
-    const matchesRole = !roleFilter.value || c.roles[0] === roleFilter.value
+    const matchesRole = !roleFilter.value || user.roles[0] === roleFilter.value
     return matchesQuery && matchesRole
   })
+
+  // Apply sorting
+  filtered.sort((a, b) => {
+    let aValue = a[sortField.value]
+    let bValue = b[sortField.value]
+    
+    // Handle nested fields like roles
+    if (sortField.value === 'roles') {
+      aValue = a.roles[0] || ''
+      bValue = b.roles[0] || ''
+    }
+    
+    // Convert to strings for comparison
+    aValue = String(aValue || '').toLowerCase()
+    bValue = String(bValue || '').toLowerCase()
+    
+    if (sortOrder.value === 'asc') {
+      return aValue.localeCompare(bValue)
+    } else {
+      return bValue.localeCompare(aValue)
+    }
+  })
+
+  return filtered
 })
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredUsers.value.length / itemsPerPage.value)),
 )
+
 const paginatedUsers = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return filteredUsers.value.slice(start, start + itemsPerPage.value)
 })
 
-const userStats = computed(() => {
-  const total = userStore.users.length
-  const roles = userStore.users.reduce((acc, user) => {
-    const role = user.roles[0] || 'Unknown'
-    acc[role] = (acc[role] || 0) + 1
-    return acc
-  }, {})
-  return { total, roles }
-})
+// Sorting
+function sortBy(field) {
+  if (sortField.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortOrder.value = 'asc'
+  }
+}
 
+function getSortIcon(field) {
+  if (sortField.value !== field) return '↕️'
+  return sortOrder.value === 'asc' ? '↑' : '↓'
+}
+
+// Filter management
+function clearAllFilters() {
+  searchQuery.value = ''
+  roleFilter.value = ''
+  resetPage()
+}
+
+function resetPage() {
+  currentPage.value = 1
+}
+
+// Pagination
 function nextPage() {
   if (currentPage.value < totalPages.value) currentPage.value++
 }
+
 function prevPage() {
   if (currentPage.value > 1) currentPage.value--
-}
-function resetPage() {
-  currentPage.value = 1
 }
 
 // modal handlers
 function openCreate() {
   isEditing.value = false
   validated.value = false
-  editingId.value = null
   currentUser.value = {
     id: null,
     first_name: '',
@@ -148,7 +201,6 @@ function openCreate() {
 function openEdit(user) {
   isEditing.value = true
   validated.value = false
-  editingId.value = user.id
   currentUser.value = { ...user }
   // Set country as the object from countries array for Multiselect
   const countryObj = countries.value.find(c => c.value === user.country || c.label === user.country)
@@ -156,43 +208,77 @@ function openEdit(user) {
   showModal.value = true
 }
 
-function confirmDelete(id) {
-  if (confirm('Are you sure you want to delete this user?')) {
-    userStore.deleteCow(id)
-  }
+const confirmDelete = async (id, name) => {
+  Swal.fire({
+    html: `
+      <div class="custom-modal-header d-flex align-items-center justify-content-center flex-column">
+        <h3 class="custom-modal-title d-flex align-items-center justify-content-center flex-row font-inter fw-semibold text-grey-v13 py-3">
+          <i class="material-symbols-rounded text-red rounded-circle position-relative d-flex align-items-center justify-content-center me-3">delete</i>
+          <span></span>
+        </h3>
+        <p class="custom-modal-description font-inter fw-normal text-grey-v6">
+          Are you sure to delete ${name}?
+        </p>
+      </div>
+    `,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Yes, delete it!',
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      loading.value = true
+      try {
+        await userStore.deleteUser(id)
+      } finally {
+        loading.value = false
+      }
+    }
+  })
 }
 
 async function handleSubmit(e) {
-  const form = e.currentTarget
-  if (!form.checkValidity()) {
-    e.preventDefault()
-    e.stopPropagation()
+  if (e) e.preventDefault()
+
+  // Manual validation
+  if (!currentUser.value.first_name || !currentUser.value.last_name || !currentUser.value.email || !currentUser.value.roles) {
     validated.value = true
     return
   }
-  e.preventDefault()
-  const payload = {
-    first_name: currentUser.value.first_name,
-    other_name: currentUser.value.other_name,
-    last_name: currentUser.value.last_name,
-    phone: currentUser.value.phone,
-    email: currentUser.value.email,
-    address: currentUser.value.address,
-    roles: currentUser.value.roles,
-    country: currentUser.value.country.value,
-    image: currentUser.value.image,
-    password: currentUser.value.password,
-    ...(currentUser.value.password ? { password: currentUser.value.password } : {}),
+
+  if (!isEditing.value && !currentUser.value.password) {
+    validated.value = true
+    return
   }
 
-  if (isEditing.value) {
-    payload.id = editingId.value
-    await userStore.updateUser(payload)
-  } else {
-    await userStore.createUser(payload)
+  loading.value = true
+  try {
+    const payload = {
+      first_name: currentUser.value.first_name,
+      other_name: currentUser.value.other_name,
+      last_name: currentUser.value.last_name,
+      phone: currentUser.value.phone,
+      email: currentUser.value.email,
+      address: currentUser.value.address,
+      roles: currentUser.value.roles,
+      country: currentUser.value.country?.value || currentUser.value.country,
+      image: currentUser.value.image,
+      ...(currentUser.value.password ? { password: currentUser.value.password } : {}),
+    }
+
+    if (isEditing.value) {
+      payload.id = currentUser.value.id
+      await userStore.updateUser(payload)
+    } else {
+      await userStore.createUser(payload)
+    }
+    
+    showModal.value = false
+    await userStore.fetchUsers()
+  } finally {
+    loading.value = false
   }
-  showModal.value = false
-  userStore.fetchUsers()
 }
 
 // Remove image
@@ -217,120 +303,81 @@ function getRoleColor(role) {
   return roleColors[role] || 'secondary'
 }
 
-// Clear filters
-function clearFilters() {
-  searchQuery.value = ''
-  roleFilter.value = ''
-  resetPage()
+// Export functions (placeholder for future implementation)
+const exportPDF = () => {
+  console.log('Export PDF functionality to be implemented')
 }
 </script>
 
 <template>
-  <div class="user-management-container">
-    <!-- Header Section with Stats -->
-    <CRow class="mb-4">
-      <CCol :xs="12">
-        <div class="page-header">
-          <div class="header-content">
-            <h1 class="page-title">
-              User Management
-            </h1>
-            <p class="page-subtitle">Manage your system users and their roles</p>
-          </div>
-          <div class="header-actions">
-            <CButton 
-              color="primary" 
-              class="create-btn"
-              @click="openCreate"
-            >
-              <CIcon :icon="cilUserPlus" class="me-2" />
-              Add New User
-            </CButton>
-          </div>
-        </div>
-      </CCol>
-    </CRow>
+  <div class="position-relative">
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="loading-overlay">
+      <CSpinner color="primary" variant="grow" />
+    </div>
 
-    <!-- Stats Cards -->
-    <!-- <CRow class="mb-4">
-      <CCol :md="3" :sm="6" class="mb-3">
-        <CCard class="stats-card stats-card-primary">
-          <CCardBody class="stats-card-body">
-            <div class="stats-icon">
-              <CIcon :icon="cilUser" />
-            </div>
-            <div class="stats-content">
-              <h3 class="stats-number">{{ userStats.total }}</h3>
-              <p class="stats-label">Total Users</p>
-            </div>
-          </CCardBody>
-        </CCard>
-      </CCol>
-      <CCol :md="3" :sm="6" class="mb-3" v-for="(count, role) in userStats.roles" :key="role">
-        <CCard class="stats-card">
-          <CCardBody class="stats-card-body">
-            <div class="stats-icon secondary">
-              <CIcon :icon="cilUser" />
-            </div>
-            <div class="stats-content">
-              <h3 class="stats-number">{{ count }}</h3>
-              <p class="stats-label">{{ role.charAt(0).toUpperCase() + role.slice(1) }}</p>
-            </div>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow> -->
+    <!-- Main Content -->
+    <CCol cols="12">
+      <!-- Breadcrumb -->
+      <CBreadcrumb class="mb-4">
+        <CBreadcrumbItem>
+          <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="/admin" class="text-decoration-none">Administration</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem active>Users</CBreadcrumbItem>
+      </CBreadcrumb>
 
-    <!-- Main Content Card -->
-    <CRow>
-      <CCol :xs="12">
-        <CCard class="main-content-card">
-          <CCardHeader class="modern-card-header">
-            <div class="header-left">
-              <h5 class="card-title">
-                <CIcon :icon="cilUser" class="me-2" />
-                Users List
-              </h5>
-              <span class="record-count">{{ filteredUsers.length }} users found</span>
+      <CCard class="shadow-sm border-0">
+        <!-- Enhanced Header -->
+        <CCardHeader class="bg-white border-bottom">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="mb-1">Users</h5>
             </div>
-            <div class="header-right">
-              <CButton 
-                color="light" 
-                variant="outline"
-                size="sm"
-                @click="showFilters = !showFilters"
-                class="filter-toggle-btn me-2"
-              >
-                <CIcon :icon="cilFilter" class="me-1" />
-                {{ showFilters ? 'Hide' : 'Show' }} Filters
+            <div class="d-flex gap-2">
+              <CDropdown>
+                <CDropdownToggle color="secondary" size="sm">
+                  <CIcon :icon="cilCloudDownload" class="me-1" />
+                  Export
+                </CDropdownToggle>
+                <CDropdownMenu>
+                  <CDropdownItem @click="exportPDF">
+                    <i class="fas fa-file-pdf me-2 text-danger"></i>Export PDF
+                  </CDropdownItem>
+                </CDropdownMenu>
+              </CDropdown>
+              <CButton color="dark" @click="openCreate">
+                <CIcon :icon="cilUserPlus" class="me-1" />
+                Add User
               </CButton>
             </div>
-          </CCardHeader>
+          </div>
+        </CCardHeader>
 
-          <CCardBody>
-            <!-- Filters Section -->
-            <div v-show="showFilters" class="filters-section">
-              <CRow class="g-3 mb-4">
-                <CCol :md="4">
-                  <CFormLabel class="filter-label">Search Users</CFormLabel>
+        <CCardBody class="p-0">
+          <!-- Enhanced Search and Filter Controls -->
+          <div class="search-filter-section p-4 bg-light border-bottom">
+            <!-- Main Search -->
+            <div class="row g-3 mb-3">
+              <div class="col-md-11" style="display: flex; gap: 10px;">
+                <div class="col-md-3">
                   <CInputGroup>
-                    <CInputGroupText>
+                    <span class="input-group-text">
                       <CIcon :icon="cilSearch" />
-                    </CInputGroupText>
+                    </span>
                     <CFormInput
                       v-model="searchQuery"
                       placeholder="Search by name, phone, or email..."
                       @input="resetPage"
-                      class="search-input"
                     />
                   </CInputGroup>
-                </CCol>
-                <CCol :md="3">
-                  <CFormLabel class="filter-label">Filter by Role</CFormLabel>
+                </div>
+                <div class="col-md-3">
                   <CFormSelect
                     v-model="roleFilter"
                     @change="resetPage"
-                    class="role-filter"
                   >
                     <option value="">All Roles</option>
                     <option value="superadmin">Superadmin</option>
@@ -339,277 +386,296 @@ function clearFilters() {
                     <option value="agronomist">Agronomist</option>
                     <option value="veterinarian">Veterinarian</option>
                   </CFormSelect>
-                </CCol>
-                <CCol :md="2">
-                  <CFormLabel class="filter-label">Show</CFormLabel>
-                  <CFormSelect v-model="itemsPerPage" @change="resetPage">
-                    <option :value="10">10</option>
-                    <option :value="25">25</option>
-                    <option :value="50">50</option>
-                    <option :value="100">100</option>
-                  </CFormSelect>
-                </CCol>
-                <CCol :md="3" class="d-flex align-items-end">
+                </div>
+                <div>
                   <CButton 
-                    color="light" 
-                    variant="outline"
-                    @click="clearFilters"
-                    class="clear-filters-btn"
+                    :color="showFilters ? 'primary' : 'outline-primary'" 
+                    @click="showFilters = !showFilters"
+                    class="w-100"
                   >
-                    Clear Filters
+                    <CIcon :icon="cilFilter" />
                   </CButton>
-                </CCol>
-              </CRow>
+                </div>
+              </div>
+
+              <div class="col-md-1">
+                <CFormSelect v-model="itemsPerPage" @change="resetPage">
+                  <option value="5">5</option>
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                </CFormSelect>
+              </div>
             </div>
 
-            <!-- Users Table -->
-            <div class="table-container">
-              <CTable hover responsive class="modern-table">
-                <CTableHead class="table-header">
-                  <CTableRow>
-                    <CTableHeaderCell class="avatar-col">User</CTableHeaderCell>
-                    <CTableHeaderCell>Full Name</CTableHeaderCell>
-                    <CTableHeaderCell>Country</CTableHeaderCell>
-                    <CTableHeaderCell>Phone</CTableHeaderCell>
-                    <CTableHeaderCell>Role</CTableHeaderCell>
-                    <CTableHeaderCell>Status</CTableHeaderCell>
-                    <CTableHeaderCell class="action-col">Actions</CTableHeaderCell>
-                  </CTableRow>
-                </CTableHead>
-                <CTableBody>
-                  <CTableRow v-for="user in paginatedUsers" :key="user.id" class="table-row">
-                    <CTableDataCell class="avatar-cell">
-                      <CAvatar 
-                        :src="getUserImage(user?.photo)" 
-                        size="md"
-                        class="user-avatar"
-                      />
-                    </CTableDataCell>
-                    <CTableDataCell class="name-cell">
-                      <div class="user-name">
-                        {{ user.first_name }} {{ user.other_name }} {{ user.last_name }}
-                      </div>
-                    </CTableDataCell>
-                    <CTableDataCell class="name-cell">
-                      <div class="user-email">{{ user.country }}</div>
-                    </CTableDataCell>
-                    <CTableDataCell class="name-cell">
-                      <div class="user-email">{{ user.phone }}</div>
-                    </CTableDataCell>
-                    <CTableDataCell>
-                      <CBadge 
-                        :color="getRoleColor(user.roles[0])" 
-                        class="role-badge"
+            <!-- Advanced Filters -->
+            <div v-if="showFilters" class="advanced-filters">
+              <div class="row g-3">
+                <div class="col-md-2">
+                  <CButton color="outline-secondary" @click="clearAllFilters" class="w-100">
+                    Clear All
+                  </CButton>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Enhanced Table -->
+          <div class="table-responsive">
+            <CTable hover class="mb-0 modern-table">
+              <CTableHead class="table-light">
+                <CTableRow>
+                  <CTableHeaderCell width="80">Photo</CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('first_name')">
+                    Name {{ getSortIcon('first_name') }}
+                  </CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('email')">
+                    Email {{ getSortIcon('email') }}
+                  </CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('phone')">
+                    Phone {{ getSortIcon('phone') }}
+                  </CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('country')">
+                    Country {{ getSortIcon('country') }}
+                  </CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('roles')">
+                    Role {{ getSortIcon('roles') }}
+                  </CTableHeaderCell>
+                  <CTableHeaderCell width="120">Actions</CTableHeaderCell>
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                <CTableRow v-for="user in paginatedUsers" :key="user.id" class="table-row">
+                  <CTableDataCell>
+                    <CAvatar 
+                      :src="getUserImage(user?.photo)" 
+                      size="md"
+                      class="user-avatar"
+                    />
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <div class="d-flex align-items-center">
+                      {{ user.first_name }} {{ user.other_name }} {{ user.last_name }}
+                    </div>
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <small class="text-muted">{{ user.email }}</small>
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <small class="text-muted">{{ user.phone }}</small>
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <small class="text-muted">{{ user.country }}</small>
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <CBadge 
+                      :color="getRoleColor(user.roles[0])" 
+                      class="role-badge"
+                    >
+                      {{ user.roles[0]?.replace('_', ' ').toUpperCase() }}
+                    </CBadge>
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <div class="d-flex gap-1">
+                      <CButton
+                        size="sm"
+                        color="info"
+                        variant="outline"
+                        title="Edit User"
+                        @click="openEdit(user)"
                       >
-                        {{ user.roles[0]?.replace('_', ' ').toUpperCase() }}
-                      </CBadge>
-                    </CTableDataCell>
-                    <CTableDataCell>
-                      <CBadge color="success" class="status-badge">
-                        Active
-                      </CBadge>
-                    </CTableDataCell>
-                    <CTableDataCell class="action-cell">
-                      <div class="action-buttons">
-                        <CButton
-                          size="sm"
-                          color="primary"
-                          variant="outline"
-                          class="action-btn edit-btn"
-                          title="Edit User"
-                          @click="openEdit(user)"
-                        >
-                          <CIcon :icon="cilPencil" />
-                        </CButton>
-                        <CButton
-                          size="sm"
-                          color="danger"
-                          variant="outline"
-                          class="action-btn delete-btn"
-                          title="Delete User"
-                          @click="confirmDelete(user.id)"
-                        >
-                          <CIcon :icon="cilTrash" />
-                        </CButton>
-                      </div>
-                    </CTableDataCell>
-                  </CTableRow>
-                  <CTableRow v-if="paginatedUsers.length === 0">
-                    <CTableDataCell colspan="6" class="empty-state">
-                      <div class="empty-content">
-                        <CIcon :icon="cilUser" class="empty-icon" />
-                        <h4>No Users Found</h4>
-                        <p>{{ searchQuery || roleFilter ? 'Try adjusting your filters' : 'Start by creating your first user' }}</p>
-                        <CButton v-if="!searchQuery && !roleFilter" color="primary" @click="openCreate">
-                          <CIcon :icon="cilUserPlus" class="me-2" />
-                          Add First User
-                        </CButton>
-                      </div>
-                    </CTableDataCell>
-                  </CTableRow>
-                </CTableBody>
-              </CTable>
-            </div>
+                        <CIcon :icon="cilPencil" />
+                      </CButton>
+                      <CButton
+                        size="sm"
+                        color="danger"
+                        variant="outline"
+                        title="Delete User"
+                        @click="confirmDelete(user.id, `${user.first_name} ${user.last_name}`)"
+                      >
+                        <CIcon :icon="cilTrash" />
+                      </CButton>
+                    </div>
+                  </CTableDataCell>
+                </CTableRow>
+                <CTableRow v-if="paginatedUsers.length === 0">
+                  <CTableDataCell colspan="7" class="text-center py-5">
+                    <div class="empty-state">
+                      <CIcon :icon="cilUser" style="font-size: 3rem;" class="text-muted mb-3" />
+                      <h5 class="text-muted">No users found</h5>
+                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new user</p>
+                      <CButton color="primary" @click="openCreate">
+                        <CIcon :icon="cilUserPlus" class="me-1" />
+                        Add Your First User
+                      </CButton>
+                    </div>
+                  </CTableDataCell>
+                </CTableRow>
+              </CTableBody>
+            </CTable>
+          </div>
 
-            <!-- Pagination -->
-            <div class="pagination-section" v-if="totalPages > 1">
+          <!-- Enhanced Pagination -->
+          <div class="pagination-section p-3 bg-light border-top">
+            <div class="d-flex justify-content-between align-items-center">
               <div class="pagination-info">
-                <span>
+                <span class="text-muted small">
                   Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
                   {{ Math.min(currentPage * itemsPerPage, filteredUsers.length) }} 
                   of {{ filteredUsers.length }} entries
+                  <span v-if="filteredUsers.length !== userStore.users.length">
+                    (filtered from {{ userStore.users.length }} total)
+                  </span>
                 </span>
               </div>
-              <div class="pagination-controls">
+              <div class="pagination-controls d-flex align-items-center gap-2" v-if="totalPages > 1">
                 <CButton 
+                  size="sm" 
                   variant="outline" 
-                  color="primary"
-                  :disabled="currentPage === 1" 
+                  :disabled="currentPage === 1"
                   @click="prevPage"
-                  class="pagination-btn"
                 >
                   Previous
                 </CButton>
-                <div class="page-numbers">
-                  <span class="current-page">{{ currentPage }}</span>
-                  <span class="page-separator">of</span>
-                  <span class="total-pages">{{ totalPages }}</span>
-                </div>
+
                 <CButton 
+                  size="sm" 
                   variant="outline" 
-                  color="primary"
-                  :disabled="currentPage === totalPages" 
+                  :disabled="currentPage === totalPages"
                   @click="nextPage"
-                  class="pagination-btn"
                 >
                   Next
                 </CButton>
               </div>
             </div>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
+          </div>
+        </CCardBody>
+      </CCard>
+    </CCol>
   </div>
 
   <!-- Enhanced Create/Edit Modal -->
-  <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="xl" class="user-modal">
-    <CModalHeader class="modal-header-custom">
-      <CModalTitle class="modal-title-custom">
-        <CIcon :icon="isEditing ? cilPencil : cilUserPlus" class="me-2" />
-        {{ isEditing ? 'Edit User' : 'Create New User' }}
+  <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="xl">
+    <CModalHeader class="border-bottom">
+      <CModalTitle>
+        <CIcon :icon="cilUser" class="me-2" />
+        {{ isEditing ? 'Edit User' : 'Add New User' }}
       </CModalTitle>
     </CModalHeader>
-    <CModalBody class="modal-body-custom">
+    <CModalBody class="p-0">
       <CForm
-        class="user-form needs-validation"
+        class="p-4"
         enctype="multipart/form-data"
         novalidate
         :validated="validated"
         @submit="handleSubmit"
       >
         <!-- Photo Upload Section -->
-        <div class="photo-upload-section mb-4">
-          <div class="current-photo">
-            <img
-              v-if="isEditing && currentUser.photo && typeof currentUser.photo === 'string'"
-              :src="getUserImage(currentUser.photo)"
-              class="preview-image"
-              alt="User Photo"
-            />
-            <div v-else class="no-photo-placeholder">
-              <CIcon :icon="cilUser"/>
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <div class="d-flex align-items-center gap-3">
+              <div class="current-photo">
+                <CAvatar
+                  v-if="isEditing && currentUser.photo && typeof currentUser.photo === 'string'"
+                  :src="getUserImage(currentUser.photo)"
+                  size="xl"
+                />
+                <CAvatar v-else size="xl">
+                  <CIcon :icon="cilUser" size="xl" />
+                </CAvatar>
+              </div>
+              <div class="flex-grow-1">
+                <CFormLabel for="image" class="fw-semibold">Profile Photo</CFormLabel>
+                <CFormInput
+                  type="file"
+                  id="image"
+                  @change="(e) => (currentUser.image = e.target.files[0])"
+                  accept="image/*"
+                />
+                <CButton 
+                  v-if="isEditing && currentUser.photo && typeof currentUser.photo === 'string'" 
+                  color="danger" 
+                  variant="outline"
+                  size="sm" 
+                  @click="removeImage"
+                  class="mt-2"
+                >
+                  <CIcon :icon="cilTrash" class="me-1" />
+                  Remove Photo
+                </CButton>
+              </div>
             </div>
-          </div>
-          <div class="photo-controls">
-            <CFormLabel for="image" class="form-label-custom">Profile Photo</CFormLabel>
-            <CFormInput
-              type="file"
-              id="image"
-              @change="(e) => (currentUser.image = e.target.files[0])"
-              accept="image/*"
-              class="file-input-custom"
-            />
-            <CButton 
-              v-if="isEditing && currentUser.photo && typeof currentUser.photo === 'string'" 
-              color="danger" 
-              variant="outline"
-              size="sm" 
-              @click="removeImage"
-              class="mt-2"
-            >
-              <CIcon :icon="cilTrash" class="me-1" />
-              Remove Photo
-            </CButton>
           </div>
         </div>
 
         <!-- Form Fields -->
         <CRow class="g-3">
-          <CCol :md="4">
-            <CFormLabel for="first_name" class="form-label-custom">First Name *</CFormLabel>
+          <CCol md="4">
+            <CFormLabel for="first_name" class="fw-semibold">
+              First Name <span style="color: red;">*</span>
+            </CFormLabel>
             <CFormInput 
               id="first_name" 
               v-model="currentUser.first_name" 
               required 
-              class="form-input-custom"
               placeholder="Enter first name"
             />
-            <CFormFeedback invalid>First Name is required.</CFormFeedback>
+            <CFormFeedback invalid>First name is required.</CFormFeedback>
           </CCol>
 
-          <CCol :md="4">
-            <CFormLabel for="other_name" class="form-label-custom">Other Name</CFormLabel>
+          <CCol md="4">
+            <CFormLabel for="other_name" class="fw-semibold">Other Name</CFormLabel>
             <CFormInput 
               id="other_name" 
               v-model="currentUser.other_name" 
-              class="form-input-custom"
               placeholder="Enter other name (optional)"
             />
           </CCol>
 
-          <CCol :md="4">
-            <CFormLabel for="last_name" class="form-label-custom">Last Name *</CFormLabel>
+          <CCol md="4">
+            <CFormLabel for="last_name" class="fw-semibold">
+              Last Name <span style="color: red;">*</span>
+            </CFormLabel>
             <CFormInput 
               id="last_name" 
               v-model="currentUser.last_name" 
               required 
-              class="form-input-custom"
               placeholder="Enter last name"
             />
             <CFormFeedback invalid>Last name is required.</CFormFeedback>
           </CCol>
 
-          <CCol :md="6">
-            <CFormLabel for="email" class="form-label-custom">Email Address *</CFormLabel>
+          <CCol md="6">
+            <CFormLabel for="email" class="fw-semibold">
+              Email Address <span style="color: red;">*</span>
+            </CFormLabel>
             <CFormInput 
               id="email" 
               v-model="currentUser.email" 
               type="email"
               required 
-              class="form-input-custom"
               placeholder="Enter email address"
             />
             <CFormFeedback invalid>Please provide a valid email address.</CFormFeedback>
           </CCol>
 
-          <CCol :md="6">
-            <CFormLabel for="phone" class="form-label-custom">Phone Number</CFormLabel>
+          <CCol md="6">
+            <CFormLabel for="phone" class="fw-semibold">Phone Number</CFormLabel>
             <CFormInput 
               id="phone" 
               v-model="currentUser.phone" 
-              class="form-input-custom"
               placeholder="Enter phone number"
             />
           </CCol>
 
-          <CCol :md="6">
-            <CFormLabel for="roles" class="form-label-custom">User Role *</CFormLabel>
+          <CCol md="6">
+            <CFormLabel for="roles" class="fw-semibold">
+              User Role <span style="color: red;">*</span>
+            </CFormLabel>
             <CFormSelect
               id="roles"
               v-model="currentUser.roles"
               required
-              class="form-input-custom"
             >
               <option value="">Select Role</option>
               <option value="superadmin">Superadmin</option>
@@ -621,8 +687,8 @@ function clearFilters() {
             <CFormFeedback invalid>Please select a user role.</CFormFeedback>
           </CCol>
 
-          <CCol :md="6">
-            <CFormLabel for="country" class="form-label-custom">Country</CFormLabel>
+          <CCol md="6">
+            <CFormLabel for="country" class="fw-semibold">Country</CFormLabel>
             <Multiselect
               v-model="currentUser.country"
               placeholder="Select Country"
@@ -634,53 +700,230 @@ function clearFilters() {
               :clear-on-select="false"
               :preserve-search="true"
               :preselect-first="false"
-              class="country-select"
             />
           </CCol>
 
-          <CCol :md="12">
-            <CFormLabel for="address" class="form-label-custom">Address</CFormLabel>
+          <CCol md="12">
+            <CFormLabel for="address" class="fw-semibold">Address</CFormLabel>
             <CFormTextarea 
               id="address" 
               v-model="currentUser.address" 
               rows="3"
-              class="form-input-custom"
               placeholder="Enter address"
             />
           </CCol>
 
-          <CCol :md="12">
-            <CFormLabel for="password" class="form-label-custom">
-              {{ isEditing ? 'New Password' : 'Password *' }}
+          <CCol md="12">
+            <CFormLabel for="password" class="fw-semibold">
+              {{ isEditing ? 'New Password' : 'Password' }}
+              <span v-if="!isEditing" style="color: red;">*</span>
             </CFormLabel>
             <CFormInput 
               id="password" 
               v-model="currentUser.password" 
               type="password"
               :required="!isEditing"
-              class="form-input-custom"
-              :placeholder="isEditing ? '' : 'Enter password'"
+              :placeholder="isEditing ? 'Leave blank to keep current password' : 'Enter password'"
             />
             <CFormFeedback invalid>Password is required.</CFormFeedback>
             <small v-if="isEditing" class="text-muted">Leave blank if you don't want to change the password</small>
           </CCol>
         </CRow>
-
-        <!-- Modal Footer -->
-        <div class="modal-footer-custom mt-3">
-          <CButton 
-            color="primary" 
-            type="submit"
-            class="modal-btn-submit"
-          >
-            {{ isEditing ? 'Update User' : 'Create User' }}
-          </CButton>
-        </div>
       </CForm>
     </CModalBody>
+    <CModalFooter class="border-top">
+      <CButton color="secondary" @click="showModal = false">
+        Cancel
+      </CButton>
+      <CButton 
+        type="submit"
+        color="dark" 
+        @click="handleSubmit"
+        :disabled="loading"
+      >
+        <CSpinner v-if="loading" size="sm" class="me-2" />
+        <CIcon v-else :icon="isEditing ? cilPencil : cilUserPlus" class="me-2" />
+        {{ isEditing ? 'Update User' : 'Create User' }}
+      </CButton>
+    </CModalFooter>
   </CModal>
 </template>
 
 <style scoped>
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
 
+/* Table Enhancements */
+.modern-table {
+  font-size: 0.95rem;
+}
+
+.modern-table thead th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.modern-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.modern-table tbody tr:hover {
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.table-row td {
+  vertical-align: middle;
+  padding: 1rem;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.sortable:hover {
+  background-color: #e9ecef !important;
+}
+
+/* User Avatar */
+.user-avatar {
+  border: 2px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Role Badge */
+.role-badge {
+  padding: 0.375rem 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+/* Search and Filter Section */
+.search-filter-section {
+  background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+}
+
+.advanced-filters {
+  padding-top: 1rem;
+  border-top: 1px dashed #dee2e6;
+  margin-top: 1rem;
+}
+
+/* Empty State */
+.empty-state {
+  padding: 2rem;
+}
+
+/* Action Buttons */
+.d-flex.gap-1 button {
+  transition: all 0.2s ease;
+}
+
+.d-flex.gap-1 button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Pagination */
+.pagination-section {
+  background: linear-gradient(to top, #f8f9fa, #ffffff);
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+}
+
+.pagination-controls button {
+  min-width: 80px;
+  font-weight: 500;
+}
+
+/* Modal Enhancements */
+.modal-content {
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.current-photo {
+  position: relative;
+}
+
+/* Photo Upload */
+.current-photo .c-avatar {
+  border: 3px solid #e9ecef;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Multiselect Styling */
+:deep(.multiselect) {
+  min-height: 38px;
+}
+
+:deep(.multiselect__tags) {
+  min-height: 38px;
+  padding: 6px 40px 0 8px;
+  border: 1px solid #d8dbe0;
+  border-radius: 0.375rem;
+}
+
+:deep(.multiselect__tag) {
+  background: #321fdb;
+  margin-bottom: 0;
+}
+
+:deep(.multiselect__tag-icon:hover) {
+  background: #2819b0;
+}
+
+:deep(.multiselect__option--highlight) {
+  background: #321fdb;
+}
+
+/* Form Labels */
+.fw-semibold {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #4f5d73;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .search-filter-section .col-md-11 {
+    flex-direction: column;
+  }
+  
+  .search-filter-section .col-md-3 {
+    width: 100%;
+  }
+  
+  .d-flex.gap-2 {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .d-flex.gap-2 button {
+    width: 100%;
+  }
+}
 </style>

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useTreeStore } from '@/stores/tree.store'
-import { useBlockStore } from '@/stores/block.store'
+import { useParcelStore } from '@/stores/parcel.store'
 import {
   CRow,
   CCol,
@@ -26,7 +26,6 @@ import {
   CFormTextarea,
   CFormSelect,
   CFormCheck,
-  CFormFeedback,
   CInputGroup,
   CBadge,
   CDropdown,
@@ -34,6 +33,8 @@ import {
   CDropdownMenu,
   CDropdownItem,
   CSpinner,
+  CBreadcrumb,
+  CBreadcrumbItem,
 } from '@coreui/vue'
 import CIcon from '@coreui/icons-vue'
 import { cilPencil, cilTrash, cilPlus, cilCloudDownload, cilSearch, cilFilter } from '@coreui/icons'
@@ -41,7 +42,7 @@ import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.css'
 
 const treeStore = useTreeStore()
-const blockStore = useBlockStore()
+const parcelStore = useParcelStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
@@ -55,26 +56,42 @@ const types = [
   { value: 'Orange', label: 'Orange', color: 'warning', icon: '🍊' },
   { value: 'Avocado', label: 'Avocado', color: 'success', icon: '🥑' },
   { value: 'Lemon', label: 'Lemon', color: 'warning', icon: '🍋' },
-  { value: 'Apple', label: 'Apple', color: 'danger', icon: '🍎' }
+  { value: 'Mango', label: 'Mango', color: 'warning', icon: '🥭' }
+]
+
+// Avocado name options
+const avocadoNames = [
+  { value: 'Hass', label: 'Hass' },
+  { value: 'Fuerte', label: 'Fuerte' },
+  { value: 'Reed', label: 'Reed' },
+  { value: 'Pinkerton', label: 'Pinkerton' },
+  { value: 'Gwen', label: 'Gwen' },
+  { value: 'Bacon', label: 'Bacon' },
+  { value: 'Zutano', label: 'Zutano' },
 ]
 
 const currentTree = ref({
   name: '',
   type: '',
-  block_id: '',
+  parcel_id: '',
   description: '',
   status: '1',
+})
+
+// Check if Avocado is selected
+const isAvocadoSelected = computed(() => {
+  return currentTree.value.type?.value === 'Avocado'
 })
 
 // Enhanced search and filter states
 const searchQuery = ref('')
 const filterType = ref('')
-const filterBlock = ref('')
+const filterParcel = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 const sortField = ref('name')
 const sortOrder = ref('asc')
-const blocks = ref([])
+const parcels = ref([])
 
 // fetch data
 onMounted(async () => {
@@ -82,20 +99,20 @@ onMounted(async () => {
   try {
     await Promise.all([
       treeStore.fetchTrees(),
-      blockStore.fetchBlocks()
+      parcelStore.fetchParcels()
     ])
   } finally {
     loading.value = false
   }
 })
 
-// Watch the store in case blocks are updated dynamically later
+// Watch the store in case Parcels are updated dynamically later
 watch(
-  () => blockStore.blocks,
-  (newBlocks) => {
-    blocks.value = newBlocks.map(b => ({
-      value: b.id,
-      label: `${b.country} - ${b.block_code}`,
+  () => parcelStore.parcels,
+  (newParcels) => {
+    parcels.value = newParcels.map(p => ({
+      value: p.id,
+      label: p.parcel_code,
     }))
   },
   { deep: true }
@@ -106,9 +123,9 @@ const availabletypes = computed(() => {
   return types.map(c => c.value)
 })
 
-const availableBlocks = computed(() => {
-  const blockNames = treeStore.trees.map(tree => tree.block_name).filter(Boolean)
-  return Array.from(new Set(blockNames))
+const availableParcels = computed(() => {
+  const parcelNames = treeStore.trees.map(tree => tree.parcel).filter(Boolean)
+  return Array.from(new Set(parcelNames))
 })
 
 // Enhanced filtering and sorting
@@ -119,13 +136,13 @@ const filteredTrees = computed(() => {
   const trees = Array.isArray(treeStore.trees) ? treeStore.trees : []
   
   let filtered = trees.filter((tree) => {
-    const matchesQuery = !q || [tree.name, tree.type, tree.block_name].some((field) => 
+    const matchesQuery = !q || [tree.name, tree.type, tree.parcel_id].some((field) => 
       field?.toLowerCase().includes(q)
     )
     const matchesType = !filterType.value || tree.type === filterType.value
-    const matchesBlock = !filterBlock.value || tree.block_name === filterBlock.value
+    const matchesParcel = !filterParcel.value || tree.parcel_id === filterParcel.value
     
-    return matchesQuery && matchesType && matchesBlock
+    return matchesQuery && matchesType && matchesParcel
   })
 
   // Apply sorting
@@ -134,9 +151,9 @@ const filteredTrees = computed(() => {
     let bValue = b[sortField.value]
     
     // Handle special cases
-    if (sortField.value === 'block_name') {
-      aValue = a.block_name || ''
-      bValue = b.block_name || ''
+    if (sortField.value === 'parcel_code') {
+      aValue = a.parcel_code || ''
+      bValue = b.parcel_code || ''
     }
     
     // Convert to strings for comparison
@@ -190,7 +207,7 @@ function getSortIcon(field) {
 function clearAllFilters() {
   searchQuery.value = ''
   filterType.value = ''
-  filterBlock.value = ''
+  filterParcel.value = ''
   resetPage()
 }
 
@@ -228,7 +245,7 @@ function openCreate() {
   currentTree.value = {
     name: '',
     type: '',
-    block_id: '',
+    parcel_id: '',
     description: '',
     status: '1',
   }
@@ -241,15 +258,21 @@ function openEdit(tree) {
   editingId.value = tree.id
   currentTree.value = { ...tree, status: tree.status === '1' }
 
-  // Find matching block object from options
-  const blockObj = blocks.value.find(b => 
-    b.value == tree.block_id
+  // Find matching parcel object from options
+  const parcelObj = parcels.value.find(b => 
+    b.value == tree.parcel_id
   )
-  currentTree.value.block_id = blockObj || null
+  currentTree.value.parcel_id = parcelObj || null
 
   // Find matching type object
   const typeObj = types.find(c => c.value === tree.type)
   currentTree.value.type = typeObj || null
+  
+  // If type is Avocado, find matching name from avocadoNames
+  if (tree.type === 'Avocado' && tree.name) {
+    const nameObj = avocadoNames.find(n => n.value === tree.name)
+    currentTree.value.name = nameObj || null
+  }
   
   showModal.value = true
 }
@@ -280,7 +303,13 @@ async function handleSubmit(e) {
   const form = e.currentTarget
   
   // Check if all required fields are filled
-  if (!currentTree.value.name || !currentTree.value.type || !currentTree.value.block_id) {
+  if (!currentTree.value.type || !currentTree.value.parcel_id) {
+    validated.value = true
+    return
+  }
+  
+  // Only validate name if Avocado is selected
+  if (isAvocadoSelected.value && !currentTree.value.name) {
     validated.value = true
     return
   }
@@ -293,9 +322,9 @@ async function handleSubmit(e) {
   loading.value = true
   try {
     const payload = {
-      name: currentTree.value.name,
+      name: currentTree.value.name?.value || currentTree.value.name || '',
       type: currentTree.value.type.value,
-      block_id: currentTree.value.block_id.value,
+      parcel_id: currentTree.value.parcel_id.value,
       description: currentTree.value.description,
       status: currentTree.value.status,
     }
@@ -322,7 +351,7 @@ async function handleSubmit(e) {
 }
 
 // Watch for changes
-watch([searchQuery, filterType, filterBlock], () => {
+watch([searchQuery, filterType, filterParcel], () => {
   resetPage()
 })
 </script>
@@ -335,6 +364,22 @@ watch([searchQuery, filterType, filterBlock], () => {
     </div>
 
     <!-- Main Content -->
+     <!-- Breadcrumb -->
+      <CBreadcrumb class="mb-4">
+        <CBreadcrumbItem>
+          <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="/farm-list" class="text-decoration-none">Farms</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="/block-list" class="text-decoration-none">Blocks</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="/parcel-list" class="text-decoration-none">Parcels</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem active>Trees</CBreadcrumbItem>
+      </CBreadcrumb>
     <!-- Main Table Card -->
     <CCol cols="12">
       <CCard class="shadow-sm border-0">
@@ -380,7 +425,7 @@ watch([searchQuery, filterType, filterBlock], () => {
                     </span>
                     <CFormInput
                       v-model="searchQuery"
-                      placeholder="Search by name, type or block"
+                      placeholder="Search by name, type or parcel"
                       @input="resetPage"
                     />
                   </CInputGroup>
@@ -418,10 +463,10 @@ watch([searchQuery, filterType, filterBlock], () => {
                   </CFormSelect>
                 </div>
                 <div class="col-md-2">
-                  <CFormSelect v-model="filterBlock" @change="resetPage">
-                    <option value="">All Blocks</option>
-                    <option v-for="block in availableBlocks" :key="block" :value="block">
-                      {{ block }}
+                  <CFormSelect v-model="filterParcel" @change="resetPage">
+                    <option value="">All Parcels</option>
+                    <option v-for="parcel in availableParcels" :key="parcel.id" :value="parcel.id">
+                      {{ parcel.parcel_code }}
                     </option>
                   </CFormSelect>
                 </div>
@@ -442,14 +487,13 @@ watch([searchQuery, filterType, filterBlock], () => {
                   <CTableHeaderCell class="sortable" @click="sortBy('tree_code')">
                     Tree Code {{ getSortIcon('tree_code') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell>Tree Name</CTableHeaderCell>
                   <CTableHeaderCell class="sortable" @click="sortBy('type')">
                     Type {{ getSortIcon('type') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('block_name')">
-                    Block {{ getSortIcon('block_name') }}
+                  <CTableHeaderCell>Category</CTableHeaderCell>
+                  <CTableHeaderCell class="sortable" @click="sortBy('parcel_code')">
+                    Parcel {{ getSortIcon('parcel_code') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell>Description</CTableHeaderCell>
                   <CTableHeaderCell>Status</CTableHeaderCell>
                   <CTableHeaderCell>Created At</CTableHeaderCell>
                   <CTableHeaderCell width="120">Actions</CTableHeaderCell>
@@ -458,27 +502,22 @@ watch([searchQuery, filterType, filterBlock], () => {
               <CTableBody>
                 <CTableRow v-for="tree in paginatedTrees" :key="tree.id" class="table-row">
                   <CTableDataCell>
-                    <router-link :to="`/trees/${tree.id}`" class="text-decoration-none tree-link">
+                    <router-link :to="`/trees/${tree.id}`" class="text-decoration-none">
                       <i class="fas fa-tree me-1 text-success"></i>
                       {{ tree.tree_code }}
                     </router-link>
                   </CTableDataCell>
                   <CTableDataCell>
-                      {{ tree?.name }}
-                  </CTableDataCell>
-                  <CTableDataCell>
                       {{ tree?.type }}
                   </CTableDataCell>
                   <CTableDataCell>
-                    <router-link :to="`/blocks/${tree.block?.id}`" class="text-decoration-none tree-link">
-                      <i class="fas fa-tree me-1 text-success"></i>
-                      {{ tree.block?.name }}
-                    </router-link>
+                      {{ tree?.name }}
                   </CTableDataCell>
                   <CTableDataCell>
-                    <span class="text-truncate d-inline-block" style="max-width: 250px;">
-                      {{ tree.description ?? '—' }}
-                    </span>
+                    <router-link :to="`/parcels/${tree.parcel?.id}`" class="text-decoration-none">
+                      <i class="fas fa-tree me-1 text-success"></i>
+                      {{ tree.parcel?.parcel_code }}
+                    </router-link>
                   </CTableDataCell>
                   <CTableDataCell>
                     <CBadge 
@@ -515,7 +554,7 @@ watch([searchQuery, filterType, filterBlock], () => {
                   </CTableDataCell>
                 </CTableRow>
                 <CTableRow v-if="paginatedTrees.length === 0">
-                  <CTableDataCell colspan="7" class="text-center py-5">
+                  <CTableDataCell colspan="8" class="text-center py-5">
                     <div class="empty-state">
                       <i class="fas fa-tree fa-3x text-muted mb-3"></i>
                       <h5 class="text-muted">No trees found</h5>
@@ -598,12 +637,6 @@ watch([searchQuery, filterType, filterBlock], () => {
       >
         <CRow class="g-3">
           <CCol md="6">
-            <CFormLabel for="tree-name" class="fw-semibold">Tree Name <span style="color: red;">*</span></CFormLabel>
-            <CFormInput id="tree-name" v-model="currentTree.name" required />
-            <CFormFeedback invalid>Tree name is required.</CFormFeedback>
-          </CCol>
-
-          <CCol md="6">
             <CFormLabel for="type" class="fw-semibold">Tree Type <span style="color: red;">*</span></CFormLabel>
             <Multiselect
               v-model="currentTree.type"
@@ -625,26 +658,45 @@ watch([searchQuery, filterType, filterBlock], () => {
               </template>
             </Multiselect>
             <div v-if="validated && !currentTree.type" class="invalid-feedback d-block">
-              type is required.
+              Type is required.
             </div>
           </CCol>
 
-          <CCol md="12">
-            <CFormLabel for="block" class="fw-semibold">Block <span style="color: red;">*</span></CFormLabel>
+          <CCol md="6" v-if="isAvocadoSelected">
+            <CFormLabel for="tree-name" class="fw-semibold">Avocado Variety <span style="color: red;">*</span></CFormLabel>
             <Multiselect
-              v-model="currentTree.block_id"
-              placeholder="Select Block"
+              v-model="currentTree.name"
+              placeholder="Select avocado variety"
               track-by="value"
               label="label"
-              :options="blocks"
+              :options="avocadoNames"
               :show-no-results="false"
               :close-on-select="true"
               :clear-on-select="false"
               :preserve-search="true"
               :preselect-first="false"
             />
-            <div v-if="validated && !currentTree.block_id" class="invalid-feedback d-block">
-              Block is required.
+            <div v-if="validated && isAvocadoSelected && !currentTree.name" class="invalid-feedback d-block">
+              Avocado variety is required.
+            </div>
+          </CCol>
+
+          <CCol md="12">
+            <CFormLabel for="parcel" class="fw-semibold">Parcel <span style="color: red;">*</span></CFormLabel>
+            <Multiselect
+              v-model="currentTree.parcel_id"
+              placeholder="Select Parcel"
+              track-by="value"
+              label="label"
+              :options="parcels"
+              :show-no-results="false"
+              :close-on-select="true"
+              :clear-on-select="false"
+              :preserve-search="true"
+              :preselect-first="false"
+            />
+            <div v-if="validated && !currentTree.parcel_id" class="invalid-feedback d-block">
+              Parcel is required.
             </div>
           </CCol>
 
@@ -719,16 +771,6 @@ watch([searchQuery, filterType, filterBlock], () => {
 
 .table-row:hover {
   background-color: rgba(0, 123, 255, 0.05);
-}
-
-.tree-link {
-  font-weight: 500;
-  color: #0d6efd;
-}
-
-.tree-link:hover {
-  color: #0b5ed7;
-  text-decoration: underline !important;
 }
 
 .empty-state {

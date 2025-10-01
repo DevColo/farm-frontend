@@ -1,4 +1,4 @@
-// stores/farm.store.js
+// stores/block.store.js
 import { defineStore } from 'pinia'
 import axios from '@/axios'
 import { useToast } from 'vue-toastification'
@@ -42,7 +42,7 @@ export const useBlockStore = defineStore('block', {
         })
         this.blocks = response.data.data
       } catch (error) {
-        let errorMessage = 'Failed to fetch Farm'
+        let errorMessage = 'Failed to fetch block'
         if (error.response && error.response.data) {
           errorMessage = error.response.data.error || error.response.data.message
         }
@@ -62,7 +62,7 @@ export const useBlockStore = defineStore('block', {
         this.blocks = this.blocks.filter((p) => p.id !== id)
         toast.success('Block deleted successfully')
       } catch (error) {
-        toast.error('Failed to delete farm')
+        toast.error('Failed to delete block')
       }
     },
 

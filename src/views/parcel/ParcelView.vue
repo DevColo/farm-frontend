@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useTreeStore } from '@/stores/tree.store'
+import { useParcelStore } from '@/stores/parcel.store'
 import {
   CRow,
   CCol,
@@ -12,90 +12,134 @@ import {
   CBadge,
   CSpinner,
   CAlert,
-  CModal,
-  CModalHeader,
-  CModalTitle,
-  CModalBody,
-  CModalFooter,
+  CFormInput,
   CBreadcrumb,
   CBreadcrumbItem,
   CListGroup,
   CListGroupItem,
-  CTable,
-  CTableHead,
-  CTableRow,
-  CTableHeaderCell,
-  CTableBody,
-  CTableDataCell,
-  CInputGroup,
-  CFormInput,
-  CFormSelect,
 } from '@coreui/vue'
 import CIcon from '@coreui/icons-vue'
 import { 
-  cilArrowLeft, 
-  cilPencil, 
-  cilTrash,
-  cilCalendar,
   cilDescription,
-  cilCheckCircle,
-  cilXCircle,
-  cilPlus,
-  cilSearch,
-  cilList,
-  cilLocationPin
 } from '@coreui/icons'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 const route = useRoute()
 const router = useRouter()
-const treeStore = useTreeStore()
+const parcelStore = useParcelStore()
 
-const tree = ref(null)
-const harvests = ref([])
+const parcel = ref(null)
 const loading = ref(true)
 const error = ref(null)
-const showDeleteModal = ref(false)
-
-// Harvest table controls
-const searchQuery = ref('')
-const itemsPerPage = ref(10)
-const currentPage = ref(1)
-const sortField = ref('harvest_date')
-const sortOrder = ref('desc')
-
-// Tree types with their properties
-const types = {
-  'Orange': { color: 'warning', icon: '🍊' },
-  'Avocado': { color: 'success', icon: '🥑' },
-  'Lemon': { color: 'warning', icon: '🍋' },
-  'Mango': { color: 'danger', icon: '🥭' }
-}
+const trees = ref([])
+const harvests = ref([])
+let map = null
+let fullMap = null
 
 onMounted(async () => {
   try {
-    const treeId = route.params.id
-    // Fetch tree details and its harvest records
-    await treeStore.fetchTreeById(treeId)
-    tree.value = treeStore.tree
-    harvests.value = tree.value.harvests || []
+    const parcelId = route.params.id
+    // Assuming there's a fetchParcel method in the store
+    await parcelStore.fetchParcelById(parcelId)
+    parcel.value = parcelStore.parcel
+    trees.value = parcel.value.trees || []
+    harvests.value = parcel.value.harvests || []
+    // Initialize map if coordinates are available
+    if (parcel.value?.latitude && parcel.value?.longitude) {
+      await nextTick()
+      initializeMap()
+    }
   } catch (err) {
-    error.value = 'Failed to load tree details'
-    console.error('Error fetching tree:', err)
+    error.value = 'Failed to load parcel details'
+    console.error('Error fetching parcel:', err)
   } finally {
     loading.value = false
   }
 })
 
+onUnmounted(() => {
+  if (map) {
+    map.remove()
+    map = null
+  }
+  if (fullMap) {
+    fullMap.remove()
+    fullMap = null
+  }
+})
+
 const statusBadge = computed(() => {
-  if (!tree.value) return { color: 'secondary', text: 'Unknown' }
-  return tree.value.status === '1' 
+  if (!parcel.value) return { color: 'secondary', text: 'Unknown' }
+  return parcel.value.status === '1' 
     ? { color: 'success', text: 'Active' }
     : { color: 'danger', text: 'Inactive' }
 })
 
-const typeInfo = computed(() => {
-  if (!tree.value) return { color: 'secondary', icon: '🌳' }
-  return types[tree.value.type] || { color: 'secondary', icon: '🌳' }
+function goBack() {
+  router.push('/parcels')
+}
+
+// Compute tree counts by type
+const treeTypeCounts = computed(() => {
+  const counts = {}
+  if (parcel.value?.trees) {
+    parcel.value?.trees.forEach(tree => {
+      counts[tree.type] = (counts[tree.type] || 0) + 1
+    })
+  }
+  return counts
+})
+
+// Trees table controls
+const searchQuery = ref('')
+const itemsPerPage = ref(10)
+const currentPage = ref(1)
+const sortField = ref('created_at')
+const sortOrder = ref('desc')
+
+function getSortIcon(field) {
+  if (sortField.value !== field) return '↕️'
+  return sortOrder.value === 'asc' ? '↑' : '↓'
+}
+
+// tree filtering and sorting
+const filteredTrees = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  
+  let filtered = trees.value.filter((tree) => {
+    if (!q) return true
+    return [tree.tree_code, tree.type].some((field) => 
+      String(field).toLowerCase().includes(q)
+    )
+  })
+
+  // Apply sorting
+  filtered.sort((a, b) => {
+    let aValue = a[sortField.value]
+    let bValue = b[sortField.value]
+    
+
+      aValue = parseFloat(aValue) || 0
+      bValue = parseFloat(bValue) || 0
+    
+    if (sortOrder.value === 'asc') {
+      return aValue > bValue ? 1 : aValue < bValue ? -1 : 0
+    } else {
+      return bValue > aValue ? 1 : bValue < aValue ? -1 : 0
+    }
+  })
+
+  return filtered
+})
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredTrees.value.length / itemsPerPage.value))
+)
+
+const paginatedTrees = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  return filteredTrees.value.slice(start, start + itemsPerPage.value)
 })
 
 // Calculate harvest statistics
@@ -159,53 +203,14 @@ const filteredHarvests = computed(() => {
   return filtered
 })
 
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredHarvests.value.length / itemsPerPage.value))
-)
-
 const paginatedHarvests = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return filteredHarvests.value.slice(start, start + itemsPerPage.value)
 })
-
-function resetPage() {
-  currentPage.value = 1
-}
-
-function nextPage() {
-  if (currentPage.value < totalPages.value) currentPage.value++
-}
-
-function prevPage() {
-  if (currentPage.value > 1) currentPage.value--
-}
-
-function goToPage(page) {
-  currentPage.value = page
-}
-
-function sortBy(field) {
-  if (sortField.value === field) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    sortField.value = field
-    sortOrder.value = field === 'harvest_date' ? 'desc' : 'asc'
-  }
-}
-
-function getSortIcon(field) {
-  if (sortField.value !== field) return '↕️'
-  return sortOrder.value === 'asc' ? '↑' : '↓'
-}
-
-function goBack() {
-  router.push('/trees')
-}
-
 </script>
 
 <template>
-  <div class="tree-view">
+  <div class="parcel-view">
     <!-- Loading State -->
     <div v-if="loading" class="d-flex justify-content-center align-items-center" style="min-height: 400px;">
       <CSpinner color="primary" variant="grow" />
@@ -220,7 +225,7 @@ function goBack() {
     </CAlert>
 
     <!-- Main Content -->
-    <div v-else-if="tree">
+    <div v-else-if="parcel">
       <!-- Breadcrumb -->
       <CBreadcrumb class="mb-4">
         <CBreadcrumbItem>
@@ -235,114 +240,95 @@ function goBack() {
         <CBreadcrumbItem>
           <router-link to="/parcel-list" class="text-decoration-none">Parcels</router-link>
         </CBreadcrumbItem>
-        <CBreadcrumbItem>
-          <router-link to="/tree-list" class="text-decoration-none">Trees</router-link>
-        </CBreadcrumbItem>
-        <CBreadcrumbItem active>{{ tree.tree_code }}</CBreadcrumbItem>
+        <CBreadcrumbItem active>{{ parcel.parcel_code }}</CBreadcrumbItem>
       </CBreadcrumb>
 
-      <!-- Header -->
-      <div class="d-flex justify-content-between align-items-start mb-4">
-        <div>
-          <h2 class="mb-2">
-            <span class="me-2">{{ typeInfo.icon }}</span>
-            {{ tree.tree_code }}
-          </h2>
-        </div>
-      </div>
-
       <CRow class="g-4">
-        <!-- Tree Information -->
-        <CCol lg="4">
+        <!-- parcel Information -->
+        <CCol lg="6">
           <CCard class="h-100 shadow-sm">
             <CCardHeader class="bg-white border-bottom">
               <h5 class="mb-0">
-                <CIcon :icon="cilDescription" class="me-2 text-success" />
-                Tree Information
+                <CIcon :icon="cilDescription" class="me-2 text-primary" />
+                parcel Information
               </h5>
             </CCardHeader>
             <CCardBody>
-              <CListGroup flush>
-                <CListGroupItem class="border-0 ps-0">
-                  <div class="d-flex justify-content-between">
-                    <strong>Tree Name:</strong>
-                    <span>{{ tree.tree_code }}</span>
-                  </div>
-                </CListGroupItem>
-                <CListGroupItem class="border-0 ps-0">
-                  <div class="d-flex justify-content-between">
-                    <strong>Category:</strong>
-                    <span>{{ tree.name }}</span>
-                  </div>
-                </CListGroupItem>
-                <CListGroupItem class="border-0 ps-0">
-                  <div class="d-flex justify-content-between">
-                    <strong>Fruit Type:</strong>
-                    <CBadge :color="typeInfo.color">
-                      <span class="me-1">{{ typeInfo.icon }}</span>
-                      {{ tree.type }}
-                    </CBadge>
-                  </div>
-                </CListGroupItem>
-                <CListGroupItem class="border-0 ps-0">
-                  <div class="d-flex justify-content-between">
-                    <strong>Parcel:</strong>
-                    <a :href="`/parcels/${tree.parcel?.id}`" class="text-decoration-none">
-                      {{ tree.parcel?.parcel_code }}
-                    </a>
-                  </div>
-                </CListGroupItem>
-                <CListGroupItem class="border-0 ps-0">
-                  <div class="d-flex justify-content-between">
-                    <strong>Block:</strong>
-                    <a :href="`/blocks/${tree.parcel?.block?.id}`" class="text-decoration-none">
-                      {{ tree.parcel?.block?.block_code }}
-                    </a>
-                  </div>
-                </CListGroupItem>
-                <CListGroupItem class="border-0 ps-0" v-if="tree.farm_name">
-                  <div class="d-flex justify-content-between">
-                    <strong>Farm:</strong>
-                    <span>{{ tree.farm_name }}</span>
-                  </div>
-                </CListGroupItem>
-                <CListGroupItem class="border-0 ps-0">
-                  <div class="d-flex justify-content-between">
-                    <strong>Status:</strong>
-                    <CBadge :color="statusBadge.color">{{ statusBadge.text }}</CBadge>
-                  </div>
-                </CListGroupItem>
-                <CListGroupItem class="border-0 ps-0" v-if="tree.planted_date">
-                  <div class="d-flex justify-content-between">
-                    <strong>Planted Date:</strong>
-                    <span>{{ new Date(tree.planted_date).toLocaleDateString() }}</span>
-                  </div>
-                </CListGroupItem>
-                <CListGroupItem class="border-0 ps-0" v-if="tree.age_years">
-                  <div class="d-flex justify-content-between">
-                    <strong>Age:</strong>
-                    <span>{{ tree.age_years }} years</span>
-                  </div>
-                </CListGroupItem>
-                <CListGroupItem class="border-0 ps-0">
-                  <div class="d-flex justify-content-between">
-                    <strong>Created:</strong>
-                    <span>{{ new Date(tree.created_at).toLocaleDateString() }}</span>
-                  </div>
-                </CListGroupItem>
-                <CListGroupItem class="border-0 ps-0">
-                  <div class="d-flex justify-content-between">
-                    <strong>Last Updated:</strong>
-                    <span>{{ new Date(tree.updated_at).toLocaleDateString() }}</span>
-                  </div>
-                </CListGroupItem>
-              </CListGroup>
+              <CRow class="g-4">
+                <CCol md="2">
+                    <CListGroup flush>
+                    <CListGroupItem class="border-0 ps-0">
+                        <div class="d-flex justify-content-between">
+                        <span class="text-muted small">parcel Name: <br><span class="fw-bold">{{ parcel.name }}</span></span>
+                        
+                        </div>
+                    </CListGroupItem>
+                    </CListGroup>
+                </CCol>
+
+                <CCol md="2">
+                    <CListGroup flush>
+                    <CListGroupItem class="border-0 ps-0">
+                        <div class="d-flex justify-content-between">
+                        <span class="text-muted small">parcel Code: <br><span class="fw-bold">{{ parcel.parcel_code }}</span></span>
+                        
+                        </div>
+                    </CListGroupItem>
+                    </CListGroup>
+                </CCol>
+
+                <CCol md="2">
+                    <CListGroup flush>
+                    <CListGroupItem class="border-0 ps-0">
+                        <div class="d-flex justify-content-between">
+                        <span class="text-muted small">Farm: <br><span class="fw-bold">{{ parcel.block?.farm?.name }}</span></span>
+                        </div>
+                    </CListGroupItem>
+                    </CListGroup>
+                </CCol>
+
+                <CCol md="2">
+                    <CListGroup flush>
+                    <CListGroupItem class="border-0 ps-0">
+                        <div class="d-flex justify-content-between">
+                        <span class="text-muted small">Country:<br> <span class="fw-bold">{{ parcel.block?.farm?.country?.country }}</span></span>
+                        
+                        </div>
+                    </CListGroupItem>
+                    </CListGroup>
+                </CCol>
+
+                <CCol md="2">
+                    <CListGroup flush>
+                    <CListGroupItem class="border-0 ps-0">
+                        <div class="d-flex justify-content-between">
+                        <span class="text-muted small">Status: <br><CBadge :color="statusBadge.color">{{ statusBadge.text }}</CBadge></span>
+                        
+                        </div>
+                    </CListGroupItem>
+                    </CListGroup>
+                </CCol>
+
+                <CCol md="2">
+                    <CListGroup flush>
+                    <CListGroupItem class="border-0 ps-0">
+                        <div class="d-flex justify-content-between">
+                        <span class="text-muted small">Total Tree:<br> <span class="fw-bold">{{ parcel.trees.length }}</span></span>
+                        
+                        </div>
+                    </CListGroupItem>
+                    </CListGroup>
+                </CCol>
+                </CRow>
+
+                
+
 
               <!-- Description -->
-              <div class="mt-4" v-if="tree.description">
+              <div class="mt-4">
                 <h6 class="mb-2">Description</h6>
                 <div class="bg-light p-3 rounded">
-                  <p class="mb-0 text-muted">{{ tree.description }}</p>
+                  <p class="mb-0 text-muted">{{ parcel?.description }}</p>
                 </div>
               </div>
             </CCardBody>
@@ -350,8 +336,8 @@ function goBack() {
         </CCol>
 
         <!-- Harvest Statistics -->
-        <CCol lg="8">
-          <!-- <CRow class="g-4 mb-4">
+        <CCol lg="6">
+          <CRow class="g-4 mb-4">
             <CCol md="6" lg="4">
               <CCard class="text-center shadow-sm stats-card">
                 <CCardBody>
@@ -410,9 +396,34 @@ function goBack() {
                 </CCardBody>
               </CCard>
             </CCol>
-          </CRow> -->
+          </CRow>
+        
+        </CCol>
+      </CRow>
 
-          <!-- Recent Activity -->
+      <!-- Additional Information Cards -->
+      <CRow class="g-4 mt-2">
+        <!-- Statistics Card -->
+        <CCol lg="4">
+    <CCard class="shadow-sm">
+      <CCardHeader class="bg-white border-bottom">
+        <h6 class="mb-0">
+          <i class="fas fa-chart-bar me-2 text-success"></i>
+          Tree Statistics
+        </h6>
+      </CCardHeader>
+      <CCardBody>
+        <!-- Tree type counts -->
+        <div v-for="(count, type) in treeTypeCounts" :key="type" class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-muted">{{ type }} Trees</span>
+          <span class="badge bg-success">{{ count }}</span>
+        </div>
+      </CCardBody>
+    </CCard>
+  </CCol>
+
+        <!-- Recent Activity -->
+        <CCol lg="8">
           <CCard class="shadow-sm">
             <CCardHeader class="bg-white border-bottom">
               <h6 class="mb-0">
@@ -425,22 +436,22 @@ function goBack() {
                 <div class="timeline-item">
                   <div class="timeline-marker bg-success"></div>
                   <div class="timeline-content">
-                    <h6 class="mb-1">Tree Registered</h6>
-                    <p class="text-muted small mb-0">{{ new Date(tree.created_at).toLocaleString() }}</p>
+                    <h6 class="mb-1">Parcel Created</h6>
+                    <p class="text-muted small mb-0">{{ new Date(parcel.created_at).toLocaleString() }}</p>
                   </div>
                 </div>
-                <div class="timeline-item" v-if="harvestStats.lastHarvestDate">
+                <div class="timeline-item" v-if="parcel.last_inspection">
                   <div class="timeline-marker bg-info"></div>
                   <div class="timeline-content">
-                    <h6 class="mb-1">Last Harvest</h6>
-                    <p class="text-muted small mb-0">{{ new Date(harvestStats.lastHarvestDate).toLocaleString() }}</p>
+                    <h6 class="mb-1">Last Inspection</h6>
+                    <p class="text-muted small mb-0">{{ new Date(parcel.last_inspection).toLocaleString() }}</p>
                   </div>
                 </div>
                 <div class="timeline-item">
                   <div class="timeline-marker bg-warning"></div>
                   <div class="timeline-content">
                     <h6 class="mb-1">Last Updated</h6>
-                    <p class="text-muted small mb-0">{{ new Date(tree.updated_at).toLocaleString() }}</p>
+                    <p class="text-muted small mb-0">{{ new Date(parcel.updated_at).toLocaleString() }}</p>
                   </div>
                 </div>
               </div>
@@ -449,8 +460,140 @@ function goBack() {
         </CCol>
       </CRow>
 
-      <!-- Harvest Records Table -->
-      <!-- <CRow class="mt-4">
+      <!-- Trees Records Table -->
+      <CRow class="mt-4">
+        <CCol cols="12">
+          <CCard class="shadow-sm">
+            <CCardHeader class="bg-white border-bottom">
+              <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                  <CIcon :icon="cilList" class="me-2 text-success" />
+                  Trees Records ({{ trees.length }})
+                </h5>
+              </div>
+            </CCardHeader>
+            <CCardBody class="p-0">
+              <!-- Search and Controls -->
+              <div class="p-3 bg-light border-bottom">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <CInputGroup>
+                      <span class="input-group-text">
+                        <CIcon :icon="cilSearch" />
+                      </span>
+                      <CFormInput
+                        v-model="searchQuery"
+                        placeholder="Search tree records..."
+                        @input="resetPage"
+                      />
+                    </CInputGroup>
+                  </div>
+                  <div class="col-md-6 text-end">
+                    <CFormSelect v-model="itemsPerPage" @change="resetPage" class="w-auto d-inline-parcel">
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                      <option value="25">25</option>
+                      <option value="50">50</option>
+                    </CFormSelect>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tree Table -->
+              <div class="table-responsive">
+                <CTable hover class="mb-0">
+                  <CTableHead class="table-light">
+                    <CTableRow>
+                      <CTableHeaderCell class="sortable" @click="sortBy('tree_code')">
+                        Tree Code
+                      </CTableHeaderCell>
+                      <CTableHeaderCell class="sortable" @click="sortBy('type')">
+                        Type {{ getSortIcon('type') }}
+                      </CTableHeaderCell>
+                      <CTableHeaderCell>Created At</CTableHeaderCell>
+                    </CTableRow>
+                  </CTableHead>
+                  <CTableBody>
+                    <CTableRow 
+                      v-for="tree in paginatedTrees" 
+                      :key="tree.id"
+                      class="table-row"
+                    >
+                      <CTableDataCell>
+                        <router-link :to="`/trees/${tree.id}`" class="text-decoration-none tree-link">
+                      <i class="fas fa-tree me-1 text-success"></i>
+                      {{ tree.tree_code }}
+                    </router-link>
+                      </CTableDataCell>
+                      <CTableDataCell>
+                          {{ tree?.type }}
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        {{ new Date(tree.created_at).toLocaleDateString() }}
+                      </CTableDataCell>
+                    </CTableRow>
+                    <CTableRow v-if="paginatedTrees.length === 0">
+                      <CTableDataCell colspan="4" class="text-center py-5">
+                        <div class="empty-state">
+                          <i class="fas fa-apple-alt fa-3x text-muted mb-3"></i>
+                          <h5 class="text-muted">No tree records found</h5>
+                          <p class="text-muted mb-3">
+                            {{ searchQuery ? 'Try adjusting your search' : 'This tree has no tree records yet' }}
+                          </p>
+                        </div>
+                      </CTableDataCell>
+                    </CTableRow>
+                  </CTableBody>
+                </CTable>
+              </div>
+
+              <!-- Pagination -->
+              <div class="p-3 bg-light border-top" v-if="totalPages > 1">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div class="pagination-info">
+                    <span class="text-muted small">
+                      Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
+                      {{ Math.min(currentPage * itemsPerPage, filteredTrees.length) }} 
+                      of {{ filteredTrees.length }} records
+                    </span>
+                  </div>
+                  <div class="pagination-controls d-flex align-items-center gap-2">
+                    <CButton 
+                      size="sm" 
+                      variant="outline" 
+                      :disabled="currentPage === 1"
+                      @click="prevPage"
+                    >
+                      <i class="fas fa-chevron-left"></i>
+                    </CButton>
+                    
+                    <CButton 
+                      size="sm" 
+                      :key="page"
+                      :color="page === currentPage ? 'primary' : 'outline-secondary'"
+                      @click="goToPage(page)"
+                    >
+                      {{ page }}
+                    </CButton>
+                    
+                    <CButton 
+                      size="sm" 
+                      variant="outline" 
+                      :disabled="currentPage === totalPages"
+                      @click="nextPage"
+                    >
+                      <i class="fas fa-chevron-right"></i>
+                    </CButton>
+                  </div>
+                </div>
+              </div>
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
+
+       <!-- Harvest Records Table -->
+      <CRow class="mt-4">
         <CCol cols="12">
           <CCard class="shadow-sm">
             <CCardHeader class="bg-white border-bottom">
@@ -462,6 +605,7 @@ function goBack() {
               </div>
             </CCardHeader>
             <CCardBody class="p-0">
+              <!-- Search and Controls -->
               <div class="p-3 bg-light border-bottom">
                 <div class="row g-3">
                   <div class="col-md-6">
@@ -487,6 +631,7 @@ function goBack() {
                 </div>
               </div>
 
+              <!-- Harvest Table -->
               <div class="table-responsive">
                 <CTable hover class="mb-0">
                   <CTableHead class="table-light">
@@ -534,6 +679,7 @@ function goBack() {
                 </CTable>
               </div>
 
+              <!-- Pagination -->
               <div class="p-3 bg-light border-top" v-if="totalPages > 1">
                 <div class="d-flex justify-content-between align-items-center">
                   <div class="pagination-info">
@@ -577,32 +723,58 @@ function goBack() {
             </CCardBody>
           </CCard>
         </CCol>
-      </CRow> -->
+      </CRow>
     </div>
-   
   </div>
 </template>
 
 <style scoped>
-.tree-view {
+.parcel-view {
   padding: 0;
 }
 
-.stats-card {
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+.map-container {
+  height: 250px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.stats-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15) !important;
+.fullscreen-map-container {
+  height: 70vh;
+  min-height: 500px;
+  width: 100%;
 }
 
-.stat-icon {
-  width: 70px;
-  height: 70px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Leaflet custom styles */
+:deep(.leaflet-container) {
+  font-family: inherit;
+}
+
+:deep(.leaflet-popup-content-wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.2);
+}
+
+:deep(.leaflet-popup-content) {
+  margin: 10px;
+  font-size: 14px;
+}
+
+:deep(.custom-marker) {
+  background: transparent;
+  border: none;
+}
+
+/* Fix for Leaflet marker icons */
+:deep(.leaflet-default-icon-path) {
+  background-image: url('https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png');
+}
+
+.map-placeholder {
+  height: 100%;
+  min-height: 200px;
 }
 
 .timeline {
@@ -650,20 +822,6 @@ function goBack() {
   line-height: 1.2;
 }
 
-.sortable {
-  cursor: pointer;
-  user-select: none;
-  transition: background-color 0.2s;
-}
-
-.sortable:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.empty-state {
-  padding: 2rem;
-}
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .d-flex.justify-content-between.align-items-start {
@@ -673,6 +831,15 @@ function goBack() {
   
   .d-flex.gap-2 {
     flex-wrap: wrap;
+  }
+  
+  .map-container {
+    height: 200px;
+  }
+  
+  .fullscreen-map-container {
+    height: 60vh;
+    min-height: 400px;
   }
 }
 
@@ -686,11 +853,13 @@ function goBack() {
   box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1) !important;
 }
 
-.pagination-controls .btn {
-  min-width: 40px;
+/* Loading animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-.table-row:hover {
-  background-color: rgba(0, 123, 255, 0.05);
+.loading-placeholder {
+  animation: pulse 1.5s ease-in-out infinite;
 }
 </style>

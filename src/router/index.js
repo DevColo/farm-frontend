@@ -21,24 +21,10 @@ const routes = [
         component: () => import('@/views/pasture/PastureList.vue'),
       },
       {
-        path: 'pasture/cow/:pastureId',
-        name: 'Pasture Cows',
-        component: () => import('@/views/cow/PastureCow.vue'),
-      },
-      {
-        path: 'breed/cow/:breed',
-        name: 'Breed Cows',
-        component: () => import('@/views/cow/BreedCow.vue'),
-      },
-      {
-        path: 'gender/cow/:gender',
-        name: 'Gender Cows',
-        component: () => import('@/views/cow/GenderCow.vue'),
-      },
-      {
-        path: 'class/cow/:class',
-        name: 'Class Cows',
-        component: () => import('@/views/cow/ClassCow.vue'),
+        path: '/pastures/:id',
+        name: 'Pasture View',
+        component: () => import('@/views/pasture/PastureView.vue'),
+        props: true,
       },
       {
         path: 'cows',
@@ -159,6 +145,22 @@ const routes = [
         path: 'parcel-list',
         name: 'Parcel List',
         component: () => import('@/views/parcel/ParcelList.vue'),
+      },
+      {
+        path: '/parcels/:id',
+        name: 'Parcel View',
+        component: () => import('@/views/parcel/ParcelView.vue'),
+        props: true,
+      },
+      {
+        path: 'admin',
+        name: 'Adminstration',
+        component: () => import('@/views/admin/Admin.vue'),
+      },
+      {
+        path: 'targets',
+        name: 'Production Targets',
+        component: () => import('@/views/target/Target.vue'),
       },
 
       // Theme

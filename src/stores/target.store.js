@@ -3,10 +3,10 @@ import { defineStore } from 'pinia'
 import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
-export const usePastureStore = defineStore('pasture', {
+export const useTargetStore = defineStore('target', {
   state: () => ({
-    pastures: [],
-    pasture: [],
+    targets: [],
+    target: [],
   }),
   actions: {
     async createPasture(payload) {

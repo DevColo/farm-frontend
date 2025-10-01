@@ -317,6 +317,17 @@ watch([searchQuery, filterFarm], () => {
       <CSpinner color="primary" variant="grow" />
     </div>
 
+    <!-- Breadcrumb -->
+      <CBreadcrumb class="mb-4">
+        <CBreadcrumbItem>
+          <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem>
+          <router-link to="/farm-list" class="text-decoration-none">Farms</router-link>
+        </CBreadcrumbItem>
+        <CBreadcrumbItem active>Blocks</CBreadcrumbItem>
+      </CBreadcrumb>
+
     <!-- Main Content -->
     <!-- Main Table Card -->
     <CCol cols="12">
@@ -422,7 +433,7 @@ watch([searchQuery, filterFarm], () => {
                     Farm {{ getSortIcon('farm') }}
                   </CTableHeaderCell>
                   <CTableHeaderCell>Country</CTableHeaderCell>
-                  <CTableHeaderCell>Number of Trees</CTableHeaderCell>
+                  <CTableHeaderCell>Number of Parcels</CTableHeaderCell>
                   <CTableHeaderCell>Status</CTableHeaderCell>
                   <CTableHeaderCell>Created At</CTableHeaderCell>
                   <CTableHeaderCell width="120">Actions</CTableHeaderCell>
@@ -431,7 +442,7 @@ watch([searchQuery, filterFarm], () => {
               <CTableBody>
                 <CTableRow v-for="block in paginatedBlocks" :key="block.id" class="table-row">
                   <CTableDataCell>
-                    <router-link :to="`/blocks/${block.id}`" class="text-decoration-none cow-link">
+                    <router-link :to="`/blocks/${block.id}`" class="text-decoration-none">
                       {{ block.name }}
                     </router-link>
                   </CTableDataCell>
@@ -445,7 +456,7 @@ watch([searchQuery, filterFarm], () => {
                     {{ block.country ?? '' }}
                   </CTableDataCell>
                   <CTableDataCell>
-                    {{ block.trees_count ?? '' }}
+                    {{ block.parcels_count ?? '' }}
                   </CTableDataCell>
                   <CTableDataCell>
                     <CBadge 
@@ -689,16 +700,6 @@ watch([searchQuery, filterFarm], () => {
 
 .table-row:hover {
   background-color: rgba(0, 123, 255, 0.05);
-}
-
-.cow-link {
-  font-weight: 500;
-  color: #0d6efd;
-}
-
-.cow-link:hover {
-  color: #0b5ed7;
-  text-decoration: underline !important;
 }
 
 .empty-state {
