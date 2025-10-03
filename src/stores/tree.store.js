@@ -53,7 +53,7 @@ export const useTreeStore = defineStore('tree', {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.delete(`/api/trees/${id}`, {
+        await axios.get(`/api/delete-tree/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

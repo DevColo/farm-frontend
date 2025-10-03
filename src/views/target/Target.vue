@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useTargetStore } from '@/stores/target.store'
+import { useCountryStore } from '@/stores/country.store'
+import { useFarmStore } from '@/stores/farm.store'
 import {
   CRow,
   CCol,
@@ -36,20 +38,28 @@ import {
 } from '@coreui/vue'
 import { cilPencil, cilTrash, cilPlus, cilSearch, cilFilter, cilChart, cilCloudDownload } from '@coreui/icons'
 import Swal from 'sweetalert2'
+import Multiselect from 'vue-multiselect'
+import 'vue-multiselect/dist/vue-multiselect.css'
 
 const targetStore = useTargetStore()
+const countryStore = useCountryStore()
+const farmStore = useFarmStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
 const loading = ref(false)
 const showFilters = ref(false)
+const countries = ref([])
+const farms = ref([])
 
 const currentTarget = ref({
   id: null,
   production_type: '',
-  annual_quantity: '',
+  quantity: '',
   fruit_type: '',
+  farm_id: '',
+  country_id: '',
   year: new Date().getFullYear(),
 })
 
@@ -87,10 +97,36 @@ onMounted(async () => {
   loading.value = true
   try {
     await targetStore.fetchTargets()
+    await countryStore.fetchCountries()
+    await farmStore.fetchFarms()
   } finally {
     loading.value = false
   }
 })
+
+// Watch the store in case countries are updated dynamically later
+watch(
+  () => countryStore.countries,
+  (newCountries) => {
+    countries.value = newCountries.map(c => ({
+      value: c.id,
+      label: c.country,
+    }))
+  },
+  { deep: true }
+)
+
+// Watch the store in case farm are updated dynamically later
+watch(
+  () => farmStore.farms,
+  (newFarms) => {
+    farms.value = newFarms.map(c => ({
+      value: c.id,
+      label: `${c.name} (${c.farm_code})`,
+    }))
+  },
+  { deep: true }
+)
 
 // Enhanced filtering and sorting
 const filteredTargets = computed(() => {
@@ -98,7 +134,7 @@ const filteredTargets = computed(() => {
   let filtered = (targetStore.targets || []).filter((target) => {
     const matchesQuery =
       !q ||
-      [target.production_type, target.fruit_type, String(target.annual_quantity), String(target.year)].some((f) =>
+      [target.production_type, target.fruit_type, String(target.quantity), String(target.year)].some((f) =>
         f?.toLowerCase().includes(q),
       )
     const matchesProduction = !productionFilter.value || target.production_type === productionFilter.value
@@ -110,7 +146,7 @@ const filteredTargets = computed(() => {
     let aValue = a[sortField.value]
     let bValue = b[sortField.value]
     
-    if (sortField.value === 'annual_quantity' || sortField.value === 'year') {
+    if (sortField.value === 'quantity' || sortField.value === 'year') {
       aValue = Number(aValue) || 0
       bValue = Number(bValue) || 0
     } else {
@@ -179,8 +215,10 @@ function openCreate() {
   currentTarget.value = {
     id: null,
     production_type: '',
-    annual_quantity: '',
+    quantity: '',
     fruit_type: '',
+    farm_id: '',
+    country_id: '',
     year: new Date().getFullYear(),
   }
   showModal.value = true
@@ -190,6 +228,18 @@ function openEdit(target) {
   isEditing.value = true
   validated.value = false
   currentTarget.value = { ...target }
+
+  // Find matching country object from options
+  const countryObj = countries.value.find(c => 
+    c.value == target.country_id
+  )
+  currentTarget.value.country_id = countryObj || null
+
+  // Find matching farm object from options
+  const farmObj = farms.value.find(c => 
+    c.value == target.farm_id
+  )
+  currentTarget.value.farm_id = farmObj || null
   showModal.value = true
 }
 
@@ -227,7 +277,7 @@ async function handleSubmit(e) {
   if (e) e.preventDefault()
 
   // Manual validation
-  if (!currentTarget.value.production_type || !currentTarget.value.annual_quantity || !currentTarget.value.year) {
+  if (!currentTarget.value.production_type || !currentTarget.value.quantity || !currentTarget.value.year) {
     validated.value = true
     return
   }
@@ -242,9 +292,11 @@ async function handleSubmit(e) {
   try {
     const payload = {
       production_type: currentTarget.value.production_type,
-      annual_quantity: currentTarget.value.annual_quantity,
-      fruit_type: currentTarget.value.production_type === 'fruit' ? currentTarget.value.fruit_type : null,
+      quantity: currentTarget.value.quantity,
+      fruit_type: currentTarget.value.production_type === 'fruit' ? currentTarget.value.fruit_type : '',
       year: currentTarget.value.year,
+      country_id: currentTarget.value.country_id.value ?? '',
+      farm_id: currentTarget.value.farm_id.value ?? '',
     }
     
     if (isEditing.value) {
@@ -403,8 +455,8 @@ const exportPDF = () => {
                   <CTableHeaderCell class="sortable" @click="sortBy('fruit_type')">
                     Fruit Type {{ getSortIcon('fruit_type') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('annual_quantity')">
-                    Annual Target {{ getSortIcon('annual_quantity') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('quantity')">
+                    Annual Target {{ getSortIcon('quantity') }}
                   </CTableHeaderCell>
                   <CTableHeaderCell width="120">Actions</CTableHeaderCell>
                 </CTableRow>
@@ -432,7 +484,7 @@ const exportPDF = () => {
                     <span v-else class="text-muted">N/A</span>
                   </CTableDataCell>
                   <CTableDataCell>
-                    <strong>{{ formatQuantity(target.annual_quantity, target.production_type) }}</strong>
+                    <strong>{{ formatQuantity(target.quantity, target.production_type) }}</strong>
                   </CTableDataCell>
                   <CTableDataCell>
                     <div class="d-flex gap-1">
@@ -517,7 +569,6 @@ const exportPDF = () => {
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
     <CModalHeader class="border-bottom">
       <CModalTitle>
-        <CIcon :icon="cilChart" class="me-2" />
         {{ isEditing ? 'Edit Production Target' : 'Add New Production Target' }}
       </CModalTitle>
     </CModalHeader>
@@ -576,17 +627,63 @@ const exportPDF = () => {
               <option value="mango">Mango</option>
               <option value="avocado">Avocado</option>
             </CFormSelect>
-            <CFormFeedback invalid>Fruit type is required when production is Fruit.</CFormFeedback>
+            <CFormFeedback invalid>Fruit type is required.</CFormFeedback>
+          </CCol>
+
+          <CCol md="6" v-if="currentTarget.production_type === 'fruit'">
+            <CFormLabel for="country" class="fw-semibold">
+              Farm <span style="color: red;">*</span>
+            </CFormLabel>
+            <Multiselect
+              v-model="currentTarget.farm_id"
+              :required="currentTarget.production_type === 'fruit'"
+              placeholder="Select Farm"
+              track-by="value"
+              label="label"
+              :options="farms"
+              :show-no-results="false"
+              :close-on-select="true"
+              :clear-on-select="false"
+              :preserve-search="true"
+              :preselect-first="false"
+            />
+            <div v-if="validated && !currentTarget.farm_id" class="invalid-feedback d-block">
+              Farm is required.
+            </div>
+            <CFormFeedback invalid>Farm is required.</CFormFeedback>
+          </CCol>
+
+          <CCol md="12" v-if="currentTarget.production_type === 'milk'">
+            <CFormLabel for="country" class="fw-semibold">
+              Country <span style="color: red;">*</span>
+            </CFormLabel>
+            <Multiselect
+              v-model="currentTarget.country_id"
+              :required="currentTarget.production_type === 'milk'"
+              placeholder="Select Country"
+              track-by="value"
+              label="label"
+              :options="countries"
+              :show-no-results="false"
+              :close-on-select="true"
+              :clear-on-select="false"
+              :preserve-search="true"
+              :preselect-first="false"
+            />
+            <div v-if="validated && !currentTarget.country_id" class="invalid-feedback d-block">
+              Country is required.
+            </div>
+            <CFormFeedback invalid>Country is required.</CFormFeedback>
           </CCol>
 
           <CCol :md="currentTarget.production_type === 'fruit' ? 6 : 12">
-            <CFormLabel for="annual_quantity" class="fw-semibold">
+            <CFormLabel for="quantity" class="fw-semibold">
               Annual Quantity <span style="color: red;">*</span>
               <small class="text-muted">({{ currentTarget.production_type === 'milk' ? 'Liters' : 'Kg' }})</small>
             </CFormLabel>
             <CFormInput 
-              id="annual_quantity" 
-              v-model="currentTarget.annual_quantity" 
+              id="quantity" 
+              v-model="currentTarget.quantity" 
               type="number"
               required 
               placeholder="Enter annual quantity"
@@ -609,7 +706,6 @@ const exportPDF = () => {
         :disabled="loading"
       >
         <CSpinner v-if="loading" size="sm" class="me-2" />
-        <CIcon v-else :icon="isEditing ? cilPencil : cilPlus" class="me-2" />
         {{ isEditing ? 'Update Target' : 'Create Target' }}
       </CButton>
     </CModalFooter>

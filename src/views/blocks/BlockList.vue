@@ -509,49 +509,39 @@ watch([searchQuery, filterFarm], () => {
           </div>
 
           <!-- Enhanced Pagination -->
-          <div class="pagination-section p-3 bg-light border-top">
-            <div class="d-flex justify-content-between align-items-center">
-              <div class="pagination-info">
-                <span class="text-muted small">
-                  Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
-                  {{ Math.min(currentPage * itemsPerPage, filteredBlocks.length) }} 
-                  of {{ filteredBlocks.length }} entries
-                  <span v-if="filteredBlocks.length !== blockStore.blocks.length">
-                    (filtered from {{ blockStore.blocks.length }} total)
+            <div class="pagination-section p-3 bg-light border-top">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="pagination-info">
+                  <span class="text-muted small">
+                    Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
+                    {{ Math.min(currentPage * itemsPerPage, filteredBlocks.length) }} 
+                    of {{ filteredBlocks.length }} entries
+                    <span v-if="filteredBlocks.length !== blockStore.blocks.length">
+                      (filtered from {{ blockStore.blocks.length }} total)
+                    </span>
                   </span>
-                </span>
-              </div>
-              <div class="pagination-controls d-flex align-items-center gap-2" v-if="totalPages > 1">
-                <CButton 
-                  size="sm" 
-                  variant="outline" 
-                  :disabled="currentPage === 1"
-                  @click="prevPage"
-                >
-                  <i class="fas fa-chevron-left"></i>
-                </CButton>
-                
-                <CButton 
-                  size="sm" 
-                  v-for="page in Math.min(totalPages)" 
-                  :key="page"
-                  :color="page === currentPage ? 'primary' : 'outline-secondary'"
-                  @click="goToPage(page)"
-                >
-                  {{ page }}
-                </CButton>
-                
-                <CButton 
-                  size="sm" 
-                  variant="outline" 
-                  :disabled="currentPage === totalPages"
-                  @click="nextPage"
-                >
-                  <i class="fas fa-chevron-right"></i>
-                </CButton>
+                </div>
+                <div class="pagination-controls d-flex align-items-center gap-2" v-if="totalPages > 1">
+                  <CButton 
+                    size="sm" 
+                    variant="outline" 
+                    :disabled="currentPage === 1"
+                    @click="prevPage"
+                  >
+                    Previous
+                  </CButton>
+
+                  <CButton 
+                    size="sm" 
+                    variant="outline" 
+                    :disabled="currentPage === totalPages"
+                    @click="nextPage"
+                  >
+                    Next
+                  </CButton>
+                </div>
               </div>
             </div>
-          </div>
         </CCardBody>
       </CCard>
     </CCol>
