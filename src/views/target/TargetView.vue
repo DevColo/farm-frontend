@@ -1,279 +1,262 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useTargetStore } from '@/stores/target.store'
+import { useHarvestStore } from '@/stores/harvest.store'
 import {
   CRow,
   CCol,
   CCard,
   CCardHeader,
   CCardBody,
-  CTable,
-  CTableHead,
-  CTableRow,
-  CTableHeaderCell,
-  CTableBody,
-  CTableDataCell,
-  CButton,
-  CModal,
-  CModalHeader,
-  CModalTitle,
-  CModalBody,
-  CModalFooter,
-  CForm,
-  CFormLabel,
-  CFormInput,
-  CFormFeedback,
-  CInputGroup,
-  CFormSelect,
-  CSpinner,
-  CDropdown,
-  CDropdownToggle,
-  CDropdownMenu,
-  CDropdownItem,
+  CProgress,
+  CProgressBar,
   CBreadcrumb,
   CBreadcrumbItem,
+  CSpinner,
   CBadge,
+  CFormSelect,
 } from '@coreui/vue'
-import { cilPencil, cilTrash, cilPlus, cilSearch, cilFilter, cilChart, cilCloudDownload } from '@coreui/icons'
-import Swal from 'sweetalert2'
+import { Bar, Doughnut, Line } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js'
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend
+)
 
 const targetStore = useTargetStore()
+const harvestStore = useHarvestStore()
 
-const showModal = ref(false)
-const isEditing = ref(false)
-const validated = ref(false)
 const loading = ref(false)
-const showFilters = ref(false)
+const selectedYear = ref(new Date().getFullYear())
+const selectedProductionType = ref('all')
 
-const currentTarget = ref({
-  id: null,
-  production_type: '',
-  annual_quantity: '',
-  fruit_type: '',
-  year: new Date().getFullYear(),
-})
-
-// search & pagination
-const searchQuery = ref('')
-const itemsPerPage = ref(10)
-const currentPage = ref(1)
-const productionFilter = ref('')
-const sortField = ref('year')
-const sortOrder = ref('desc')
-
-// Production types
-const productionTypes = ref([
-  { value: 'milk', label: 'Milk' },
-  { value: 'fruit', label: 'Fruit' },
-])
-
-// Fruit types
-const fruitTypes = ref([
-  { value: 'orange', label: 'Orange' },
-  { value: 'lemon', label: 'Lemon' },
-  { value: 'mango', label: 'Mango' },
-  { value: 'avocado', label: 'Avocado' },
-])
-
-// Watch production type to clear fruit type if not fruit
-watch(() => currentTarget.value.production_type, (newVal) => {
-  if (newVal !== 'fruit') {
-    currentTarget.value.fruit_type = ''
-  }
-})
-
-// Fetch data on mount
+// Fetch data
 onMounted(async () => {
   loading.value = true
   try {
-    await targetStore.fetchTargets()
+    await Promise.all([
+      targetStore.fetchTargetsResult(),
+      harvestStore.fetchHarvests()
+    ])
   } finally {
     loading.value = false
   }
+  console.log('Targets:', targetStore.targetsResult)
 })
 
-// Enhanced filtering and sorting
+// Get available years from targets
+const availableYears = computed(() => {
+  const years = targetStore.targetsResult.map(t => t.year)
+  return Array.from(new Set(years)).sort((a, b) => b - a)
+})
+
+// Filter targets by selected year and production type
 const filteredTargets = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  let filtered = (targetStore.targets || []).filter((target) => {
-    const matchesQuery =
-      !q ||
-      [target.production_type, target.fruit_type, String(target.annual_quantity), String(target.year)].some((f) =>
-        f?.toLowerCase().includes(q),
-      )
-    const matchesProduction = !productionFilter.value || target.production_type === productionFilter.value
-    return matchesQuery && matchesProduction
+  return targetStore.targetsResult.filter(target => {
+    const matchesYear = parseInt(target.year) === selectedYear.value
+    const matchesType = selectedProductionType.value === 'all' || target.production_type === selectedProductionType.value
+    return matchesYear && matchesType
   })
-
-  // Apply sorting
-  filtered.sort((a, b) => {
-    let aValue = a[sortField.value]
-    let bValue = b[sortField.value]
-    
-    if (sortField.value === 'annual_quantity' || sortField.value === 'year') {
-      aValue = Number(aValue) || 0
-      bValue = Number(bValue) || 0
-    } else {
-      aValue = String(aValue || '').toLowerCase()
-      bValue = String(bValue || '').toLowerCase()
-    }
-    
-    if (sortOrder.value === 'asc') {
-      return aValue > bValue ? 1 : -1
-    } else {
-      return aValue < bValue ? 1 : -1
-    }
-  })
-
-  return filtered
 })
 
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredTargets.value.length / itemsPerPage.value)),
-)
+// Calculate actual production from harvests
+const calculateActualProduction = (target) => {
+  const harvests = harvestStore.harvests.filter(h => {
+    const harvestYear = new Date(h.harvest_date).getFullYear()
+    const harvestMatch = harvestYear === selectedYear.value
+    
+    if (target.production_type === 'fruit' && target.fruit_type) {
+      // Match by fruit field with target's fruit_type
+      return harvestMatch && h.fruit?.toLowerCase() === target.fruit_type.toLowerCase()
+    }
+    
+    // For milk production, you'd need to add milk harvest records
+    // or filter differently based on your data structure
+    return harvestMatch && target.production_type === 'milk'
+  })
+  
+  return harvests.reduce((sum, h) => sum + (Number(h.quantity) || 0), 0)
+}
 
-const paginatedTargets = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredTargets.value.slice(start, start + itemsPerPage.value)
+// Production progress data
+const productionProgress = computed(() => {
+  return filteredTargets.value.map(target => {
+    // Use actual_quantity from API if available, otherwise calculate from harvests
+    const actual = Number(target.actual_quantity) || 0
+    const targetQty = Number(target.target_quantity) || 0
+    const remaining = Math.max(0, targetQty - actual)
+    const percentage = targetQty > 0 ? Math.min((actual / targetQty) * 100, 100) : 0
+    
+    return {
+      id: target.id,
+      type: target.production_type,
+      fruitType: target.fruit_type,
+      target: targetQty,
+      actual: actual,
+      remaining: remaining,
+      percentage: percentage,
+      status: percentage >= 100 ? 'completed' : percentage >= 75 ? 'on-track' : percentage >= 50 ? 'warning' : 'critical',
+      farm: target.farm_id,
+      country: target.country_id
+    }
+  })
 })
 
-// Sorting
-function sortBy(field) {
-  if (sortField.value === field) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    sortField.value = field
-    sortOrder.value = 'asc'
+// Overall statistics
+const overallStats = computed(() => {
+  const milkTargets = productionProgress.value.filter(p => p.type == 'milk')
+  const fruitTargets = productionProgress.value.filter(p => p.type == 'fruit')
+  
+  const totalMilkTarget = milkTargets.reduce((sum, p) => sum + p.target, 0)
+  const totalMilkActual = milkTargets.reduce((sum, p) => sum + p.actual, 0)
+  const milkPercentage = totalMilkTarget > 0 ? (totalMilkActual / totalMilkTarget) * 100 : 0
+
+  const totalFruitTarget = fruitTargets.reduce((sum, p) => sum + p.target, 0)
+  const totalFruitActual = fruitTargets.reduce((sum, p) => sum + p.actual, 0)
+  const fruitPercentage = totalFruitTarget > 0 ? (totalFruitActual / totalFruitTarget) * 100 : 0
+
+  return {
+    milk: { target: totalMilkTarget, actual: totalMilkActual, percentage: milkPercentage },
+    fruit: { target: totalFruitTarget, actual: totalFruitActual, percentage: fruitPercentage },
+    total: {
+      targets: filteredTargets.value.length,
+      completed: productionProgress.value.filter(p => p.status === 'completed').length,
+      onTrack: productionProgress.value.filter(p => p.status === 'on-track').length,
+      warning: productionProgress.value.filter(p => p.status === 'warning').length,
+      critical: productionProgress.value.filter(p => p.status === 'critical').length,
+    }
   }
-}
+})
 
-function getSortIcon(field) {
-  if (sortField.value !== field) return '↕️'
-  return sortOrder.value === 'asc' ? '↑' : '↓'
-}
-
-// Filter management
-function clearAllFilters() {
-  searchQuery.value = ''
-  productionFilter.value = ''
-  resetPage()
-}
-
-function resetPage() {
-  currentPage.value = 1
-}
-
-// Pagination
-function nextPage() {
-  if (currentPage.value < totalPages.value) currentPage.value++
-}
-
-function prevPage() {
-  if (currentPage.value > 1) currentPage.value--
-}
-
-// modal handlers
-function openCreate() {
-  isEditing.value = false
-  validated.value = false
-  currentTarget.value = {
-    id: null,
-    production_type: '',
-    annual_quantity: '',
-    fruit_type: '',
-    year: new Date().getFullYear(),
+// Chart data - Production comparison
+const productionComparisonChart = computed(() => {
+  const labels = productionProgress.value.map(p => {
+    let label = p.type.charAt(0).toUpperCase() + p.type.slice(1)
+    if (p.fruitType) {
+      label += ` (${p.fruitType.charAt(0).toUpperCase() + p.fruitType.slice(1)})`
+    }
+    if (p.farm) {
+      label += ` - ${p.farm}`
+    }
+    return label
+  })
+  
+  return {
+    labels: labels,
+    datasets: [
+      {
+        label: 'Target',
+        backgroundColor: '#4f5d73',
+        data: productionProgress.value.map(p => p.target)
+      },
+      {
+        label: 'Actual',
+        backgroundColor: '#2eb85c',
+        data: productionProgress.value.map(p => p.actual)
+      }
+    ]
   }
-  showModal.value = true
-}
+})
 
-function openEdit(target) {
-  isEditing.value = true
-  validated.value = false
-  currentTarget.value = { ...target }
-  showModal.value = true
-}
-
-const confirmDelete = async (id, type) => {
-  Swal.fire({
-    html: `
-      <div class="custom-modal-header d-flex align-items-center justify-content-center flex-column">
-        <h3 class="custom-modal-title d-flex align-items-center justify-content-center flex-row font-inter fw-semibold text-grey-v13 py-3">
-          <i class="material-symbols-rounded text-red rounded-circle position-relative d-flex align-items-center justify-content-center me-3">delete</i>
-          <span></span>
-        </h3>
-        <p class="custom-modal-description font-inter fw-normal text-grey-v6">
-          Are you sure to delete this ${type} target?
-        </p>
-      </div>
-    `,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#3085d6',
-    cancelButtonColor: '#d33',
-    confirmButtonText: 'Yes, delete it!',
-  }).then(async (result) => {
-    if (result.isConfirmed) {
-      loading.value = true
-      try {
-        await targetStore.deleteTarget(id)
-      } finally {
-        loading.value = false
+// Chart options
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'top',
+    },
+    tooltip: {
+      callbacks: {
+        label: function(context) {
+          return `${context.dataset.label}: ${context.parsed.y.toLocaleString()}`
+        }
       }
     }
-  })
-}
-
-async function handleSubmit(e) {
-  if (e) e.preventDefault()
-
-  // Manual validation
-  if (!currentTarget.value.production_type || !currentTarget.value.annual_quantity || !currentTarget.value.year) {
-    validated.value = true
-    return
-  }
-
-  // Validate fruit type if production is fruit
-  if (currentTarget.value.production_type === 'fruit' && !currentTarget.value.fruit_type) {
-    validated.value = true
-    return
-  }
-
-  loading.value = true
-  try {
-    const payload = {
-      production_type: currentTarget.value.production_type,
-      annual_quantity: currentTarget.value.annual_quantity,
-      fruit_type: currentTarget.value.production_type === 'fruit' ? currentTarget.value.fruit_type : null,
-      year: currentTarget.value.year,
+  },
+  scales: {
+    y: {
+      beginAtZero: true
     }
-    
-    if (isEditing.value) {
-      await targetStore.updateTarget(currentTarget.value.id, payload)
-    } else {
-      await targetStore.createTarget(payload)
-    }
-    
-    showModal.value = false
-    await targetStore.fetchTargets()
-  } finally {
-    loading.value = false
   }
 }
 
-// Get production badge color
-function getProductionColor(type) {
-  return type === 'milk' ? 'primary' : 'success'
+// Overall completion doughnut chart
+const completionDoughnutChart = computed(() => {
+  return {
+    labels: ['Completed', 'On Track', 'Warning', 'Critical'],
+    datasets: [{
+      data: [
+        overallStats.value.total.completed,
+        overallStats.value.total.onTrack,
+        overallStats.value.total.warning,
+        overallStats.value.total.critical
+      ],
+      backgroundColor: [
+        '#2eb85c',
+        '#39f',
+        '#f9b115',
+        '#e55353'
+      ]
+    }]
+  }
+})
+
+const doughnutOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'bottom',
+    }
+  }
 }
 
-// Format quantity
-function formatQuantity(quantity, type) {
-  const unit = type === 'milk' ? 'Liters' : 'Kg'
-  return `${Number(quantity).toLocaleString()} ${unit}`
+// Get progress color
+function getProgressColor(status) {
+  const colors = {
+    completed: 'success',
+    'on-track': 'info',
+    warning: 'warning',
+    critical: 'danger'
+  }
+  return colors[status] || 'secondary'
 }
 
-// Export functions (placeholder)
-const exportPDF = () => {
-  console.log('Export PDF functionality to be implemented')
+// Format number
+function formatNumber(num) {
+  return Number(num).toLocaleString()
+}
+
+// Get status badge
+function getStatusBadge(status) {
+  const badges = {
+    completed: { color: 'success', text: 'Completed', icon: '✓' },
+    'on-track': { color: 'info', text: 'On Track', icon: '↗' },
+    warning: { color: 'warning', text: 'Needs Attention', icon: '⚠' },
+    critical: { color: 'danger', text: 'Critical', icon: '!' }
+  }
+  return badges[status] || { color: 'secondary', text: 'Unknown', icon: '?' }
 }
 </script>
 
@@ -284,340 +267,238 @@ const exportPDF = () => {
       <CSpinner color="primary" variant="grow" />
     </div>
 
-    <!-- Main Content -->
-    <CCol cols="12">
-      <!-- Breadcrumb -->
-      <CBreadcrumb class="mb-4">
-        <CBreadcrumbItem>
-          <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
-        </CBreadcrumbItem>
-        <CBreadcrumbItem active>Production Targets</CBreadcrumbItem>
-      </CBreadcrumb>
+    <!-- Breadcrumb -->
+    <CBreadcrumb class="mb-4">
+      <CBreadcrumbItem>
+        <router-link to="/dashboard" class="text-decoration-none">Dashboard</router-link>
+      </CBreadcrumbItem>
+      <CBreadcrumbItem>
+        <router-link to="/targets" class="text-decoration-none">Production Targets</router-link>
+      </CBreadcrumbItem>
+      <CBreadcrumbItem active>Progress View</CBreadcrumbItem>
+    </CBreadcrumb>
 
-      <CCard class="shadow-sm border-0">
-        <!-- Enhanced Header -->
-        <CCardHeader class="bg-white border-bottom">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="mb-1">Production Targets</h5>
-            </div>
-            <div class="d-flex gap-2">
-              <CButton color="info" variant="outline" size="sm" @click="$router.push('/targets/view')">
-                <CIcon :icon="cilChart" class="me-1" />
-                View Progress
-              </CButton>
-              <CDropdown>
-                <CDropdownToggle color="secondary" size="sm">
-                  <CIcon :icon="cilCloudDownload" class="me-1" />
-                  Export
-                </CDropdownToggle>
-                <CDropdownMenu>
-                  <CDropdownItem @click="exportPDF">
-                    <i class="fas fa-file-pdf me-2 text-danger"></i>Export PDF
-                  </CDropdownItem>
-                </CDropdownMenu>
-              </CDropdown>
-              <CButton color="dark" @click="openCreate">
-                <CIcon :icon="cilPlus" class="me-1" />
-                Add Target
-              </CButton>
-            </div>
-          </div>
-        </CCardHeader>
-
-        <CCardBody class="p-0">
-          <!-- Enhanced Search and Filter Controls -->
-          <div class="search-filter-section p-4 bg-light border-bottom">
-            <!-- Main Search -->
-            <div class="row g-3 mb-3">
-              <div class="col-md-11" style="display: flex; gap: 10px;">
-                <div class="col-md-3">
-                  <CInputGroup>
-                    <span class="input-group-text">
-                      <CIcon :icon="cilSearch" />
-                    </span>
-                    <CFormInput
-                      v-model="searchQuery"
-                      placeholder="Search targets..."
-                      @input="resetPage"
-                    />
-                  </CInputGroup>
-                </div>
-                <div class="col-md-2">
-                  <CFormSelect
-                    v-model="productionFilter"
-                    @change="resetPage"
-                  >
-                    <option value="">All Productions</option>
-                    <option value="milk">Milk</option>
-                    <option value="fruit">Fruit</option>
-                  </CFormSelect>
-                </div>
-                <div>
-                  <CButton 
-                    :color="showFilters ? 'primary' : 'outline-primary'" 
-                    @click="showFilters = !showFilters"
-                    class="w-100"
-                  >
-                    <CIcon :icon="cilFilter" />
-                  </CButton>
-                </div>
-              </div>
-
-              <div class="col-md-1">
-                <CFormSelect v-model="itemsPerPage" @change="resetPage">
-                  <option value="5">5</option>
-                  <option value="10">10</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                </CFormSelect>
-              </div>
-            </div>
-
-            <!-- Advanced Filters -->
-            <div v-if="showFilters" class="advanced-filters">
-              <div class="row g-3">
-                <div class="col-md-2">
-                  <CButton color="outline-secondary" @click="clearAllFilters" class="w-100">
-                    Clear All
-                  </CButton>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Enhanced Table -->
-          <div class="table-responsive">
-            <CTable hover class="mb-0 modern-table">
-              <CTableHead class="table-light">
-                <CTableRow>
-                  <CTableHeaderCell class="sortable" @click="sortBy('id')">
-                    ID {{ getSortIcon('id') }}
-                  </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('year')">
-                    Year {{ getSortIcon('year') }}
-                  </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('production_type')">
-                    Production Type {{ getSortIcon('production_type') }}
-                  </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('fruit_type')">
-                    Fruit Type {{ getSortIcon('fruit_type') }}
-                  </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('annual_quantity')">
-                    Annual Target {{ getSortIcon('annual_quantity') }}
-                  </CTableHeaderCell>
-                  <CTableHeaderCell width="120">Actions</CTableHeaderCell>
-                </CTableRow>
-              </CTableHead>
-              <CTableBody>
-                <CTableRow v-for="target in paginatedTargets" :key="target.id" class="table-row">
-                  <CTableDataCell>
-                    {{ target.id }}
-                  </CTableDataCell>
-                  <CTableDataCell>
-                    <strong>{{ target.year }}</strong>
-                  </CTableDataCell>
-                  <CTableDataCell>
-                    <CBadge 
-                      :color="getProductionColor(target.production_type)" 
-                      class="production-badge"
-                    >
-                      {{ target.production_type.toUpperCase() }}
-                    </CBadge>
-                  </CTableDataCell>
-                  <CTableDataCell>
-                    <span v-if="target.fruit_type" class="text-capitalize">
-                      {{ target.fruit_type }}
-                    </span>
-                    <span v-else class="text-muted">N/A</span>
-                  </CTableDataCell>
-                  <CTableDataCell>
-                    <strong>{{ formatQuantity(target.annual_quantity, target.production_type) }}</strong>
-                  </CTableDataCell>
-                  <CTableDataCell>
-                    <div class="d-flex gap-1">
-                      <CButton
-                        size="sm"
-                        color="info"
-                        variant="outline"
-                        title="Edit Target"
-                        @click="openEdit(target)"
-                      >
-                        <CIcon :icon="cilPencil" />
-                      </CButton>
-                      <CButton
-                        size="sm"
-                        color="danger"
-                        variant="outline"
-                        title="Delete Target"
-                        @click="confirmDelete(target.id, target.production_type)"
-                      >
-                        <CIcon :icon="cilTrash" />
-                      </CButton>
-                    </div>
-                  </CTableDataCell>
-                </CTableRow>
-                <CTableRow v-if="paginatedTargets.length === 0">
-                  <CTableDataCell colspan="6" class="text-center py-5">
-                    <div class="empty-state">
-                      <CIcon :icon="cilChart" style="font-size: 3rem;" class="text-muted mb-3" />
-                      <h5 class="text-muted">No targets found</h5>
-                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new target</p>
-                      <CButton color="primary" @click="openCreate">
-                        <CIcon :icon="cilPlus" class="me-1" />
-                        Add Your First Target
-                      </CButton>
-                    </div>
-                  </CTableDataCell>
-                </CTableRow>
-              </CTableBody>
-            </CTable>
-          </div>
-
-          <!-- Enhanced Pagination -->
-          <div class="pagination-section p-3 bg-light border-top">
-            <div class="d-flex justify-content-between align-items-center">
-              <div class="pagination-info">
-                <span class="text-muted small">
-                  Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
-                  {{ Math.min(currentPage * itemsPerPage, filteredTargets.length) }} 
-                  of {{ filteredTargets.length }} entries
-                  <span v-if="filteredTargets.length !== targetStore.targets.length">
-                    (filtered from {{ targetStore.targets.length }} total)
-                  </span>
-                </span>
-              </div>
-              <div class="pagination-controls d-flex align-items-center gap-2" v-if="totalPages > 1">
-                <CButton 
-                  size="sm" 
-                  variant="outline" 
-                  :disabled="currentPage === 1"
-                  @click="prevPage"
-                >
-                  Previous
-                </CButton>
-
-                <CButton 
-                  size="sm" 
-                  variant="outline" 
-                  :disabled="currentPage === totalPages"
-                  @click="nextPage"
-                >
-                  Next
-                </CButton>
-              </div>
-            </div>
-          </div>
-        </CCardBody>
-      </CCard>
-    </CCol>
-  </div>
-
-  <!-- Enhanced Create/Edit Modal -->
-  <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
-    <CModalHeader class="border-bottom">
-      <CModalTitle>
-        <CIcon :icon="cilChart" class="me-2" />
-        {{ isEditing ? 'Edit Production Target' : 'Add New Production Target' }}
-      </CModalTitle>
-    </CModalHeader>
-    <CModalBody class="p-0">
-      <CForm
-        class="p-4"
-        novalidate
-        :validated="validated"
-        @submit="handleSubmit"
-      >
-        <CRow class="g-3">
-          <CCol md="6">
-            <CFormLabel for="year" class="fw-semibold">
-              Year <span style="color: red;">*</span>
-            </CFormLabel>
-            <CFormInput 
-              id="year" 
-              v-model="currentTarget.year" 
-              type="number"
-              required 
-              placeholder="Enter year"
-              min="2000"
-              :max="new Date().getFullYear() + 10"
-            />
-            <CFormFeedback invalid>Year is required.</CFormFeedback>
+    <!-- Filters -->
+    <CCard class="mb-4 shadow-sm border-0">
+      <CCardBody>
+        <CRow class="align-items-center">
+          <CCol md="3">
+            <label class="form-label fw-semibold mb-2">Select Year</label>
+            <CFormSelect v-model="selectedYear">
+              <option v-for="year in availableYears" :key="year" :value="year">
+                {{ year }}
+              </option>
+            </CFormSelect>
           </CCol>
-
-          <CCol md="6">
-            <CFormLabel for="production_type" class="fw-semibold">
-              Production Type <span style="color: red;">*</span>
-            </CFormLabel>
-            <CFormSelect
-              id="production_type"
-              v-model="currentTarget.production_type"
-              required
-            >
-              <option value="">Select Production Type</option>
+          <CCol md="3">
+            <label class="form-label fw-semibold mb-2">Production Type</label>
+            <CFormSelect v-model="selectedProductionType">
+              <option value="all">All Types</option>
               <option value="milk">Milk</option>
               <option value="fruit">Fruit</option>
             </CFormSelect>
-            <CFormFeedback invalid>Production type is required.</CFormFeedback>
-          </CCol>
-
-          <CCol md="6" v-if="currentTarget.production_type === 'fruit'">
-            <CFormLabel for="fruit_type" class="fw-semibold">
-              Type of Fruit <span style="color: red;">*</span>
-            </CFormLabel>
-            <CFormSelect
-              id="fruit_type"
-              v-model="currentTarget.fruit_type"
-              :required="currentTarget.production_type === 'fruit'"
-            >
-              <option value="">Select Fruit Type</option>
-              <option value="orange">Orange</option>
-              <option value="lemon">Lemon</option>
-              <option value="mango">Mango</option>
-              <option value="avocado">Avocado</option>
-            </CFormSelect>
-            <CFormFeedback invalid>Fruit type is required when production is Fruit.</CFormFeedback>
-          </CCol>
-
-          <CCol :md="currentTarget.production_type === 'fruit' ? 6 : 12">
-            <CFormLabel for="annual_quantity" class="fw-semibold">
-              Annual Quantity <span style="color: red;">*</span>
-              <small class="text-muted">({{ currentTarget.production_type === 'milk' ? 'Liters' : 'Kg' }})</small>
-            </CFormLabel>
-            <CFormInput 
-              id="annual_quantity" 
-              v-model="currentTarget.annual_quantity" 
-              type="number"
-              required 
-              placeholder="Enter annual quantity"
-              min="0"
-              step="0.01"
-            />
-            <CFormFeedback invalid>Annual quantity is required.</CFormFeedback>
           </CCol>
         </CRow>
-      </CForm>
-    </CModalBody>
-    <CModalFooter class="border-top">
-      <CButton color="secondary" @click="showModal = false">
-        Cancel
-      </CButton>
-      <CButton 
-        type="submit"
-        color="dark" 
-        @click="handleSubmit"
-        :disabled="loading"
-      >
-        <CSpinner v-if="loading" size="sm" class="me-2" />
-        <CIcon v-else :icon="isEditing ? cilPencil : cilPlus" class="me-2" />
-        {{ isEditing ? 'Update Target' : 'Create Target' }}
-      </CButton>
-    </CModalFooter>
-  </CModal>
+      </CCardBody>
+    </CCard>
+
+    <!-- Statistics Cards -->
+    <CRow class="mb-4">
+      <!-- Milk Production Card -->
+      <CCol md="6" v-if="selectedProductionType === 'all' || selectedProductionType === 'milk'">
+        <CCard class="stat-card shadow-sm border-0 h-100">
+          <CCardBody>
+            <div class="d-flex align-items-center mb-3">
+              <div class="stat-icon milk-icon">
+                <i class="fas fa-glass-whiskey"></i>
+              </div>
+              <div class="ms-3">
+                <h6 class="text-muted mb-1">Milk Production</h6>
+                <h3 class="mb-0">{{ formatNumber(overallStats.milk.actual) }} / {{ formatNumber(overallStats.milk.target) }} L</h3>
+              </div>
+            </div>
+            <CProgress class="mb-2" height="20">
+              <CProgressBar 
+                :value="overallStats.milk.percentage" 
+                color="primary"
+              >
+                {{ overallStats.milk.percentage.toFixed(1) }}%
+              </CProgressBar>
+            </CProgress>
+            <small class="text-muted">
+              <i class="fas fa-chart-line me-1"></i>
+              {{ overallStats.milk.percentage >= 100 ? 'Target Achieved!' : `${(100 - overallStats.milk.percentage).toFixed(1)}% remaining` }}
+            </small>
+          </CCardBody>
+        </CCard>
+      </CCol>
+
+      <!-- Fruit Production Card -->
+      <CCol md="6" v-if="selectedProductionType === 'all' || selectedProductionType === 'fruit'">
+        <CCard class="stat-card shadow-sm border-0 h-100">
+          <CCardBody>
+            <div class="d-flex align-items-center mb-3">
+              <div class="stat-icon fruit-icon">
+                <i class="fas fa-apple-alt"></i>
+              </div>
+              <div class="ms-3">
+                <h6 class="text-muted mb-1">Fruit Production</h6>
+                <h3 class="mb-0">{{ formatNumber(overallStats.fruit.actual) }} / {{ formatNumber(overallStats.fruit.target) }} Kg</h3>
+              </div>
+            </div>
+            <CProgress class="mb-2" height="20">
+              <CProgressBar 
+                :value="overallStats.fruit.percentage" 
+                color="success"
+              >
+                {{ overallStats.fruit.percentage.toFixed(1) }}%
+              </CProgressBar>
+            </CProgress>
+            <small class="text-muted">
+              <i class="fas fa-chart-line me-1"></i>
+              {{ overallStats.fruit.percentage >= 100 ? 'Target Achieved!' : `${(100 - overallStats.fruit.percentage).toFixed(1)}% remaining` }}
+            </small>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
+
+    <!-- Charts Row -->
+    <CRow class="mb-4">
+      <!-- Production Comparison Chart -->
+      <CCol md="8">
+        <CCard class="shadow-sm border-0 h-100">
+          <CCardHeader class="bg-white border-bottom">
+            <h6 class="mb-0">
+              <i class="fas fa-chart-bar me-2 text-primary"></i>
+              Target vs Actual Production
+            </h6>
+          </CCardHeader>
+          <CCardBody>
+            <div style="height: 300px;">
+              <Bar 
+                v-if="productionProgress.length > 0"
+                :data="productionComparisonChart" 
+                :options="chartOptions"
+              />
+              <div v-else class="d-flex align-items-center justify-content-center h-100">
+                <div class="text-center text-muted">
+                  <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                  <p>No data available for selected filters</p>
+                </div>
+              </div>
+            </div>
+          </CCardBody>
+        </CCard>
+      </CCol>
+
+      <!-- Status Distribution Chart -->
+      <CCol md="4">
+        <CCard class="shadow-sm border-0 h-100">
+          <CCardHeader class="bg-white border-bottom">
+            <h6 class="mb-0">
+              <i class="fas fa-chart-pie me-2 text-success"></i>
+              Status Distribution
+            </h6>
+          </CCardHeader>
+          <CCardBody>
+            <div style="height: 300px;">
+              <Doughnut 
+                v-if="overallStats.total.targets > 0"
+                :data="completionDoughnutChart" 
+                :options="doughnutOptions"
+              />
+              <div v-else class="d-flex align-items-center justify-content-center h-100">
+                <div class="text-center text-muted">
+                  <i class="fas fa-chart-pie fa-3x mb-3"></i>
+                  <p>No targets set</p>
+                </div>
+              </div>
+            </div>
+          </CCardBody>
+        </CCard>
+      </CCol>
+    </CRow>
+
+    <!-- Individual Target Progress -->
+    <CCard class="shadow-sm border-0">
+      <CCardHeader class="bg-white border-bottom">
+        <h6 class="mb-0">
+          <i class="fas fa-tasks me-2 text-info"></i>
+          Individual Target Progress
+        </h6>
+      </CCardHeader>
+      <CCardBody>
+        <div v-if="productionProgress.length === 0" class="text-center py-5">
+          <i class="fas fa-exclamation-circle fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted">No targets found</h5>
+          <p class="text-muted">Please select a different year or add new targets</p>
+          <router-link to="/targets">
+            <CButton color="primary">
+              <i class="fas fa-plus me-2"></i>Add Target
+            </CButton>
+          </router-link>
+        </div>
+
+        <CRow v-else>
+          <CCol md="6" v-for="progress in productionProgress" :key="progress.id" class="mb-4">
+            <div class="progress-card p-4 border rounded">
+              <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                  <h6 class="mb-1 text-capitalize">
+                    {{ progress.type }}
+                    <span v-if="progress.fruitType" class="text-muted">- {{ progress.fruitType }}</span>
+                  </h6>
+                  <small class="text-muted">
+                    Year {{ selectedYear }}
+                    <span v-if="progress.farm" class="ms-2">
+                      <i class="fas fa-map-marker-alt"></i> {{ progress.farm }}
+                    </span>
+                    <span v-if="progress.country" class="ms-2">
+                      <i class="fas fa-flag"></i> {{ progress.country }}
+                    </span>
+                  </small>
+                </div>
+                <CBadge :color="getStatusBadge(progress.status).color" class="px-2 py-1">
+                  {{ getStatusBadge(progress.status).icon }} {{ getStatusBadge(progress.status).text }}
+                </CBadge>
+              </div>
+
+              <div class="mb-3">
+                <div class="d-flex justify-content-between mb-2">
+                  <span class="text-muted small">Actual: <strong>{{ formatNumber(progress.actual) }}</strong></span>
+                  <span class="text-muted small">Target: <strong>{{ formatNumber(progress.target) }}</strong></span>
+                </div>
+                <CProgress height="25" class="progress-modern">
+                  <CProgressBar 
+                    :value="progress.percentage" 
+                    :color="getProgressColor(progress.status)"
+                    animated
+                  >
+                    <strong>{{ progress.percentage.toFixed(1) }}%</strong>
+                  </CProgressBar>
+                </CProgress>
+              </div>
+
+              <div class="stats-row d-flex justify-content-between">
+                <div class="stat-item">
+                  <small class="text-muted d-block">Remaining</small>
+                  <strong>{{ formatNumber(progress.remaining) }}</strong>
+                </div>
+                <div class="stat-item text-end">
+                  <small class="text-muted d-block">Unit</small>
+                  <strong>{{ progress.type === 'milk' ? 'Liters' : 'Kg' }}</strong>
+                </div>
+              </div>
+            </div>
+          </CCol>
+        </CRow>
+      </CCardBody>
+    </CCard>
+  </div>
 </template>
 
 <style scoped>
-/* Loading Overlay */
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -631,126 +512,98 @@ const exportPDF = () => {
   z-index: 9999;
 }
 
-/* Table Enhancements */
-.modern-table {
-  font-size: 0.95rem;
+/* Stat Cards */
+.stat-card {
+  transition: transform 0.2s;
 }
 
-.modern-table thead th {
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
+.stat-card:hover {
+  transform: translateY(-5px);
 }
 
-.modern-table tbody tr {
-  transition: all 0.2s ease;
+.stat-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
 }
 
-.modern-table tbody tr:hover {
-  background-color: #f8f9fa;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+.milk-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
 }
 
-.table-row td {
-  vertical-align: middle;
-  padding: 1rem;
+.fruit-icon {
+  background: linear-gradient(135deg, #2eb85c 0%, #1a9c46 100%);
+  color: white;
 }
 
-.sortable {
-  cursor: pointer;
-  user-select: none;
-  transition: background-color 0.2s;
+/* Progress Cards */
+.progress-card {
+  background: #fff;
+  transition: all 0.3s ease;
+  border: 1px solid #e0e0e0 !important;
 }
 
-.sortable:hover {
-  background-color: #e9ecef !important;
+.progress-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #d0d0d0 !important;
 }
 
-/* Production Badge */
-.production-badge {
-  padding: 0.375rem 0.75rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.5px;
+.progress-modern {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Search and Filter Section */
-.search-filter-section {
-  background: linear-gradient(to bottom, #f8f9fa, #ffffff);
-}
-
-.advanced-filters {
+.stats-row {
   padding-top: 1rem;
-  border-top: 1px dashed #dee2e6;
-  margin-top: 1rem;
+  border-top: 1px dashed #e0e0e0;
 }
 
-/* Empty State */
-.empty-state {
-  padding: 2rem;
+.stat-item strong {
+  font-size: 1.1rem;
+  color: #2c3e50;
 }
 
-/* Action Buttons */
-.d-flex.gap-1 button {
-  transition: all 0.2s ease;
-}
-
-.d-flex.gap-1 button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Pagination */
-.pagination-section {
-  background: linear-gradient(to top, #f8f9fa, #ffffff);
-}
-
-.pagination-info {
-  font-size: 0.9rem;
-}
-
-.pagination-controls button {
-  min-width: 80px;
-  font-weight: 500;
-}
-
-/* Modal Enhancements */
-.modal-content {
-  border: none;
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-}
-
-/* Form Labels */
-.fw-semibold {
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #4f5d73;
+/* Chart Cards */
+.card-header {
+  background: linear-gradient(to right, #f8f9fa, #ffffff);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .search-filter-section .col-md-11 {
-    flex-direction: column;
+  .stat-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
   }
   
-  .search-filter-section .col-md-3,
-  .search-filter-section .col-md-2 {
-    width: 100%;
+  .progress-card {
+    margin-bottom: 1rem;
   }
-  
-  .d-flex.gap-2 {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .d-flex.gap-2 button {
-    width: 100%;
-  }
+}
+
+/* Custom scrollbar for charts */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 </style>

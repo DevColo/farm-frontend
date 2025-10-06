@@ -7,6 +7,7 @@ export const useTargetStore = defineStore('target', {
   state: () => ({
     targets: [],
     target: [],
+    targetsResult: [],
   }),
   actions: {
     async createTarget(payload) {
@@ -113,5 +114,24 @@ export const useTargetStore = defineStore('target', {
             this.loading = false
           }
         },
+        
+      async fetchTargetsResult() {
+      const toast = useToast()
+      try {
+        const token = localStorage.getItem('user_token')
+        const response = await axios.get('/api/production-targets/progress', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        this.targetsResult = response.data.data
+      } catch (error) {
+        let errorMessage = 'Failed to fetch Target'
+        if (error.response && error.response.data) {
+          errorMessage = error.response.data.error || error.response.data.message
+        }
+        toast.error(errorMessage)
+      }
+    },
   },
 })

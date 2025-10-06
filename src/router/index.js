@@ -158,9 +158,14 @@ const routes = [
         component: () => import('@/views/admin/Admin.vue'),
       },
       {
-        path: 'targets',
+        path: '/targets',
         name: 'Production Targets',
         component: () => import('@/views/target/Target.vue'),
+      },
+      {
+        path: '/targets/view',
+        name: 'Production Targets View',
+        component: () => import('@/views/target/TargetView.vue'),
       },
 
       // Theme
