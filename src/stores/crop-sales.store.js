@@ -1,25 +1,25 @@
-// stores/parcel.store.js
+// stores/CropSale.store.js
 import { defineStore } from 'pinia'
 import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
-export const useParcelStore = defineStore('parcel', {
+export const useActivityStore = defineStore('cropSale', {
   state: () => ({
-    parcels: [],
-    parcel: [],
+    cropSales: [],
+    cropSale: [],
   }),
   actions: {
-    async createParcel(payload) {
+    async createCropSale(payload) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.post('/api/add-parcel', payload, {
+        await axios.post('/api/add-crop-sale', payload, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        toast.success('Parcel created successfully!')
-        this.fetchParcels()
+        toast.success('Crop Sale created successfully!')
+        this.fetchCropSales()
         return 1;
       } catch (error) {
         let errorMessage = 'Something went wrong'
@@ -31,53 +31,53 @@ export const useParcelStore = defineStore('parcel', {
         return 0;
       }
     },
-    async fetchParcels() {
+    async fetchCropSales() {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        const response = await axios.get('/api/parcels', {
+        const response = await axios.get('/api/crop-sales', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        this.parcels = response.data.data
+        this.cropSales = response.data.data
       } catch (error) {
-        let errorMessage = 'Failed to fetch Parcel'
+        let errorMessage = 'Failed to fetch Crop Sale'
         if (error.response && error.response.data) {
           errorMessage = error.response.data.error || error.response.data.message
         }
         toast.error(errorMessage)
       }
     },
-    async deleteParcel(id) {
+    async deleteCropSale(id) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.delete(`/api/parcels/${id}`, {
+        await axios.delete(`/api/crop-sale/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
-        // Remove deleted Parcel from state
-        this.parcels = this.parcels.filter((p) => p.id !== id)
-        toast.success('Parcel deleted successfully')
+        // Remove deleted Crop Sale from state
+        this.cropSales = this.cropSales.filter((p) => p.id !== id)
+        toast.success('Crop Sale deleted successfully')
       } catch (error) {
-        toast.error('Failed to delete Parcel')
+        toast.error('Failed to delete Crop Sale')
       }
     },
 
-    async editParcel(updatedData) {
+    async editCropSale(updatedData) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.post(`/api/update-parcel`, updatedData, {
+        await axios.post(`/api/update-activity`, updatedData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
         
-        toast.success('Parcel updated successfully')
-        this.fetchParcels()
+        toast.success('Crop Sale updated successfully')
+        this.fetchCropSales()
         return 1;
       } catch (error) {
         // let errorMessage = 'Something went wrong'
@@ -90,51 +90,29 @@ export const useParcelStore = defineStore('parcel', {
       }
     },
 
-    async fetchParcelById(id) {
+    async fetchCropSaleById(id) {
+          const toast = useToast()
           this.loading = true
           
           try {
             const token = localStorage.getItem('user_token')
-            const response = await axios.get(`/api/get-parcel/${id}`, {
+            const response = await axios.get(`/api/get-crop-sale/${id}`, {
               headers: {
                 Authorization: `Bearer ${token}`,
               },
             })
             
             if (response.data.success) {
-              this.parcel = response.data.data
+              this.cropSale = response.data.data
             } else {
-              this.parcel = null
+              this.cropSale = null
             }
           } catch (error) {
-            this.handleError(error, 'Failed to fetch parcel details')
-            this.parcel = null
+            this.handleError(error, 'Failed to fetch cropSale details')
+            this.cropSale = null
           } finally {
             this.loading = false
           }
         },
-    
-    async fetchParcelsByFarmId(id) {
-      this.loading = true
-      try {
-        const token = localStorage.getItem('user_token')
-        const response = await axios.get(`/api/get-parcels-by-farm/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        
-        if (response.data.success) {
-          this.parcels = response.data.data
-        } else {
-          this.parcels = null
-        }
-      } catch (error) {
-        this.handleError(error, 'Failed to fetch parcels')
-        this.parcels = null
-      } finally {
-        this.loading = false
-      }
-    },
   },
 })

@@ -91,28 +91,51 @@ export const useBlockStore = defineStore('block', {
     },
 
     async fetchBlockById(id) {
-          const toast = useToast()
-          this.loading = true
-          
-          try {
-            const token = localStorage.getItem('user_token')
-            const response = await axios.get(`/api/get-block/${id}`, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            })
-            
-            if (response.data.success) {
-              this.block = response.data.data
-            } else {
-              this.block = null
-            }
-          } catch (error) {
-            this.handleError(error, 'Failed to fetch block details')
-            this.block = null
-          } finally {
-            this.loading = false
-          }
-        },
+      const toast = useToast()
+      this.loading = true
+      
+      try {
+        const token = localStorage.getItem('user_token')
+        const response = await axios.get(`/api/get-block/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        
+        if (response.data.success) {
+          this.block = response.data.data
+        } else {
+          this.block = null
+        }
+      } catch (error) {
+        this.handleError(error, 'Failed to fetch block details')
+        this.block = null
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchBlocksByFarmId(id) {
+      this.loading = true
+      try {
+        const token = localStorage.getItem('user_token')
+        const response = await axios.get(`/api/get-blocks-by-farm/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        
+        if (response.data.success) {
+          this.blocks = response.data.data
+        } else {
+          this.blocks = null
+        }
+      } catch (error) {
+        this.handleError(error, 'Failed to fetch blocks')
+        this.blocks = null
+      } finally {
+        this.loading = false
+      }
+    },
   },
 })

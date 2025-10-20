@@ -249,7 +249,7 @@ const sortField = ref('created_at')
 const sortOrder = ref('desc')
 
 function getSortIcon(field) {
-  if (sortField.value !== field) return '↕️'
+  if (sortField.value !== field) return '↕'
   return sortOrder.value === 'asc' ? '↑' : '↓'
 }
 

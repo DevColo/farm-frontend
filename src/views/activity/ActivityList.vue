@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed, onMounted, watch, h } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useParcelStore } from '@/stores/parcel.store'
 import { useBlockStore } from '@/stores/block.store'
 import { useFarmStore } from '@/stores/farm.store'
-import { useHarvestStore } from '@/stores/harvest.store'
+import { useActivityStore } from '@/stores/activity.store'
 import {
   CRow,
   CCol,
@@ -44,7 +44,7 @@ import 'vue-multiselect/dist/vue-multiselect.css'
 const parcelStore = useParcelStore()
 const blockStore = useBlockStore()
 const farmStore = useFarmStore()
-const harvestStore = useHarvestStore()
+const activityStore = useActivityStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
@@ -53,56 +53,47 @@ const loading = ref(false)
 const showFilters = ref(false)
 const editingId = ref(null)
 
-// Fruit types
-const fruitTypes = [
-  { value: 'Orange', label: 'Orange', color: 'warning', icon: '🍊' },
-  { value: 'Avocado', label: 'Avocado', color: 'success', icon: '🥑' },
-  { value: 'Lime', label: 'Lime', color: 'warning', icon: '🍋' },
-  { value: 'Mango', label: 'Mango', color: 'warning', icon: '🥭' }
+// activity types
+const activityTypes = [
+  { value: 'Weeding', label: 'Weeding'},
+  { value: 'Slashing', label: 'Slashing'},
+  { value: 'Pruning', label: 'Pruning'},
+  { value: 'Fertilising', label: 'Fertilising'},
+  { value: 'Cultivation', label: 'Cultivation'},
+  { value: 'Mulching', label: 'Mulching'},
+  { value: 'Irrigation', label: 'Irrigation'},
+  { value: 'Applying of Pesticides', label: 'Applying of Pesticides'},
 ]
 
-// Avocado varieties
-const avocadoVarieties = [
-  { value: 'All', label: 'All Type' },
-  { value: 'Hass', label: 'Hass' },
-  { value: 'Fuerte', label: 'Fuerte' },
-  { value: 'Reed', label: 'Reed' },
-  { value: 'Pinkerton', label: 'Pinkerton' },
-  { value: 'Gwen', label: 'Gwen' },
-  { value: 'Bacon', label: 'Bacon' },
-  { value: 'Zutano', label: 'Zutano' },
-  { value: 'Etinga', label: 'Etinga' },
-]
 
-// Harvest by options
-const harvestBy = [
+const currentActivity = ref({
+  activity_by: '',
+  farm_id: '',
+  parcel_id: '',
+  block_id: '',
+  activity_date: '',
+  activity: '',
+  type: '',
+})
+
+// activity by options
+const activityBy = [
   { value: 'Block', label: 'Block' },
   { value: 'Parcel', label: 'Parcel' },
   { value: 'All Blocks', label: 'All Blocks' },
 ]
 
-const currentHarvest = ref({
-  harvest_by: '',
-  farm_id: '',
-  parcel_id: '',
-  block_id: '',
-  harvest_date: '',
-  quantity: '',
-  fruit: '',
-  type: '',
-})
-
 // Check if Avocado is selected
 const isAvocadoSelected = computed(() => {
-  return currentHarvest.value.fruit?.value === 'Avocado'
+  return currentActivity.value.activity?.value === 'Avocado'
 })
 
 // Enhanced search and filter states
 const searchQuery = ref('')
-const filterHarvest = ref('')
+const filterTree = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
-const sortField = ref('harvest_date')
+const sortField = ref('activity_date')
 const sortOrder = ref('desc')
 const parcels = ref([])
 const blocks = ref([])
@@ -113,10 +104,8 @@ onMounted(async () => {
   loading.value = true
   try {
     await Promise.all([
-      harvestStore.fetchHarvests(),
+      activityStore.fetchActivities(),
       farmStore.fetchFarms(),
-      //parcelStore.fetchParcels(),
-      //blockStore.fetchBlocks()
     ])
   } finally {
     loading.value = false
@@ -135,17 +124,6 @@ onMounted(async () => {
 //   { deep: true }
 // )
 
-// watch(
-//   () => blockStore.blocks,
-//   (newBlocks) => {
-//     blocks.value = newBlocks.map(b => ({
-//       value: b.id,
-//       label: b?.block_code,
-//     }))
-//   },
-//   { deep: true }
-// )
-
 watch(
   () => farmStore.farms,
   (newFarms) => {
@@ -159,32 +137,22 @@ watch(
 
 // Generate filter options
 const availableParcels = computed(() => {
-  const parcels = parcelStore.parcels.map(parcel => parcel).filter(Boolean)
-  return Array.from(new Set(parcels))
-})
-
-const availableBlocks = computed(() => {
-  const AllBlocks = blockStore.blocks.map(block => block).filter(Boolean)
-  return Array.from(new Set(AllBlocks))
-})
-
-const availableFarms = computed(() => {
-  const farms = farmStore.farms.map(farm => farm).filter(Boolean)
-  return Array.from(new Set(farms))
+  const treeNames = activityStore.activities.map(activity => activity.tree).filter(Boolean)
+  return Array.from(new Set(treeNames))
 })
 
 // Enhanced filtering and sorting
-const filteredHarvests = computed(() => {
+const filteredActivities = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   
   // Always work with an array
-  const harvests = Array.isArray(harvestStore.harvests) ? harvestStore.harvests : []
+  const activities = Array.isArray(activityStore.activities) ? activityStore.activities : []
   
-  let filtered = harvests.filter((harvest) => {
-    const matchesQuery = !q || [harvest.parcel_id, harvest.harvest_date, harvest.fruit, harvest.type].some((field) => 
+  let filtered = activities.filter((activity) => {
+    const matchesQuery = !q || [activity.parcel_id, activity.activity_date, activity.activity, activity.type].some((field) => 
       field?.toLowerCase().includes(q)
     )
-    const matchesTree = !filterHarvest.value || harvest.parcel_id == filterHarvest.value
+    const matchesTree = !filterTree.value || activity.parcel_id == filterTree.value
     
     return matchesQuery && matchesTree
   })
@@ -195,14 +163,14 @@ const filteredHarvests = computed(() => {
     let bValue = b[sortField.value]
     
     // Handle special cases
-    if (sortField.value === 'harvest_by') {
-      aValue = a.harvest_by || ''
-      bValue = b.harvest_by || ''
+    if (sortField.value === 'activity') {
+      aValue = a.activity || ''
+      bValue = b.activity || ''
     }
     
-    if (sortField.value === 'harvest_date') {
-      aValue = new Date(a.harvest_date || 0).getTime()
-      bValue = new Date(b.harvest_date || 0).getTime()
+    if (sortField.value === 'activity_date') {
+      aValue = new Date(a.activity_date || 0).getTime()
+      bValue = new Date(b.activity_date || 0).getTime()
     } else {
       // Convert to strings for comparison
       aValue = String(aValue || '').toLowerCase()
@@ -220,12 +188,12 @@ const filteredHarvests = computed(() => {
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredHarvests.value.length / itemsPerPage.value))
+  Math.max(1, Math.ceil(filteredActivities.value.length / itemsPerPage.value))
 )
 
-const paginatedHarvests = computed(() => {
+const paginatedActivities = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredHarvests.value.slice(start, start + itemsPerPage.value)
+  return filteredActivities.value.slice(start, start + itemsPerPage.value)
 })
 
 // Sorting
@@ -246,7 +214,7 @@ function getSortIcon(field) {
 // Filter management
 function clearAllFilters() {
   searchQuery.value = ''
-  filterHarvest.value = ''
+  filterTree.value = ''
   resetPage()
 }
 
@@ -281,57 +249,49 @@ function openCreate() {
   isEditing.value = false
   validated.value = false
   editingId.value = null
-  currentHarvest.value = {
-    harvest_by: '',
+  currentActivity.value = {
+     activity_by: '',
     farm_id: '',
     parcel_id: '',
     block_id: '',
-    harvest_date: '',
-    quantity: '',
-    fruit: '',
-    type: '',
+    activity_date: '',
+    activity: '',
   }
   showModal.value = true
 }
 
-function openEdit(harvest) {
+function openEdit(activity) {
   isEditing.value = true
   validated.value = false
-  editingId.value = harvest.id
+  editingId.value = activity.id
   
   // Find matching tree object from options
   const treeObj = parcels.value.find(t => 
-    t.value == harvest.parcel_id
+    t.value == activity.parcel_id
   )
   
-  // Find matching fruit object
-  const fruitObj = fruitTypes.find(f => f.value === harvest.fruit)
+  // Find matching activity object
+  const activityObj = activityTypes.find(f => f.value === activity.activity)
   
-  // Find matching type/variety if it's an avocado
-  let typeObj = null
-  if (harvest.fruit === 'Avocado' && harvest.type) {
-    typeObj = avocadoVarieties.find(v => v.value === harvest.type)
-  }
+
   
-  currentHarvest.value = {
-    harvest_by: harvest.harvest_by ? { value: harvest.harvest_by, label: harvest.harvest_by } : '',
-    farm_id: harvest.farm_id ? { value: harvest.farm_id, label: `${harvest.farm?.farm_code} - ${harvest.farm?.name}` } : '',
-    block_id: harvest.block_id ? { value: harvest.block_id, label: harvest.block?.block_code } : null,
-    parcel_id: harvest.parcel_id ? { value: harvest.parcel_id, label: harvest.parcel?.parcel_code } : null,
-    harvest_date: harvest.harvest_date,
-    quantity: harvest.quantity,
-    fruit: fruitObj || null,
-    type: typeObj || '',
+  currentActivity.value = {
+    activity_by: activity.activity_by ? { value: activity.activity_by, label: activity.activity_by } : '',
+    farm_id: activity.farm_id ? { value: activity.farm_id, label: `${activity.farm?.farm_code} - ${activity.farm?.name}` } : '',
+    block_id: activity.block_id ? { value: activity.block_id, label: activity.block?.block_code } : null,
+    parcel_id: activity.parcel_id ? { value: activity.parcel_id, label: activity.parcel?.parcel_code } : null,
+    activity_date: activity.activity_date,
+    activity: activityObj || null,
   }
   
   showModal.value = true
 }
 
-async function confirmDelete(id, name) {
-  if (confirm(`Are you sure you want to delete harvest record for ${name}? This action cannot be undone.`)) {
+async function confirmDelete(id, activity) {
+  if (confirm(`Are you sure you want to delete activity record for ${activity}? This action cannot be undone.`)) {
     loading.value = true
     try {
-      await harvestStore.deleteHarvest(id)
+      await activityStore.deleteActivity(id)
     } finally {
       loading.value = false
     }
@@ -344,27 +304,23 @@ async function handleSubmit(e) {
   e.stopPropagation()
   
   const form = e.currentTarget
-
-  if (!currentHarvest.value.harvest_by) {
+  
+  // Check if all required fields are filled
+  if (!currentActivity.value.activity_by) {
     validated.value = true
     return
   }
-  if (currentHarvest.value.harvest_by.value == 'Parcel' && !currentHarvest.value.parcel_id) {
+  if (currentActivity.value.activity_by.value == 'Parcel' && !currentActivity.value.parcel_id) {
     validated.value = true
     return
   }
-  if (currentHarvest.value.harvest_by.value == 'Block' && !currentHarvest.value.block_id) {
-    validated.value = true
-    return
-  }
-  if (!currentHarvest.value.harvest_date || !currentHarvest.value.quantity || 
-      !currentHarvest.value.fruit) {
+  if (currentActivity.value.activity_by.value == 'Block' && !currentActivity.value.block_id) {
     validated.value = true
     return
   }
   
   // Only validate type if Avocado is selected
-  if (isAvocadoSelected.value && !currentHarvest.value.type) {
+  if (isAvocadoSelected.value && !currentActivity.value.type) {
     validated.value = true
     return
   }
@@ -377,25 +333,23 @@ async function handleSubmit(e) {
   loading.value = true
   try {
     const payload = {
-      harvest_by: currentHarvest.value.harvest_by.value,
-      farm_id: currentHarvest.value.farm_id?.value || currentHarvest.value.farm_id || '',
-      block_id: currentHarvest.value.block_id?.value || currentHarvest.value.block_id || '',
-      parcel_id: currentHarvest.value.parcel_id?.value || currentHarvest.value.parcel_id || '',
-      harvest_date: currentHarvest.value.harvest_date,
-      quantity: currentHarvest.value.quantity,
-      fruit: currentHarvest.value.fruit.value,
-      type: currentHarvest.value.type?.value || currentHarvest.value.type || '',
+      activity_by: currentActivity.value.activity_by.value,
+      farm_id: currentActivity.value.farm_id?.value || currentActivity.value.farm_id || '',
+      block_id: currentActivity.value.block_id?.value || currentActivity.value.block_id || '',
+      parcel_id: currentActivity.value.parcel_id?.value || currentActivity.value.parcel_id || '',
+      activity_date: currentActivity.value.activity_date,
+      activity: currentActivity.value.activity.value,
     }
     
     if (isEditing.value) {
-      payload.harvest_id = editingId.value
-      const res = await harvestStore.editHarvest(payload)
+      payload.activity_id = editingId.value
+      const res = await activityStore.editActivity(payload)
       if(res == 1){
         showModal.value = false
         validated.value = false
       }
     } else {
-      const res = await harvestStore.createHarvest(payload)
+      const res = await activityStore.createActivity(payload)
       if(res == 1){
         showModal.value = false
         validated.value = false
@@ -409,12 +363,33 @@ async function handleSubmit(e) {
 }
 
 // Watch for changes
-watch([searchQuery, filterHarvest], () => {
+watch([searchQuery, filterTree], () => {
   resetPage()
 })
 
-async function handleHarvestByInput(harvestBy, farmId) {
-  const selected = harvestBy?.value ?? harvestBy
+// Calculate activity statistics
+const activityStats = computed(() => {
+  if (!activities.value || activities.value.length === 0) {
+    return {
+      totalActivities: 0,
+      lastActivityDate: null,
+      highestYield: 0
+    }
+  }
+
+  const sorted = [...activities.value].sort((a, b) => 
+    new Date(b.activity_date) - new Date(a.activity_date)
+  )
+  
+  return {
+    totalActivities: activities.value.length,
+    lastActivityDate: sorted[0]?.activity_date,
+    highestYield: Math.max(...quantities).toFixed(2)
+  }
+})
+
+async function handleActivityByInput(activityBy, farmId) {
+  const selected = activityBy?.value ?? activityBy
   // normalize farmId to accept either an object with .value or a primitive id
   const farmIdValue = farmId?.value ?? farmId
 
@@ -449,19 +424,19 @@ async function handleHarvestByInput(harvestBy, farmId) {
   }
 }
 
-// Ensure function runs whenever harvest_by is selected (or farm changes)
+// Ensure function runs whenever activity_by is selected (or farm changes)
 watch(
-  () => currentHarvest.value.harvest_by,
+  () => currentActivity.value.activity_by,
   (newVal) => {
-    handleHarvestByInput(newVal, currentHarvest.value.farm_id)
+    handleActivityByInput(newVal, currentActivity.value.farm_id)
   }
 )
 
 watch(
-  () => currentHarvest.value.farm_id,
+  () => currentActivity.value.farm_id,
   (newFarmId) => {
-    if (currentHarvest.value.harvest_by) {
-      handleHarvestByInput(currentHarvest.value.harvest_by, newFarmId)
+    if (currentActivity.value.activity_by) {
+      handleActivityByInput(currentActivity.value.activity_by, newFarmId)
     }
   }
 )
@@ -483,7 +458,7 @@ watch(
         <CBreadcrumbItem>
           <router-link to="#" class="text-decoration-none">Activities</router-link>
         </CBreadcrumbItem>
-        <CBreadcrumbItem active>Harvests</CBreadcrumbItem>
+        <CBreadcrumbItem active>Crop Care</CBreadcrumbItem>
       </CBreadcrumb>
     <!-- Main Table Card -->
     <CCol cols="12">
@@ -493,12 +468,12 @@ watch(
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h5 class="mb-1">
-                <i class="fas fa-apple-alt me-2 text-success"></i>Harvests
+                <i class="fas fa-apple-alt me-2 text-success"></i>Crop Care
               </h5>
             </div>
             <div class="d-flex gap-2">
               <CDropdown>
-                <CDropdownToggle>
+                <CDropdownToggle color="outline-secondary" size="sm">
                   <CIcon :icon="cilCloudDownload" class="me-1" />Export
                 </CDropdownToggle>
                 <CDropdownMenu>
@@ -511,7 +486,7 @@ watch(
                 </CDropdownMenu>
               </CDropdown>
               <CButton color="dark" @click="openCreate">
-                <CIcon :icon="cilPlus" class="me-1" />Add New Harvest
+                <CIcon :icon="cilPlus" class="me-1" />Add New Activity
               </CButton>
             </div>
           </div>
@@ -560,18 +535,10 @@ watch(
             <div v-if="showFilters" class="advanced-filters">
               <div class="row g-3">
                 <div class="col-md-2">
-                  <CFormSelect v-model="filterHarvest" @change="resetPage">
-                    <option value="">All Parcels</option>
-                    <option v-for="parcel in availableParcels" :key="parcel?.id" :value="parcel?.id">
-                      {{ parcel?.parcel_code }}
-                    </option>
-                  </CFormSelect>
-                </div>
-                <div class="col-md-2">
-                  <CFormSelect v-model="filterHarvest" @change="resetPage">
-                    <option value="">All Blocks</option>
-                    <option v-for="block in availableBlocks" :key="block?.id" :value="block?.id">
-                      {{ block?.block_code }}
+                  <CFormSelect v-model="filterTree" @change="resetPage">
+                    <option value="">All parcels</option>
+                    <option v-for="tree in availableParcels" :key="tree?.id" :value="tree?.id">
+                      {{ tree?.tree_code }}
                     </option>
                   </CFormSelect>
                 </div>
@@ -589,68 +556,56 @@ watch(
             <CTable hover class="mb-0 modern-table">
               <CTableHead class="table-light">
                 <CTableRow>
-                  <CTableHeaderCell class="sortable" @click="sortBy('farm_id')">
+                   <CTableHeaderCell class="sortable" @click="sortBy('farm_id')">
                     Farm {{ getSortIcon('farm_id') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('harvest_by')">
-                    Harvest By {{ getSortIcon('harvest_by') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('activity_by')">
+                    Activity By {{ getSortIcon('activity_by') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('fruit')">
-                    Fruit {{ getSortIcon('fruit') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('activity')">
+                    Activity {{ getSortIcon('activity') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('type')">
-                    Type {{ getSortIcon('type') }}
-                  </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('quantity')">
-                    Quantity (kg) {{ getSortIcon('quantity') }}
-                  </CTableHeaderCell>
-                  <CTableHeaderCell class="sortable" @click="sortBy('harvest_date')">
-                    Harvest Date {{ getSortIcon('harvest_date') }}
+                  <CTableHeaderCell class="sortable" @click="sortBy('activity_date')">
+                    Activity Date {{ getSortIcon('activity_date') }}
                   </CTableHeaderCell>
                   <CTableHeaderCell>Created At</CTableHeaderCell>
                   <CTableHeaderCell width="120">Actions</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                <CTableRow v-for="harvest in paginatedHarvests" :key="harvest.id" class="table-row">
+                <CTableRow v-for="activity in paginatedActivities" :key="activity.id" class="table-row">
                   <CTableDataCell>
                     <router-link
-                      :to="`/farm/${harvest.farm_id}`"
+                      :to="`/farm/${activity.farm_id}`"
                       class="text-decoration-none"
                     >
-                      {{ harvest.farm?.name ?? '' }}
+                      {{ activity.farm?.name ?? '' }}
                     </router-link>
                   </CTableDataCell>
                   <CTableDataCell>
                     <router-link
-                      :to="harvest.harvest_by === 'Parcel'
-                        ? `/parcels/${harvest.parcel_id}`
-                        : harvest.harvest_by === 'Block'
-                          ? `/blocks/${harvest.block_id}`
+                      :to="activity.activity_by === 'Parcel'
+                        ? `/parcels/${activity.parcel_id}`
+                        : activity.activity_by === 'Block'
+                          ? `/blocks/${activity.block_id}`
                           : '#'"
                       class="text-decoration-none"
                     >
-                      {{ harvest.harvest_by === 'Parcel' ? 
-                      `Parcel - ${harvest.parcel?.parcel_code}` 
-                      : harvest.harvest_by === 'Block' 
-                      ? `Block - ${harvest.block?.block_code }` 
+                      {{ activity.activity_by === 'Parcel' ? 
+                      `Parcel - ${activity.parcel?.parcel_code}` 
+                      : activity.activity_by === 'Block' 
+                      ? `Block - ${activity.block?.block_code }` 
                       : 'All Blocks' }}
                     </router-link>
                   </CTableDataCell>
                   <CTableDataCell>
-                    {{ harvest.fruit || '—' }}
+                    {{ activity.activity || '—' }}
                   </CTableDataCell>
                   <CTableDataCell>
-                    {{ harvest.type || '—' }}
+                      {{ new Date(activity.activity_date).toLocaleDateString() }}
                   </CTableDataCell>
                   <CTableDataCell>
-                      {{ harvest.quantity }}
-                  </CTableDataCell>
-                  <CTableDataCell>
-                      {{ new Date(harvest.harvest_date).toLocaleDateString() }}
-                  </CTableDataCell>
-                  <CTableDataCell>
-                    {{ new Date(harvest.created_at).toLocaleDateString() ?? '' }}
+                    {{ new Date(activity.created_at).toLocaleDateString() ?? '' }}
                   </CTableDataCell>
                   <CTableDataCell>
                     <div class="d-flex gap-1">
@@ -658,8 +613,8 @@ watch(
                         size="sm"
                         color="info"
                         variant="outline"
-                        title="Edit Harvest"
-                        @click="openEdit(harvest)"
+                        title="Edit Activity"
+                        @click="openEdit(activity)"
                       >
                         <CIcon :icon="cilPencil" size="sm" />
                       </CButton>
@@ -667,22 +622,22 @@ watch(
                         size="sm"
                         color="danger"
                         variant="outline"
-                        title="Delete Harvest"
-                        @click="confirmDelete(harvest.id, harvest.fruit)"
+                        title="Delete Activity"
+                        @click="confirmDelete(activity.id, activity.activity)"
                       >
                         <CIcon :icon="cilTrash" size="sm" />
                       </CButton>
                     </div>
                   </CTableDataCell>
                 </CTableRow>
-                <CTableRow v-if="paginatedHarvests.length === 0">
+                <CTableRow v-if="paginatedActivities.length === 0">
                   <CTableDataCell colspan="7" class="text-center py-5">
                     <div class="empty-state">
                       <i class="fas fa-apple-alt fa-3x text-muted mb-3"></i>
-                      <h5 class="text-muted">No harvest records found</h5>
-                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new harvest record</p>
+                      <h5 class="text-muted">No Activity records found</h5>
+                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new Activity record</p>
                       <CButton color="primary" @click="openCreate">
-                        <CIcon :icon="cilPlus" class="me-1" />Add Your First Harvest
+                        <CIcon :icon="cilPlus" class="me-1" />Add Your First Activity
                       </CButton>
                     </div>
                   </CTableDataCell>
@@ -697,10 +652,10 @@ watch(
                 <div class="pagination-info">
                   <span class="text-muted small">
                     Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
-                    {{ Math.min(currentPage * itemsPerPage, filteredHarvests.length) }} 
-                    of {{ filteredHarvests.length }} entries
-                    <span v-if="filteredHarvests.length !== harvestStore.harvests.length">
-                      (filtered from {{ harvestStore.harvests.length }} total)
+                    {{ Math.min(currentPage * itemsPerPage, filteredActivities.length) }} 
+                    of {{ filteredActivities.length }} entries
+                    <span v-if="filteredActivities.length !== activityStore.activities.length">
+                      (filtered from {{ activityStore.activities.length }} total)
                     </span>
                   </span>
                 </div>
@@ -736,23 +691,23 @@ watch(
     <CModalHeader class="border-bottom">
       <CModalTitle>
         <i class="fas fa-apple-alt me-2 text-success"></i>
-        {{ isEditing ? 'Edit Harvest' : 'Add New Harvest' }}
+        {{ isEditing ? 'Edit Activity' : 'Add New Activity' }}
       </CModalTitle>
     </CModalHeader>
     <CModalBody class="p-0">
       <!-- Tab Content -->
       <CForm
-        id="harvest-form"
+        id="activity-form"
         class="p-4"
         novalidate
         :validated="validated"
         @submit="handleSubmit"
       >
-        <CRow class="g-3" >
+        <CRow class="g-3">
           <CCol md="12">
             <CFormLabel for="farm_id" class="fw-semibold">Farm <span style="color: red;">*</span></CFormLabel>
             <Multiselect
-              v-model="currentHarvest.farm_id"
+              v-model="currentActivity.farm_id"
               placeholder="Select Farm"
               track-by="value"
               label="label"
@@ -763,39 +718,39 @@ watch(
               :preserve-search="true"
               :preselect-first="false"
             />
-            <div v-if="validated && !currentHarvest.farm_id" class="invalid-feedback d-block">
+            <div v-if="validated && !currentActivity.farm_id" class="invalid-feedback d-block">
               Farm is required.
             </div>
           </CCol>
 
           <CCol md="12">
-            <CFormLabel for="harvest_by" class="fw-semibold">Harvest By <span style="color: red;">*</span></CFormLabel>
+            <CFormLabel for="activity_by" class="fw-semibold">Activity By <span style="color: red;">*</span></CFormLabel>
             <Multiselect
-              v-model="currentHarvest.harvest_by"
-              placeholder="Select Harvest By"
+              v-model="currentActivity.activity_by"
+              placeholder="Select Activity By"
               track-by="value"
               label="label"
-              :options="harvestBy"
+              :options="activityBy"
               :show-no-results="false"
               :close-on-select="true"
               :clear-on-select="false"
               :preserve-search="true"
               :preselect-first="false"
-              :disabled="!currentHarvest.farm_id"
-              @input="handleHarvestByInput(currentHarvest.harvest_by, currentHarvest.farm_id.value)"
+              :disabled="!currentActivity.farm_id"
+              @input="handleActivityByInput(currentActivity.activity_by, currentActivity.farm_id.value)"
             />
-            <div v-if="!currentHarvest.farm_id" class="form-text text-muted small">
+            <div v-if="!currentActivity.farm_id" class="form-text text-muted small">
               Please select a Farm first.
             </div>
-            <div v-if="validated && !currentHarvest.harvest_by" class="invalid-feedback d-block">
+            <div v-if="validated && !currentActivity.activity_by" class="invalid-feedback d-block">
               Harvest By field is required.
             </div>
           </CCol>
 
-          <CCol md="12" v-if="currentHarvest.harvest_by && currentHarvest.harvest_by.value == 'Parcel'">
+          <CCol md="12" v-if="currentActivity.activity_by && currentActivity.activity_by.value == 'Parcel'">
             <CFormLabel for="tree" class="fw-semibold">Parcel <span style="color: red;">*</span></CFormLabel>
             <Multiselect
-              v-model="currentHarvest.parcel_id"
+              v-model="currentActivity.parcel_id"
               placeholder="Select Parcel"
               track-by="value"
               label="label"
@@ -813,15 +768,15 @@ watch(
                 {{ option.label }}
               </template>
             </Multiselect>
-            <div v-if="validated && !currentHarvest.parcel_id && currentHarvest.harvest_by.value == 'Parcel'" class="invalid-feedback d-block">
+            <div v-if="validated && !currentActivity.parcel_id && currentActivity.activity_by.value == 'Parcel'" class="invalid-feedback d-block">
               Parcel is required.
             </div>
           </CCol>
 
-          <CCol md="12" v-if="currentHarvest.harvest_by && currentHarvest.harvest_by.value == 'Block'">
+          <CCol md="12" v-if="currentActivity.activity_by && currentActivity.activity_by.value == 'Block'">
             <CFormLabel for="tree" class="fw-semibold">Block <span style="color: red;">*</span></CFormLabel>
             <Multiselect
-              v-model="currentHarvest.block_id"
+              v-model="currentActivity.block_id"
               placeholder="Select Block"
               track-by="value"
               label="label"
@@ -839,19 +794,19 @@ watch(
                 {{ option.label }}
               </template>
             </Multiselect>
-            <div v-if="validated && !currentHarvest.block_id && currentHarvest.harvest_by.value == 'Block'" class="invalid-feedback d-block">
+            <div v-if="validated && !currentActivity.block_id && currentActivity.activity_by.value == 'Block'" class="invalid-feedback d-block">
               Block is required.
             </div>
           </CCol>
 
-          <CCol md="6">
-            <CFormLabel for="fruit" class="fw-semibold">Fruit <span style="color: red;">*</span></CFormLabel>
+          <CCol md="12">
+            <CFormLabel for="activity" class="fw-semibold">Activity <span style="color: red;">*</span></CFormLabel>
             <Multiselect
-              v-model="currentHarvest.fruit"
-              placeholder="Select fruit"
+              v-model="currentActivity.activity"
+              placeholder="Select activity"
               track-by="value"
               label="label"
-              :options="fruitTypes"
+              :options="activityTypes"
               :show-no-results="false"
               :close-on-select="true"
               :clear-on-select="false"
@@ -865,53 +820,20 @@ watch(
                 <span class="me-2">{{ option.icon }}</span>{{ option.label }}
               </template>
             </Multiselect>
-            <div v-if="validated && !currentHarvest.fruit" class="invalid-feedback d-block">
-              Fruit is required.
-            </div>
-          </CCol>
-
-          <CCol md="6" v-if="isAvocadoSelected">
-            <CFormLabel for="type" class="fw-semibold">Avocado Variety <span style="color: red;">*</span></CFormLabel>
-            <Multiselect
-              v-model="currentHarvest.type"
-              placeholder="Select avocado variety"
-              track-by="value"
-              label="label"
-              :options="avocadoVarieties"
-              :show-no-results="false"
-              :close-on-select="true"
-              :clear-on-select="false"
-              :preserve-search="true"
-              :preselect-first="false"
-            />
-            <div v-if="validated && isAvocadoSelected && !currentHarvest.type" class="invalid-feedback d-block">
-              Avocado variety is required.
+            <div v-if="validated && !currentActivity.activity" class="invalid-feedback d-block">
+              activity is required.
             </div>
           </CCol>
 
           <CCol md="12">
-            <CFormLabel for="harvest-date" class="fw-semibold">Harvest Date <span style="color: red;">*</span></CFormLabel>
+            <CFormLabel for="activity-date" class="fw-semibold">Activity Date <span style="color: red;">*</span></CFormLabel>
             <CFormInput 
-              id="harvest-date" 
+              id="activity-date" 
               type="date" 
-              v-model="currentHarvest.harvest_date" 
+              v-model="currentActivity.activity_date" 
               required 
             />
-            <CFormFeedback invalid>Harvest date is required.</CFormFeedback>
-          </CCol>
-
-          <CCol md="12">
-            <CFormLabel for="quantity" class="fw-semibold">Quantity (kg) <span style="color: red;">*</span></CFormLabel>
-            <CFormInput 
-              id="quantity" 
-              type="number" 
-              step="0.01"
-              min="0"
-              v-model="currentHarvest.quantity" 
-              placeholder="Enter quantity in kilograms"
-              required 
-            />
-            <CFormFeedback invalid>Quantity is required.</CFormFeedback>
+            <CFormFeedback invalid>Activity date is required.</CFormFeedback>
           </CCol>
         </CRow>
       </CForm>
@@ -923,12 +845,12 @@ watch(
       <CButton 
         color="dark" 
         type="submit"
-        form="harvest-form"
+        form="activity-form"
         :disabled="loading"
       >
         <CSpinner v-if="loading" size="sm" class="me-2" />
         <i v-else :class="isEditing ? 'fas fa-save' : 'fas fa-plus'" class="me-2"></i>
-        {{ isEditing ? 'Update Harvest' : 'Create Harvest' }}
+        {{ isEditing ? 'Update Activity' : 'Create Activity' }}
       </CButton>
     </CModalFooter>
   </CModal>

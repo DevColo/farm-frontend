@@ -142,6 +142,11 @@ const routes = [
         component: () => import('@/views/harvest/HarvestList.vue'),
       },
       {
+        path: 'activities',
+        name: 'Activities',
+        component: () => import('@/views/activity/ActivityList.vue'),
+      },
+      {
         path: 'parcel-list',
         name: 'Parcel List',
         component: () => import('@/views/parcel/ParcelList.vue'),
@@ -167,6 +172,17 @@ const routes = [
         name: 'Production Targets View',
         component: () => import('@/views/target/TargetView.vue'),
       },
+      {
+        path: 'expenses',
+        name: 'Expenses',
+        component: () => import('@/views/expenses/Expense.vue'),
+      },
+      {
+        path: 'other-expenses',
+        name: 'Other Expenses',
+        component: () => import('@/views/expenses/OtherExpense.vue'),
+      },
+
 
       // Theme
       {

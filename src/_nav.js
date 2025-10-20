@@ -66,6 +66,27 @@ export default [
             name: 'Harvest',
             to: '/harvests',
           },
+          {
+            component: 'CNavItem',
+            name: 'Crop Care',
+            to: '/activities',
+          },
+        ],
+      },
+      {
+        component: 'CNavItem',
+        name: 'Inventory',
+        items: [
+          {
+            component: 'CNavItem',
+            name: 'Expenses',
+            to: '/expenses',
+          },
+          {
+            component: 'CNavItem',
+            name: 'Other Expenses',
+            to: '/other-expenses',
+          },
         ],
       },
     ],

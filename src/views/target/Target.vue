@@ -52,6 +52,7 @@ const loading = ref(false)
 const showFilters = ref(false)
 const countries = ref([])
 const farms = ref([])
+const editingId = ref(null)
 
 const currentTarget = ref({
   id: null,
@@ -184,7 +185,7 @@ function sortBy(field) {
 }
 
 function getSortIcon(field) {
-  if (sortField.value !== field) return '↕️'
+  if (sortField.value !== field) return '↕'
   return sortOrder.value === 'asc' ? '↑' : '↓'
 }
 
@@ -212,6 +213,7 @@ function prevPage() {
 function openCreate() {
   isEditing.value = false
   validated.value = false
+  editingId.value = null
   currentTarget.value = {
     id: null,
     production_type: '',
@@ -227,6 +229,7 @@ function openCreate() {
 function openEdit(target) {
   isEditing.value = true
   validated.value = false
+  editingId.value = target.id
   currentTarget.value = { ...target }
 
   // Find matching country object from options
@@ -295,12 +298,13 @@ async function handleSubmit(e) {
       quantity: currentTarget.value.quantity,
       fruit_type: currentTarget.value.production_type === 'fruit' ? currentTarget.value.fruit_type : '',
       year: currentTarget.value.year,
-      country_id: currentTarget.value.country_id.value ?? '',
+      country_id: currentTarget.value.country_id?.value ?? '',
       farm_id: currentTarget.value.farm_id.value ?? '',
     }
     
     if (isEditing.value) {
-      await targetStore.updateTarget(currentTarget.value.id, payload)
+      payload.target_id = editingId.value
+      await targetStore.editTarget(payload)
     } else {
       await targetStore.createTarget(payload)
     }

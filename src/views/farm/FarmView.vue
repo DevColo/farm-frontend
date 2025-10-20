@@ -149,7 +149,7 @@ function sortBy(field) {
 }
 
 function getSortIcon(field) {
-  if (sortField.value !== field) return '↕️'
+  if (sortField.value !== field) return '↕'
   return sortOrder.value === 'asc' ? '↑' : '↓'
 }
 
