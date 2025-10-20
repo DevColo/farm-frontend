@@ -3,7 +3,7 @@ import axios from 'axios'
 
 const instance = axios.create({
   //baseURL: 'http://jakaja.site', 
-  baseURL: 'https://jakaja.ppt-app.net',
+  baseURL: 'http://localhost/jakaja/public',
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
