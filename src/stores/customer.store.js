@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
-export const useCustomerStore = defineStore('cutomer', {
+export const useCustomerStore = defineStore('customer', {
   state: () => ({
     customers: [],
     customer: [],
@@ -13,7 +13,7 @@ export const useCustomerStore = defineStore('cutomer', {
 
       try {
         const token = localStorage.getItem('user_token')
-        await axios.post('/api/customers', customerData, {
+        await axios.post('/api/add-customer', customerData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -39,7 +39,7 @@ export const useCustomerStore = defineStore('cutomer', {
             Authorization: `Bearer ${token}`,
           },
         })
-        this.customers = response.data
+        this.customers = response.data.data
       } catch (error) {
         let errorMessage = 'Failed to fetch Customer'
         if (error.response && error.response.data) {
@@ -49,12 +49,12 @@ export const useCustomerStore = defineStore('cutomer', {
       }
     },
 
-    async editCustomer(id, customerData) {
+    async editCustomer(customerData) {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
 
-        await axios.put(`/api/customers/${id}`, customerData, {
+        await axios.post(`/api/update-customer`, customerData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

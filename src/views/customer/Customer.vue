@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useCustomerStore } from '@/stores/customer.store'
+import { useCountryStore } from '@/stores/country.store'
 import {
   CRow,
   CCol,
@@ -35,17 +36,23 @@ import {
 } from '@coreui/vue'
 import { cilPencil, cilTrash, cilPlus, cilSearch, cilFilter, cilPeople, cilCloudDownload } from '@coreui/icons'
 import Swal from 'sweetalert2'
+import Multiselect from 'vue-multiselect'
+import 'vue-multiselect/dist/vue-multiselect.css'
 
 const customerStore = useCustomerStore()
+const countryStore = useCountryStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
 const loading = ref(false)
 const showFilters = ref(false)
+const countries = ref([])
+const editingId = ref(null)
 
 const currentCustomer = ref({
   id: null,
+  country_id: '',
   first_name: '',
   last_name: '',
   email: '',
@@ -63,11 +70,24 @@ const sortOrder = ref('asc')
 onMounted(async () => {
   loading.value = true
   try {
-    await customerStore.fetchCustomers()
+    await customerStore.fetchCustomers(),
+    await countryStore.fetchCountries()
   } finally {
     loading.value = false
   }
 })
+
+// Watch the store for countries
+watch(
+  () => countryStore.countries,
+  (newCountries) => {
+    countries.value = newCountries.map(c => ({
+      value: c.id,
+      label: c.country,
+    }))
+  },
+  { deep: true }
+)
 
 // Enhanced filtering and sorting
 const filteredCustomers = computed(() => {
@@ -147,8 +167,10 @@ function prevPage() {
 function openCreate() {
   isEditing.value = false
   validated.value = false
+  editingId.value = null
   currentCustomer.value = {
     id: null,
+    country_id: '',
     first_name: '',
     last_name: '',
     email: '',
@@ -160,7 +182,10 @@ function openCreate() {
 function openEdit(customer) {
   isEditing.value = true
   validated.value = false
+  editingId.value = customer.id
   currentCustomer.value = { ...customer }
+  const countryObj = countries.value.find(c => c.value == customer.country_id || c.label == customer.country?.country)
+  currentCustomer.value.country_id = countryObj || ''
   showModal.value = true
 }
 
@@ -198,7 +223,7 @@ async function handleSubmit(e) {
   if (e) e.preventDefault()
 
   // Manual validation
-  if (!currentCustomer.value.first_name || !currentCustomer.value.phone) {
+  if (!currentCustomer.value.first_name || !currentCustomer.value.phone || !currentCustomer.value.country_id) {
     validated.value = true
     return
   }
@@ -206,6 +231,7 @@ async function handleSubmit(e) {
   loading.value = true
   try {
     const payload = {
+      country_id: currentCustomer.value.country_id?.value,
       first_name: currentCustomer.value.first_name,
       last_name: currentCustomer.value.last_name,
       email: currentCustomer.value.email,
@@ -213,7 +239,8 @@ async function handleSubmit(e) {
     }
     
     if (isEditing.value) {
-      await customerStore.editCustomer(currentCustomer.value.id, payload)
+      payload.customer_id = editingId.value
+      await customerStore.editCustomer(payload)
     } else {
       await customerStore.createCustomer(payload)
     }
@@ -358,11 +385,9 @@ const exportPDF = () => {
                     {{ customer.id }}
                   </CTableDataCell>
                   <CTableDataCell>
-                    <div class="d-flex align-items-center">
                       <router-link :to="`/customers/${customer.id}`" class="text-decoration-none">
-                        <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>
+                        {{ customer.first_name }} {{ customer.last_name }}
                       </router-link>
-                    </div>
                   </CTableDataCell>
                   <CTableDataCell>
                     <small class="text-muted">{{ customer.phone }}</small>
@@ -371,7 +396,7 @@ const exportPDF = () => {
                     <small class="text-muted">{{ customer.email }}</small>
                   </CTableDataCell>
                   <CTableDataCell>
-                    <small class="text-muted">{{ new Date(customer.createdAt).toLocaleString() }}</small>
+                    <small class="text-muted">{{ new Date(customer.created_at).toLocaleString() }}</small>
                   </CTableDataCell>
                   <CTableDataCell>
                     <div class="d-flex gap-1">
@@ -456,7 +481,6 @@ const exportPDF = () => {
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="lg">
     <CModalHeader class="border-bottom">
       <CModalTitle>
-        <CIcon :icon="cilPeople" class="me-2" />
         {{ isEditing ? 'Edit Customer' : 'Add New Customer' }}
       </CModalTitle>
     </CModalHeader>
@@ -478,7 +502,9 @@ const exportPDF = () => {
               required 
               placeholder="Enter first name"
             />
-            <CFormFeedback invalid>First name is required.</CFormFeedback>
+            <div v-if="validated && !currentCustomer.first_name" class="invalid-feedback d-block">
+              First name is required.
+            </div>
           </CCol>
 
           <CCol md="6">
@@ -500,7 +526,9 @@ const exportPDF = () => {
               required
               placeholder="Enter phone number"
             />
-            <CFormFeedback invalid>Phone number is required.</CFormFeedback>
+            <div v-if="validated && !currentCustomer.phone" class="invalid-feedback d-block">
+              Phone number is required.
+            </div>
           </CCol>
 
           <CCol md="6">
@@ -511,6 +539,32 @@ const exportPDF = () => {
               type="email"
               placeholder="Enter email address"
             />
+          </CCol>
+
+          <CCol md="6">
+            <CFormLabel for="country_id" class="fw-semibold">Country <span style="color: red;">*</span></CFormLabel>
+            <Multiselect
+              v-model="currentCustomer.country_id"
+              placeholder="Select Country"
+              track-by="value"
+              label="label"
+              :options="countries"
+              :show-no-results="false"
+              :close-on-select="true"
+              :clear-on-select="false"
+              :preserve-search="true"
+              :preselect-first="false"
+            >
+              <template #option="{ option }">
+                {{ option.label }}
+              </template>
+              <template #singleLabel="{ option }">
+                {{ option.label }}
+              </template>
+            </Multiselect>
+            <div v-if="validated && !currentCustomer.country_id" class="invalid-feedback d-block">
+              Country is required.
+            </div>
           </CCol>
         </CRow>
       </CForm>
@@ -526,7 +580,6 @@ const exportPDF = () => {
         :disabled="loading"
       >
         <CSpinner v-if="loading" size="sm" class="me-2" />
-        <CIcon v-else :icon="isEditing ? cilPencil : cilPlus" class="me-2" />
         {{ isEditing ? 'Update Customer' : 'Create Customer' }}
       </CButton>
     </CModalFooter>
@@ -534,47 +587,21 @@ const exportPDF = () => {
 </template>
 
 <style scoped>
-/* Loading Overlay */
 .loading-overlay {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 1000;
 }
 
-/* Table Enhancements */
-.modern-table {
-  font-size: 0.95rem;
-}
-
-.modern-table thead th {
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-}
-
-.modern-table tbody tr {
-  transition: all 0.2s ease;
-}
-
-.modern-table tbody tr:hover {
-  background-color: #f8f9fa;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.table-row td {
-  vertical-align: middle;
-  padding: 1rem;
+.search-filter-section {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
 }
 
 .sortable {
@@ -584,80 +611,32 @@ const exportPDF = () => {
 }
 
 .sortable:hover {
-  background-color: #e9ecef !important;
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* Search and Filter Section */
-.search-filter-section {
-  background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+.modern-table {
+  font-size: 0.9rem;
 }
 
-.advanced-filters {
-  padding-top: 1rem;
-  border-top: 1px dashed #dee2e6;
-  margin-top: 1rem;
+.table-row:hover {
+  background-color: rgba(0, 123, 255, 0.05);
 }
 
-/* Empty State */
 .empty-state {
   padding: 2rem;
 }
 
-/* Action Buttons */
-.d-flex.gap-1 button {
-  transition: all 0.2s ease;
-}
-
-.d-flex.gap-1 button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Pagination */
 .pagination-section {
-  background: linear-gradient(to top, #f8f9fa, #ffffff);
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
 }
 
-.pagination-info {
-  font-size: 0.9rem;
+.pagination-controls .btn {
+  min-width: 40px;
 }
 
-.pagination-controls button {
-  min-width: 80px;
-  font-weight: 500;
-}
-
-/* Modal Enhancements */
-.modal-content {
-  border: none;
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-}
-
-/* Form Labels */
-.fw-semibold {
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #4f5d73;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .search-filter-section .col-md-11 {
-    flex-direction: column;
-  }
-  
-  .search-filter-section .col-md-3 {
-    width: 100%;
-  }
-  
-  .d-flex.gap-2 {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .d-flex.gap-2 button {
-    width: 100%;
-  }
+.advanced-filters {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  margin-top: 1rem;
 }
 </style>

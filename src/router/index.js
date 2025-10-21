@@ -104,6 +104,11 @@ const routes = [
         component: () => import('@/views/sales/CowSales.vue'),
       },
       {
+        path: 'crop-sales',
+        name: 'Crop Sales',
+        component: () => import('@/views/sales/CropSales.vue'),
+      },
+      {
         path: '/customers/:id',
         name: 'Customer Profile',
         component: () => import('@/views/customer/CustomerView.vue'),

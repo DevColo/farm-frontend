@@ -97,7 +97,7 @@ onMounted(async () => {
     await Promise.all([
       cowStore.fetchCows(),
       pastureStore.fetchPastures(),
-      cowStore.loadParentOptions()
+      cowStore.loadParentOptions(),
     ])
   } finally {
     loading.value = false

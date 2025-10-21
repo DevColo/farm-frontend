@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import axios from '@/axios'
 import { useToast } from 'vue-toastification'
 
-export const useActivityStore = defineStore('cropSale', {
+export const useCropSaleStore = defineStore('cropSale', {
   state: () => ({
     cropSales: [],
     cropSale: [],
@@ -58,11 +58,18 @@ export const useActivityStore = defineStore('cropSale', {
             Authorization: `Bearer ${token}`,
           },
         })
+        
         // Remove deleted Crop Sale from state
         this.cropSales = this.cropSales.filter((p) => p.id !== id)
         toast.success('Crop Sale deleted successfully')
       } catch (error) {
-        toast.error('Failed to delete Crop Sale')
+        let errorMessage = 'Something went wrong'
+
+        if (error.response && error.response.data) {
+          errorMessage = error.response.data.error
+        }
+        toast.error(errorMessage)
+        return 0;
       }
     },
 
@@ -70,7 +77,7 @@ export const useActivityStore = defineStore('cropSale', {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.post(`/api/update-activity`, updatedData, {
+        await axios.post(`/api/update-crop-sale`, updatedData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

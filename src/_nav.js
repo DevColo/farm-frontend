@@ -189,21 +189,21 @@ export default [
     name: 'Sales Management',
     icon: 'cil-dollar',
     items: [
-      {
-        component: 'CNavItem',
-        name: 'Milk Sales',
-        to: '/milk-sales',
-      },
-      {
-        component: 'CNavItem',
-        name: 'Cow Sales',
-        to: '/cow-sales',
-      },
       // {
       //   component: 'CNavItem',
-      //   name: 'Product Sales',
-      //   to: '/product-sales',
+      //   name: 'Milk Sales',
+      //   to: '/milk-sales',
       // },
+      // {
+      //   component: 'CNavItem',
+      //   name: 'Cow Sales',
+      //   to: '/cow-sales',
+      // },
+      {
+        component: 'CNavItem',
+        name: 'Crop Sales',
+        to: '/crop-sales',
+      },
     ],
   },
 

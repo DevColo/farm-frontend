@@ -485,6 +485,78 @@ watch(
         </CBreadcrumbItem>
         <CBreadcrumbItem active>Harvests</CBreadcrumbItem>
       </CBreadcrumb>
+      <!-- Stats Row -->
+      <CRow class="mb-4">
+        <CCol cols="12">
+            <CCardBody class="py-3">
+              <div class="d-flex flex-wrap justify-content-between align-items-center">
+                <div class="d-flex gap-3 flex-wrap">
+                  <div class="stat-card p-3 bg-white rounded shadow-sm">
+                    <div class="small text-muted">Total Harvests</div>
+                    <div class="h5 mb-0">{{ filteredHarvests.length }}</div>
+                  </div>
+
+                  <div class="stat-card p-3 bg-white rounded shadow-sm">
+                    <div class="small text-muted">Total Quantity (kg)</div>
+                    <div class="h5 mb-0">
+                      {{
+                        (filteredHarvests.reduce((sum, h) => sum + (Number(h.quantity) || 0), 0)).toFixed(2)
+                      }}
+                    </div>
+                  </div>
+
+                  <div class="stat-card p-3 bg-white rounded shadow-sm">
+                    <div class="small text-muted">Average per Harvest (kg)</div>
+                    <div class="h5 mb-0">
+                      {{
+                        filteredHarvests.length
+                          ? (filteredHarvests.reduce((sum, h) => sum + (Number(h.quantity) || 0), 0) / filteredHarvests.length).toFixed(2)
+                          : '0.00'
+                      }}
+                    </div>
+                  </div>
+
+                  <div class="stat-card p-3 bg-white rounded shadow-sm">
+                    <div class="small text-muted">Distinct Farms</div>
+                    <div class="h5 mb-0">
+                      {{
+                        new Set(filteredHarvests.map(h => h.farm_id)).size
+                      }}
+                    </div>
+                  </div>
+
+                  <div class="stat-card p-3 bg-white rounded shadow-sm">
+                    <div class="small text-muted">Latest Harvest</div>
+                    <div class="h6 mb-0">
+                      {{
+                        filteredHarvests.length
+                          ? new Date(Math.max.apply(null, filteredHarvests.map(h => new Date(h.harvest_date).getTime()))).toLocaleDateString()
+                          : '—'
+                      }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Breakdown by Fruit -->
+                <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
+                  <div v-for="fruit in fruitTypes" :key="fruit.value" class="d-flex align-items-center gap-2">
+                    <span :title="fruit.label" class="badge bg-light text-dark border">
+                      <span class="me-1">{{ fruit.icon }}</span>
+                      {{ fruit.label }}:
+                      {{
+                        (filteredHarvests
+                          .filter(h => (h.fruit || '').toLowerCase() === fruit.value.toLowerCase())
+                          .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
+                        ).toFixed(2)
+                      }} kg
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CCardBody>
+        </CCol>
+      </CRow>
+
     <!-- Main Table Card -->
     <CCol cols="12">
       <CCard class="shadow-sm border-0">
@@ -987,4 +1059,6 @@ watch(
   border-top: 1px solid rgba(0, 0, 0, 0.1);
   margin-top: 1rem;
 }
+.stat-card { min-width: 160px; }
+      .badge { font-size: 0.85rem; padding: 0.35rem 0.6rem; }
 </style>

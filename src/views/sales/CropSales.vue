@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useMilkStore } from '@/stores/milk.store'
-import { useMilkSalesStore } from '@/stores/crop-sales.store'
+import { useCropSaleStore } from '@/stores/crop-sales.store'
 import { useCustomerStore } from '@/stores/customer.store'
+import { useHarvestStore } from '@/stores/harvest.store'
+import { useFarmStore } from '@/stores/farm.store'
 import {
   CRow,
   CCol,
@@ -33,57 +34,82 @@ import { cilPencil, cilTrash } from '@coreui/icons'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.css'
 
-const milkStore = useMilkStore()
-const milkSalesStore = useMilkSalesStore()
+const cropSalesStore = useCropSaleStore()
 const customerStore = useCustomerStore()
+const harvestStore = useHarvestStore()
+const farmStore = useFarmStore()
 
 const showModal = ref(false)
 const isEditing = ref(false)
 const validated = ref(false)
+const editingId = ref(null)
 
-const currentMilkSales = ref({
+// Crop Rejection status
+const rejectionStatus = [
+  { value: 'No', label: 'No'},
+  { value: 'Yes', label: 'Yes'},
+]
+
+const currentSales = ref({
   id: null,
-  milk_record_id: '',
+  farm_id: '',
+  harvest_record_id: '',
   customer_id: '',
   quantity: '',
   unit_price: '',
   sales_date: '',
+  is_rejected: 'No',
 })
+const farms = ref([])
+const harvests = ref([])
+const maxQty = ref(0)
+const isRejected = ref(false)
 
 // fetch data
 onMounted(() => {
-  milkSalesStore.fetchMilkSales()
-  milkStore.fetchMilkRecords()
+  cropSalesStore.fetchCropSales()
   customerStore.fetchCustomers()
+  farmStore.fetchFarms()
 })
+
+watch(
+  () => farmStore.farms,
+  (newFarms) => {
+    farms.value = newFarms.map(b => ({
+      value: b.id,
+      label: `${b?.farm_code} - ${b?.name}`,
+    }))
+  },
+  { deep: true }
+)
 
 // search & pagination
 const searchQuery = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
-const filteredMilkSales = computed(() => {
+const filteredSales = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return milkSalesStore.milkSales
-  return milkSalesStore.milkSales.filter((m) =>
+  if (!q) return cropSalesStore.cropSales
+  return cropSalesStore.cropSales.filter((m) =>
     [m.sales_date, m.quantity].some((f) => f?.toLowerCase().includes(q)),
   )
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredMilkSales.value.length / itemsPerPage.value)),
+  Math.max(1, Math.ceil(filteredSales.value.length / itemsPerPage.value)),
 )
-const paginatedMilkSales = computed(() => {
+const paginatedSales = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredMilkSales.value.slice(start, start + itemsPerPage.value)
+  return filteredSales.value.slice(start, start + itemsPerPage.value)
 })
 
 // Fix for the prop type warning
 watch(
-  () => currentMilkSales.value.milk_record_id,
+  () => currentSales.value.harvest_record_id,
   (newValue) => {
     if (typeof newValue === 'number') {
-      currentMilkSales.value.milk_record_id = String(newValue)
+      currentSales.value.harvest_record_id = String(newValue)
     }
   },
 )
@@ -102,27 +128,46 @@ function resetPage() {
 function openCreate() {
   isEditing.value = false
   validated.value = false
-  currentMilkSales.value = {
+  currentSales.value = {
     id: null,
-    milk_record_id: '',
+    farm_id: '',
+    harvest_record_id: '',
     customer_id: '',
     quantity: '',
     unit_price: '',
     sales_date: '',
+    is_rejected: 'No',
   }
   showModal.value = true
 }
 
-function openEdit(milkSales) {
+function openEdit(cropSales) {
   isEditing.value = true
   validated.value = false
-  currentMilkSales.value = { ...milkSales }
+  editingId.value = cropSales.id
+  currentSales.value = { ...cropSales }
+  currentSales.value = {
+    sales_date: cropSales.sale_date,
+    customer_id: cropSales.customer_id
+      ? { value: cropSales.customer_id, label: `${cropSales.customer?.first_name  } ${cropSales.customer?.last_name}` }
+      : '',
+    harvest_record_id: cropSales.farm_harvest_id
+      ? { value: cropSales.farm_harvest_id, label: `${cropSales.farm_harvest?.harvest_date} - ${cropSales.farm_harvest?.fruit}` }
+      : '',
+    quantity: cropSales.quantity,
+    unit_price: cropSales.price,
+    is_rejected: cropSales.is_rejected ? { value: cropSales.is_rejected, label: cropSales.is_rejected } : 'No',
+    farm_id: cropSales.farm_id
+      ? { value: cropSales.farm_id, label: `${cropSales.farm?.farm_code} - ${cropSales.farm?.name}` }
+      : '',
+    id: cropSales.id, 
+  }
   showModal.value = true
 }
 
 function confirmDelete(id) {
   if (confirm('Are you sure you want to delete this milk sales record?')) {
-    milkSalesStore.deleteMilkSales(id)
+    cropSalesStore.deleteCropSales(id)
   }
 }
 
@@ -136,16 +181,19 @@ async function handleSubmit(e) {
   }
   e.preventDefault()
   const payload = {
-    milk_record_id: currentMilkSales.value.milk_record_id.value,
-    customer_id: currentMilkSales.value.customer_id.value,
-    quantity: currentMilkSales.value.quantity,
-    unit_price: currentMilkSales.value.unit_price,
-    sales_date: currentMilkSales.value.sales_date,
+    farm_id: currentSales.value.farm_id.value,
+    farm_harvest_id: currentSales.value.harvest_record_id.value,
+    customer_id: currentSales.value.customer_id.value,
+    quantity: currentSales.value.quantity,
+    price: currentSales.value.unit_price,
+    sale_date: currentSales.value.sales_date,
+    is_rejected: currentSales.value.is_rejected.value,
   }
   if (isEditing.value) {
-    await milkSalesStore.editMilkSales(currentMilkSales.value.id, payload)
+    payload.id = editingId.value
+    await cropSalesStore.editCropSale(payload)
   } else {
-    await milkSalesStore.createMilkSales(payload)
+    await cropSalesStore.createCropSale(payload)
   }
   showModal.value = false
   //resetPage()
@@ -163,7 +211,7 @@ async function exportPDF() {
   autoTable(doc, {
     startY: 35,
     head: [['ID', 'Food', 'Quantity', 'Sales Date', 'Pasture']],
-    body: filteredMilkSales.value.map((feeding) => [
+    body: filteredSales.value.map((feeding) => [
       feeding.id,
       feeding.food,
       feeding.quantity,
@@ -178,7 +226,7 @@ async function exportPDF() {
 function exportCSV() {
   const rows = [
     ['ID', 'Food', 'Quantity', 'Sales Date', 'Pasture'],
-    ...filteredMilkSales.value.map((feeding) => [
+    ...filteredSales.value.map((feeding) => [
       feeding.id,
       feeding.food?.food,
       feeding.quantity,
@@ -218,29 +266,137 @@ function getRevenue(milk) {
 }
 
 const selectedFood = computed(() => {
-  return milkStore.milkRecords.find((milk) => milk.id === currentMilkSales.milk_record_id) || null
+  return cropStore.cropSales.find((milk) => milk.id === currentSales.harvest_record_id) || null
 })
 
-watch(
-  () => currentMilkSales.value.milk_record_id,
-  (foodId) => {
-    selectedFood.value = milkStore.milkRecords.find((f) => f.id === foodId) || null
-  },
-)
+// watch(
+//   () => currentSales.value.harvest_record_id,
+//   (foodId) => {
+//     selectedFood.value = cropStore.cropSales.find((f) => f.id === foodId) || null
+//   },
+// )
 
 const availableQuantity = computed(() => {
   if (!selectedFood.value) return 0
   const consumed = getConsumedQuantity(selectedFood.value)
   return selectedFood.value.quantity - consumed
 })
+
+async function handleHarvestByFarm(farmId) {
+  const farmIdValue = farmId?.value ?? farmId
+  // Reset if no farm selected
+  if (!farmIdValue) {
+    harvests.value = []
+    return
+  }
+  // clear previous options while loading
+  harvests.value = []
+  await harvestStore.fetchHarvestsByFarmId(farmIdValue)
+  const res = harvestStore.harvests;
+  harvests.value = Array.isArray(res) ? 
+    res.map(h => (
+      { 
+        value: h.id,
+        label: `${h?.harvest_date} - ${h?.fruit} ${h?.type != '' ? `(${h?.type})` : ''} - ${h?.quantity}kg`,
+        quantity: h?.quantity,
+      })) 
+  : []
+  console.log('Fetched harvests:', harvests.value)
+}
+
+function getMaxQuantity(qty) {
+  const qtyValue = qty?.quantity ?? qty
+   console.log('Fetched qtyValue:', qty)
+  if (!qtyValue) {
+    maxQty.value = []
+    return
+  }
+ 
+}
+//getMaxQuantity
+// Ensure function runs whenever farm changes
+watch(
+  () => currentSales.value.farm_id,
+  (newFarmId) => {
+    handleHarvestByFarm(newFarmId)
+  }
+)
+
+watch(
+  () => currentSales.value.harvest_record_id,
+  (newHarvestRecordId) => {
+    //handleHarvestByFarm(newFarmId)
+    maxQty.value = newHarvestRecordId?.quantity
+  }
+)
 </script>
 
 <template>
   <CRow>
     <CCol :xs="12">
+      <!-- sales stats -->
+          <div class="d-flex flex-wrap gap-3 mb-3">
+            <div class="p-3 border rounded text-center" style="min-width: 150px;">
+              <div class="text-muted small">Total Records</div>
+              <div class="h5 mb-0">{{ filteredSales.length }}</div>
+            </div>
+
+            <div class="p-3 border rounded text-center" style="min-width: 150px;">
+              <div class="text-muted small">Total Quantity (Kg)</div>
+              <div class="h5 mb-0">
+          {{
+            filteredSales.length
+              ? filteredSales.reduce((s, it) => s + (Number(it.quantity) || 0), 0)
+              : 0
+          }}
+              </div>
+            </div>
+
+            <div class="p-3 border rounded text-center" style="min-width: 150px;">
+              <div class="text-muted small">Total Revenue (Rwf)</div>
+              <div class="h5 mb-0">
+          {{
+            filteredSales.length
+              ? filteredSales
+            .reduce(
+              (s, it) => s + (Number(it.quantity) || 0) * (Number(it.price) || 0),
+              0,
+            )
+            .toFixed(2)
+              : '0.00'
+          }}
+              </div>
+            </div>
+
+            <div class="p-3 border rounded text-center" style="min-width: 150px;">
+              <div class="text-muted small">Avg Unit Price (Rwf)</div>
+              <div class="h5 mb-0">
+          {{
+            filteredSales.length
+              ? (
+            filteredSales.reduce((s, it) => s + (Number(it.price) || 0), 0) /
+            filteredSales.length
+                ).toFixed(2)
+              : '0.00'
+          }}
+              </div>
+            </div>
+
+            <div class="p-3 border rounded text-center" style="min-width: 150px;">
+              <div class="text-muted small">Rejected Sales</div>
+              <div class="h5 mb-0">
+          {{
+            filteredSales.length
+              ? filteredSales.filter((it) => it.is_rejected === 'Yes' || it.is_rejected === true)
+            .length
+              : 0
+          }}
+              </div>
+            </div>
+          </div>
       <CCard class="mb-4">
         <CCardHeader class="d-flex justify-content-between align-items-center">
-          <strong>Milk Sales List</strong>
+          <strong>Harvest Sales List</strong>
           <div class="d-flex gap-2 mb-3">
             <CButton color="dark" variant="outline" title="Export CSV" @click="exportCSV"
               ><CIcon icon="cil-file"
@@ -253,7 +409,6 @@ const availableQuantity = computed(() => {
         </CCardHeader>
         <CCardBody>
           <!-- search + page-size -->
-
           <div class="d-flex justify-content-between align-items-center mb-3">
             <input
               type="text"
@@ -265,86 +420,73 @@ const availableQuantity = computed(() => {
             <div class="d-flex align-items-center">
               <label class="me-2">Show:</label>
               <select v-model="itemsPerPage" @change="resetPage" class="form-select">
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-                <option :value="100">100</option>
+          <option :value="10">10</option>
+          <option :value="25">25</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
               </select>
             </div>
           </div>
-
           <!-- sales table -->
           <CTable striped hover responsive>
             <CTableHead>
               <CTableRow>
-                <CTableHeaderCell>Milk Recorded Date</CTableHeaderCell>
-                <CTableHeaderCell>Customer</CTableHeaderCell>
-                <CTableHeaderCell>Qty Recorded</CTableHeaderCell>
-                <CTableHeaderCell>Sold Date</CTableHeaderCell>
-                <CTableHeaderCell>Qty Sold</CTableHeaderCell>
-                <CTableHeaderCell>Unit Price (Rwf)</CTableHeaderCell>
-                <CTableHeaderCell>Revenue (Rwf)</CTableHeaderCell>
-                <CTableHeaderCell>Action</CTableHeaderCell>
+          <CTableHeaderCell>Harvest</CTableHeaderCell>
+          <CTableHeaderCell>Customer</CTableHeaderCell>
+          <CTableHeaderCell>Sold Qty (Kg)</CTableHeaderCell>
+          <CTableHeaderCell>Sold Date</CTableHeaderCell>
+          <CTableHeaderCell>Unit Price (RWF)</CTableHeaderCell>
+          <CTableHeaderCell>Total Price (Rwf)</CTableHeaderCell>
+          <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
             <CTableBody>
-              <CTableRow v-for="milkSales in paginatedMilkSales" :key="milkSales.id">
-                <CTableDataCell>{{ milkSales.milk_record?.record_date ?? '' }}</CTableDataCell>
-                <CTableDataCell
-                  ><router-link :to="`/customers/${milkSales.customer?.id}`">
-                    {{ milkSales.customer?.first_name + ' ' + milkSales.customer?.last_name }}
-                  </router-link></CTableDataCell
-                >
-                <CTableDataCell>{{
-                  Number(milkSales.milk_record?.morning_qty) +
-                    Number(milkSales.milk_record?.evening_qty) ?? ''
-                }}</CTableDataCell>
-                <CTableDataCell>{{ milkSales.sales_date }}</CTableDataCell>
-                <CTableDataCell>{{ milkSales.quantity }}</CTableDataCell>
-                <CTableDataCell>{{ milkSales.unit_price }}</CTableDataCell>
-                <CTableDataCell>{{ getRevenue(milkSales) }}</CTableDataCell>
-                <CTableDataCell
-                  ><router-link
-                    :to="`/pasture/cow/${milkSales.pasture?.id}`"
-                    class="text-decoration-none text-dark"
-                    >{{ milkSales.pasture?.pasture ?? '' }}</router-link
-                  ></CTableDataCell
-                >
-                <CTableDataCell>
-                  <!-- Edit Cow Button -->
-                  <CButton
-                    size="sm"
-                    color="info"
-                    class="me-2 text-white"
-                    title="Edit milkSales Record"
-                    @click="openEdit(milkSales)"
-                  >
-                    <CIcon :icon="cilPencil" />
-                  </CButton>
+              <CTableRow v-for="cropSales in paginatedSales" :key="cropSales.id">
+          <CTableDataCell>{{ cropSales.farm_harvest?.harvest_date ?? '' }} - {{ cropSales.farm_harvest?.fruit ?? '' }} {{ `(${cropSales.farm_harvest?.type})` ?? '' }} {{ `${cropSales.farm_harvest?.quantity}Kg` ?? '' }}</CTableDataCell>
+          <CTableDataCell
+            ><router-link :to="`/customers/${cropSales.customer?.id}`">
+              {{ cropSales.customer?.first_name + ' ' + cropSales.customer?.last_name }}
+            </router-link>
+            </CTableDataCell>
+          <CTableDataCell>{{ cropSales?.quantity ?? '' }}</CTableDataCell>
+          <CTableDataCell>{{ cropSales?.sale_date ?? '' }}</CTableDataCell>
+          <CTableDataCell>{{ cropSales?.price ?? '' }}</CTableDataCell>
+          <CTableDataCell>{{ (Number(cropSales?.quantity) || 0) * (Number(cropSales?.price) || 0) }}</CTableDataCell>
+          <CTableDataCell>
+            <!-- Edit Cow Button -->
+            <CButton
+              size="sm"
+              color="info"
+              class="me-2 text-white"
+              title="Edit cropSales Record"
+              @click="openEdit(cropSales)"
+            >
+              <CIcon :icon="cilPencil" />
+            </CButton>
 
-                  <!-- Delete Cow Button -->
-                  <CButton
-                    size="sm"
-                    color="danger"
-                    class="text-white"
-                    title="Delete milkSales Record"
-                    @click="confirmDelete(milkSales.id)"
-                  >
-                    <CIcon :icon="cilTrash" />
-                  </CButton>
-                </CTableDataCell>
+            <!-- Delete Cow Button -->
+            <CButton
+              size="sm"
+              color="danger"
+              class="text-white"
+              title="Delete Crop Sales Record"
+              @click="confirmDelete(cropSales.id)"
+            >
+              <CIcon :icon="cilTrash" />
+            </CButton>
+          </CTableDataCell>
               </CTableRow>
-              <CTableRow v-if="paginatedMilkSales.length === 0">
-                <CTableDataCell colspan="8" class="text-center">
-                  No sales record found.
-                </CTableDataCell>
+              <CTableRow v-if="paginatedSales.length === 0">
+          <CTableDataCell colspan="8" class="text-center">
+            No sales record found.
+          </CTableDataCell>
               </CTableRow>
             </CTableBody>
           </CTable>
 
           <!-- pagination controls -->
           <div class="text-end mb-3">
-            <strong>Total Records:</strong> {{ filteredMilkSales.length }}
+            <strong>Total Records:</strong> {{ filteredSales.length }}
           </div>
           <div class="d-flex justify-content-between align-items-center mt-3">
             <CButton color="dark" variant="outline" :disabled="currentPage === 1" @click="prevPage">
@@ -370,7 +512,7 @@ const availableQuantity = computed(() => {
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="md">
     <CModalHeader>
       <CModalTitle>{{
-        isEditing ? 'Edit Milk Sales Record' : 'Add Milk Sales Record'
+        isEditing ? 'Edit Crop Sales Record' : 'Add Crop Sales Record'
       }}</CModalTitle>
     </CModalHeader>
     <CModalBody>
@@ -380,46 +522,89 @@ const availableQuantity = computed(() => {
         :validated="validated"
         @submit="handleSubmit"
       >
+        <CCol md="12">
+            <CFormLabel for="farm_id" class="fw-semibold">Farm <span style="color: red;">*</span></CFormLabel>
+            <Multiselect
+              v-model="currentSales.farm_id"
+              placeholder="Select Farm"
+              track-by="value"
+              label="label"
+              :options="farms"
+              :show-no-results="false"
+              :close-on-select="true"
+              :clear-on-select="false"
+              :preserve-search="true"
+              :preselect-first="false"
+              @input="handleHarvestByFarm(currentSales.farm_id.value)"
+            />
+            <div v-if="validated && !currentSales.farm_id" class="invalid-feedback d-block">
+              Farm is required.
+            </div>
+          </CCol>
+
+          <CCol md="12">
+            <CFormLabel for="tree" class="fw-semibold">Harvest <span style="color: red;">*</span></CFormLabel>
+            <Multiselect
+              v-model="currentSales.harvest_record_id"
+              placeholder="Select Harvest"
+              track-by="value"
+              label="label"
+              :options="harvests"
+              :show-no-results="false"
+              :close-on-select="true"
+              :clear-on-select="false"
+              :preserve-search="true"
+              :preselect-first="false"
+              @input="getMaxQuantity(currentSales.harvest_record_id.value)"
+            >
+              <template #option="{ option }">
+                {{ option.label }}
+              </template>
+              <template #singleLabel="{ option }">
+                {{ option.label }}
+              </template>
+            </Multiselect>
+            <div v-if="validated && !currentSales.harvest_record_id" class="invalid-feedback d-block">
+              Harvest is required.
+            </div>
+          </CCol>
+
         <CCol :md="12">
-          <CFormLabel for="food">Recorded Milk</CFormLabel>
-          <Multiselect
-            id="food"
-            v-model="currentMilkSales.milk_record_id"
-            :options="[
-              { label: 'Select Recorded Milk Date', value: '' },
-              ...milkStore.milkRecords.map((milk) => ({
-                label:
-                  milk.record_date +
-                  ' (' +
-                  (Number(milk.morning_qty) +
-                    Number(milk.evening_qty) -
-                    Number(getConsumedQuantity(milk))) +
-                  ' kg available)',
-                value: milk.id,
-              })),
-            ]"
-            label="label"
-            track-by="value"
-            placeholder="Select Recorded Milk Date"
-            :searchable="true"
-            :allowEmpty="true"
-            @input="validated.value = !!currentMilkSales.milk_record_id"
-          />
-          <CFormFeedback invalid v-if="!currentMilkSales.milk_record_id"
-            >Recorded Milk Date is required.</CFormFeedback
-          >
-        </CCol>
+  <CFormLabel for="is_rejected">Is Rejected</CFormLabel>
+  <select
+    id="is_rejected"
+    v-model="currentSales.is_rejected"
+    class="form-select"
+  >
+    <option value="No">No</option>
+    <option value="Yes">Yes</option>
+  </select>
+  <CFormFeedback invalid v-if="!currentSales.is_rejected">
+    Rejection status is required.
+  </CFormFeedback>
+</CCol>
+
 
         <CCol :md="12">
           <CFormLabel for="quantity">Quantity (kg)</CFormLabel>
           <CFormInput
             id="quantity"
-            v-model="currentMilkSales.quantity"
+            v-model="currentSales.quantity"
             type="number"
             min="1"
+            :max="maxQty"
+            @input="(e) => {
+              const val = Number(e.target.value);
+              if (maxQty && !isNaN(val) && val > Number(maxQty)) {
+                e.target.setCustomValidity('Quantity cannot exceed available: ' + maxQty);
+                e.target.reportValidity();
+              } else {
+                e.target.setCustomValidity('');
+              }
+            }"
             required
           />
-          <CFormFeedback invalid v-if="!currentMilkSales.quantity">
+          <CFormFeedback invalid v-if="!currentSales.quantity">
             Quantity is quantity.
           </CFormFeedback>
         </CCol>
@@ -428,12 +613,12 @@ const availableQuantity = computed(() => {
           <CFormLabel for="unit_price">Unit Price (Rwf)</CFormLabel>
           <CFormInput
             id="unit_price"
-            v-model="currentMilkSales.unit_price"
+            v-model="currentSales.unit_price"
             type="number"
             min="1"
             required
           />
-          <CFormFeedback invalid v-if="!currentMilkSales.unit_price">
+          <CFormFeedback invalid v-if="!currentSales.unit_price">
             Unit Price is required.
           </CFormFeedback>
         </CCol>
@@ -442,7 +627,7 @@ const availableQuantity = computed(() => {
           <CFormLabel for="customer">Customer</CFormLabel>
           <Multiselect
             id="customer"
-            v-model="currentMilkSales.customer_id"
+            v-model="currentSales.customer_id"
             :options="[
               { label: 'Select Customer', value: '' },
               ...customerStore.customers.map((customer) => ({
@@ -455,18 +640,18 @@ const availableQuantity = computed(() => {
             placeholder="Select Customer"
             :searchable="true"
             :allowEmpty="true"
-            :value="currentMilkSales.customer_id"
-            @input="validated.value = !!currentMilkSales.customer_id"
+            :value="currentSales.customer_id"
+            @input="validated.value = !!currentSales.customer_id"
             required
           />
-          <CFormFeedback invalid v-if="!currentMilkSales.customer_id"
+          <CFormFeedback invalid v-if="!currentSales.customer_id"
             >Customer is required.</CFormFeedback
           >
         </CCol>
 
         <CCol :md="12">
           <CFormLabel for="salesDate">Sales Date</CFormLabel>
-          <CFormInput id="salesDate" type="date" v-model="currentMilkSales.sales_date" required />
+          <CFormInput id="salesDate" type="date" v-model="currentSales.sales_date" required />
           <CFormFeedback invalid>Sales Date is required.</CFormFeedback>
         </CCol>
 

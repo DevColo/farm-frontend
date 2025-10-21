@@ -91,28 +91,51 @@ export const useHarvestStore = defineStore('harvest', {
     },
 
     async fetchHarvestById(id) {
-          const toast = useToast()
-          this.loading = true
-          
-          try {
-            const token = localStorage.getItem('user_token')
-            const response = await axios.get(`/api/get-harvest/${id}`, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            })
-            
-            if (response.data.success) {
-              this.harvest = response.data.data
-            } else {
-              this.harvest = null
-            }
-          } catch (error) {
-            this.handleError(error, 'Failed to fetch harvest details')
-            this.harvest = null
-          } finally {
-            this.loading = false
-          }
-        },
+      this.loading = true
+      
+      try {
+        const token = localStorage.getItem('user_token')
+        const response = await axios.get(`/api/get-harvest/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        
+        if (response.data.success) {
+          this.harvest = response.data.data
+        } else {
+          this.harvest = null
+        }
+      } catch (error) {
+        this.handleError(error, 'Failed to fetch harvest details')
+        this.harvest = null
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchHarvestsByFarmId(id) {
+      this.loading = true
+      
+      try {
+        const token = localStorage.getItem('user_token')
+        const response = await axios.get(`/api/get-harvests-by-farm/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        
+        if (response.data.success) {
+          this.harvests = response.data.data
+        } else {
+          this.harvests = null
+        }
+      } catch (error) {
+        this.handleError(error, 'Failed to fetch harvest details')
+        this.harvests = null
+      } finally {
+        this.loading = false
+      }
+    },
   },
 })
