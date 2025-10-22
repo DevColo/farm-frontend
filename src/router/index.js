@@ -57,11 +57,7 @@ const routes = [
         name: 'Daily Milk Record',
         component: () => import('@/views/milk/DailyMilkRecord.vue'),
       },
-      {
-        path: 'profile',
-        name: 'Profile',
-        component: () => import('@/views/user/Profile.vue'),
-      },
+    
       {
         path: 'users',
         name: 'Users',
@@ -77,6 +73,11 @@ const routes = [
         path: 'roles',
         name: 'Roles',
         component: () => import('@/views/role/Role.vue'),
+      },
+      {
+        path: 'permissions',
+        name: 'Permissions',
+        component: () => import('@/views/permissions/Permissions.vue'),
       },
       {
         path: 'cow-foods',
