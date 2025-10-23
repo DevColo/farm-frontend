@@ -166,8 +166,8 @@ function openEdit(cropSales) {
 }
 
 function confirmDelete(id) {
-  if (confirm('Are you sure you want to delete this milk sales record?')) {
-    cropSalesStore.deleteCropSales(id)
+  if (confirm('Are you sure you want to delete this crop sales record?')) {
+    cropSalesStore.deleteCropSale(id)
   }
 }
 
@@ -445,7 +445,7 @@ watch(
           <CTableDataCell>{{ cropSales.farm_harvest?.harvest_date ?? '' }} - {{ cropSales.farm_harvest?.fruit ?? '' }} {{ `(${cropSales.farm_harvest?.type})` ?? '' }} {{ `${cropSales.farm_harvest?.quantity}Kg` ?? '' }}</CTableDataCell>
           <CTableDataCell
             ><router-link :to="`/customers/${cropSales.customer?.id}`">
-              {{ cropSales.customer?.first_name + ' ' + cropSales.customer?.last_name }}
+              {{ cropSales.customer?.first_name ?? '' + ' ' + cropSales.customer?.last_name ?? '' }}
             </router-link>
             </CTableDataCell>
           <CTableDataCell>{{ cropSales?.quantity ?? '' }}</CTableDataCell>

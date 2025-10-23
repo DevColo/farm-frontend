@@ -53,7 +53,7 @@ export const useHarvestStore = defineStore('harvest', {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.delete(`/api/harvests/${id}`, {
+        await axios.delete(`/api/delete-harvest/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

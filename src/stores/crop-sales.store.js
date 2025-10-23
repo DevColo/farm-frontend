@@ -53,7 +53,7 @@ export const useCropSaleStore = defineStore('cropSale', {
       const toast = useToast()
       try {
         const token = localStorage.getItem('user_token')
-        await axios.delete(`/api/crop-sale/${id}`, {
+        await axios.delete(`/api/delete-crop-sale/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
