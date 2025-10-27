@@ -193,6 +193,11 @@ const routes = [
         name: 'Other Expenses',
         component: () => import('@/views/expenses/OtherExpense.vue'),
       },
+      {
+        path: 'tools',
+        name: 'Tools',
+        component: () => import('@/views/tools/Tool.vue'),
+      },
 
 
       // Theme
