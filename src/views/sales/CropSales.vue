@@ -187,7 +187,7 @@ async function handleSubmit(e) {
     quantity: currentSales.value.quantity,
     price: currentSales.value.unit_price,
     sale_date: currentSales.value.sales_date,
-    is_rejected: currentSales.value.is_rejected.value,
+    is_rejected: currentSales.value.is_rejected,
   }
   if (isEditing.value) {
     payload.id = editingId.value
@@ -394,6 +394,76 @@ watch(
               </div>
             </div>
           </div>
+          <!-- Fruit-specific stats -->
+          <div class="mb-4">
+            <h5>Sales by Fruit Type</h5>
+            <div class="d-flex flex-wrap gap-3">
+              <!-- Calculate stats for each unique fruit -->
+              <template v-for="fruit in [...new Set(filteredSales.map(sale => sale.farm_harvest?.fruit))]" :key="fruit">
+                <div v-if="fruit" class="p-3 border rounded" style="min-width: 200px;">
+                  <h6 class="mb-2">{{ fruit }}</h6>
+                  <div class="small">
+                    <div class="d-flex justify-content-between mb-1">
+                      <span>Total Quantity:</span>
+                      <strong>{{ 
+                        filteredSales
+                          .filter(sale => sale.farm_harvest?.fruit === fruit)
+                          .reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0)
+                      }} kg</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                      <span>Total Revenue:</span>
+                      <strong>{{ 
+                        filteredSales
+                          .filter(sale => sale.farm_harvest?.fruit === fruit)
+                          .reduce((sum, sale) => sum + ((Number(sale.quantity) || 0) * (Number(sale.price) || 0)), 0)
+                          .toFixed(2)
+                      }} Rwf</strong>
+                    </div>
+                    
+                    <!-- Avocado type breakdown -->
+                    <template v-if="fruit === 'Avocado'">
+                      <hr class="my-2">
+                      <div class="mt-2">
+                        <h6 class="mb-2">By Type:</h6>
+                        <template v-for="type in [...new Set(filteredSales
+                          .filter(sale => sale.farm_harvest?.fruit === 'Avocado')
+                          .map(sale => sale.farm_harvest?.type))]" 
+                          :key="type">
+                          <div v-if="type" class="d-flex justify-content-between mb-1">
+                            <span>{{ type }}:</span>
+                            <strong>
+                              {{
+                                  filteredSales
+                                    .filter(
+                                      sale =>
+                                        sale.farm_harvest?.fruit === 'Avocado' &&
+                                        sale.farm_harvest?.type === type
+                                    )
+                                    .reduce(
+                                      (sum, sale) =>
+                                        sum + (Number(sale.quantity) || 0) * (Number(sale.price) || 0),
+                                      0
+                                    )
+                                    .toFixed(2)
+                                }} Rwf 
+                            </strong>
+                            <!-- <strong>
+
+                              {{ 
+                              filteredSales
+                                .filter(sale => sale.farm_harvest?.fruit === 'Avocado' && sale.farm_harvest?.type === type)
+                                .reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0)
+                            }} kg</strong> -->
+                          </div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
       <CCard class="mb-4">
         <CCardHeader class="d-flex justify-content-between align-items-center">
           <strong>Harvest Sales List</strong>
@@ -442,7 +512,7 @@ watch(
             </CTableHead>
             <CTableBody>
               <CTableRow v-for="cropSales in paginatedSales" :key="cropSales.id">
-          <CTableDataCell>{{ cropSales.farm_harvest?.harvest_date ?? '' }} - {{ cropSales.farm_harvest?.fruit ?? '' }} {{ `(${cropSales.farm_harvest?.type})` ?? '' }} {{ `${cropSales.farm_harvest?.quantity}Kg` ?? '' }}</CTableDataCell>
+          <CTableDataCell>{{ cropSales.farm_harvest?.harvest_date ?? '' }} - {{ cropSales.farm_harvest?.fruit ?? '' }} {{ cropSales.farm_harvest?.fruit.toLowerCase() == 'avocado' ? `(${cropSales.farm_harvest?.type})` : '' }} {{ `${cropSales.farm_harvest?.quantity}Kg` ?? '' }}</CTableDataCell>
           <CTableDataCell
             ><router-link :to="`/customers/${cropSales.customer?.id}`">
               {{ cropSales.customer?.first_name ?? '' + ' ' + cropSales.customer?.last_name ?? '' }}

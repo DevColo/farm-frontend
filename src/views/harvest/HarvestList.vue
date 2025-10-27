@@ -90,6 +90,7 @@ const currentHarvest = ref({
   quantity: '',
   fruit: '',
   type: '',
+  is_rejected: 'No'
 })
 
 // Check if Avocado is selected
@@ -99,7 +100,8 @@ const isAvocadoSelected = computed(() => {
 
 // Enhanced search and filter states
 const searchQuery = ref('')
-const filterHarvest = ref('')
+const filterByParcel = ref('')
+const filterByBlock = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 const sortField = ref('harvest_date')
@@ -115,8 +117,8 @@ onMounted(async () => {
     await Promise.all([
       harvestStore.fetchHarvests(),
       farmStore.fetchFarms(),
-      //parcelStore.fetchParcels(),
-      //blockStore.fetchBlocks()
+      parcelStore.fetchParcels(),
+      blockStore.fetchBlocks()
     ])
   } finally {
     loading.value = false
@@ -181,12 +183,13 @@ const filteredHarvests = computed(() => {
   const harvests = Array.isArray(harvestStore.harvests) ? harvestStore.harvests : []
   
   let filtered = harvests.filter((harvest) => {
-    const matchesQuery = !q || [harvest.parcel_id, harvest.harvest_date, harvest.fruit, harvest.type].some((field) => 
+    const matchesQuery = !q || [harvest.parcel?.parcel_code, harvest.harvest_date, harvest.fruit, harvest.type].some((field) => 
       field?.toLowerCase().includes(q)
     )
-    const matchesTree = !filterHarvest.value || harvest.parcel_id == filterHarvest.value
+    const matchesParcel = !filterByParcel.value || harvest.parcel_id == filterByParcel.value
+    const matchesBlock = !filterByBlock.value || harvest.block_id == filterByBlock.value
     
-    return matchesQuery && matchesTree
+    return matchesQuery && matchesParcel && matchesBlock
   })
 
   // Apply sorting
@@ -246,7 +249,8 @@ function getSortIcon(field) {
 // Filter management
 function clearAllFilters() {
   searchQuery.value = ''
-  filterHarvest.value = ''
+  filterByParcel.value = ''
+  filterByBlock.value = ''
   resetPage()
 }
 
@@ -290,6 +294,7 @@ function openCreate() {
     quantity: '',
     fruit: '',
     type: '',
+    is_rejected: 'No'
   }
   showModal.value = true
 }
@@ -322,6 +327,7 @@ function openEdit(harvest) {
     quantity: harvest.quantity,
     fruit: fruitObj || null,
     type: typeObj || '',
+    is_rejected: harvest.is_rejected ? { value: harvest.is_rejected, label: harvest.is_rejected } : 'No',
   }
   
   showModal.value = true
@@ -385,6 +391,7 @@ async function handleSubmit(e) {
       quantity: currentHarvest.value.quantity,
       fruit: currentHarvest.value.fruit.value,
       type: currentHarvest.value.type?.value || currentHarvest.value.type || '',
+      is_rejected: currentHarvest.value.is_rejected,
     }
     
     if (isEditing.value) {
@@ -409,7 +416,7 @@ async function handleSubmit(e) {
 }
 
 // Watch for changes
-watch([searchQuery, filterHarvest], () => {
+watch([searchQuery, filterByParcel, filterByBlock], () => {
   resetPage()
 })
 
@@ -538,18 +545,39 @@ watch(
                 </div>
 
                 <!-- Breakdown by Fruit -->
-                <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
-                  <div v-for="fruit in fruitTypes" :key="fruit.value" class="d-flex align-items-center gap-2">
-                    <span :title="fruit.label" class="badge bg-light text-dark border">
-                      <span class="me-1">{{ fruit.icon }}</span>
-                      {{ fruit.label }}:
-                      {{
-                        (filteredHarvests
-                          .filter(h => (h.fruit || '').toLowerCase() === fruit.value.toLowerCase())
-                          .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
-                        ).toFixed(2)
-                      }} kg
-                    </span>
+                <div class="d-flex flex-column gap-2 mt-3">
+                  <!-- Main Fruit Breakdown -->
+                  <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <div v-for="fruit in fruitTypes" :key="fruit.value" class="d-flex align-items-center gap-2">
+                      <span :title="fruit.label" class="badge bg-light text-dark border">
+                        <span class="me-1">{{ fruit.icon }}</span>
+                        {{ fruit.label }}:
+                        {{
+                          (filteredHarvests
+                            .filter(h => (h.fruit || '').toLowerCase() === fruit.value.toLowerCase())
+                            .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
+                          ).toFixed(2)
+                        }} kg
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <!-- Avocado Type Breakdown -->
+                  <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado')">
+                      <small class="text-muted me-2">Avocado Types:</small>
+                      <div v-for="variety in avocadoVarieties.slice(1)" :key="variety.value" class="d-flex align-items-center gap-2">
+                        <span :title="variety.label" class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+                          {{ variety.label }}:
+                          {{
+                            (filteredHarvests
+                              .filter(h => h.fruit === 'Avocado' && h.type === variety.value)
+                              .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
+                            ).toFixed(2)
+                          }} kg
+                        </span>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -602,7 +630,7 @@ watch(
                     </span>
                     <CFormInput
                       v-model="searchQuery"
-                      placeholder="Search by tree name or date"
+                      placeholder="Search by Fruit, Type, Date, Parcel Code..."
                       @input="resetPage"
                     />
                   </CInputGroup>
@@ -632,7 +660,7 @@ watch(
             <div v-if="showFilters" class="advanced-filters">
               <div class="row g-3">
                 <div class="col-md-2">
-                  <CFormSelect v-model="filterHarvest" @change="resetPage">
+                  <CFormSelect v-model="filterByParcel" @change="resetPage">
                     <option value="">All Parcels</option>
                     <option v-for="parcel in availableParcels" :key="parcel?.id" :value="parcel?.id">
                       {{ parcel?.parcel_code }}
@@ -640,7 +668,7 @@ watch(
                   </CFormSelect>
                 </div>
                 <div class="col-md-2">
-                  <CFormSelect v-model="filterHarvest" @change="resetPage">
+                  <CFormSelect v-model="filterByParcel" @change="resetPage">
                     <option value="">All Blocks</option>
                     <option v-for="block in availableBlocks" :key="block?.id" :value="block?.id">
                       {{ block?.block_code }}
@@ -673,13 +701,14 @@ watch(
                   <CTableHeaderCell class="sortable" @click="sortBy('type')">
                     Type {{ getSortIcon('type') }}
                   </CTableHeaderCell>
+                  <CTableHeaderCell>Is Rejected</CTableHeaderCell>
                   <CTableHeaderCell class="sortable" @click="sortBy('quantity')">
                     Quantity (kg) {{ getSortIcon('quantity') }}
                   </CTableHeaderCell>
                   <CTableHeaderCell class="sortable" @click="sortBy('harvest_date')">
                     Harvest Date {{ getSortIcon('harvest_date') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell>Created At</CTableHeaderCell>
+                  <!-- <CTableHeaderCell>Created At</CTableHeaderCell> -->
                   <CTableHeaderCell width="120">Actions</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
@@ -716,14 +745,17 @@ watch(
                     {{ harvest.type || '—' }}
                   </CTableDataCell>
                   <CTableDataCell>
+                    {{ harvest.is_rejected || 'No' }}
+                  </CTableDataCell>
+                  <CTableDataCell>
                       {{ harvest.quantity }}
                   </CTableDataCell>
                   <CTableDataCell>
                       {{ new Date(harvest.harvest_date).toLocaleDateString() }}
                   </CTableDataCell>
-                  <CTableDataCell>
+                  <!-- <CTableDataCell>
                     {{ new Date(harvest.created_at).toLocaleDateString() ?? '' }}
-                  </CTableDataCell>
+                  </CTableDataCell> -->
                   <CTableDataCell>
                     <div class="d-flex gap-1">
                       <CButton
@@ -780,11 +812,34 @@ watch(
                   <CButton 
                     size="sm" 
                     variant="outline" 
-
                     :disabled="currentPage === 1"
                     @click="prevPage"
                   >
                     Previous
+                  </CButton>
+
+                  <!-- First 3 pages -->
+                  <CButton
+                    v-for="page in Math.min(3, totalPages)"
+                    :key="page"
+                    size="sm"
+                    :color="currentPage === page ? 'primary' : 'light'"
+                    @click="goToPage(page)"
+                  >
+                    {{ page }}
+                  </CButton>
+
+                  <!-- Ellipsis if needed -->
+                  <span v-if="totalPages > 4" class="px-2">...</span>
+
+                  <!-- Last page -->
+                  <CButton
+                    v-if="totalPages > 3"
+                    size="sm"
+                    :color="currentPage === totalPages ? 'primary' : 'light'"
+                    @click="goToPage(totalPages)"
+                  >
+                    {{ totalPages }}
                   </CButton>
 
                   <CButton 
@@ -960,6 +1015,21 @@ watch(
               Avocado variety is required.
             </div>
           </CCol>
+
+          <CCol :md="12">
+  <CFormLabel for="is_rejected">Is Rejected</CFormLabel>
+  <select
+    id="is_rejected"
+    v-model="currentHarvest.is_rejected"
+    class="form-select"
+  >
+    <option value="No">No</option>
+    <option value="Yes">Yes</option>
+  </select>
+  <CFormFeedback invalid v-if="!currentHarvest.is_rejected">
+    Rejection status is required.
+  </CFormFeedback>
+</CCol>
 
           <CCol md="12">
             <CFormLabel for="harvest-date" class="fw-semibold">Harvest Date <span style="color: red;">*</span></CFormLabel>
