@@ -563,15 +563,32 @@ watch(
                   </div>
                   
                   <!-- Avocado Type Breakdown -->
+                   <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && h.is_rejected == 'Yes')">
+                      <small class="text-muted me-2">Rejected Avocado:</small>
+                      <div v-for="variety in avocadoVarieties.slice(1)" :key="variety.value" class="d-flex align-items-center gap-2">
+                        <span :title="variety.label" class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
+                          {{ variety.label }}:
+                          {{
+                            (filteredHarvests
+                              .filter(h => h.fruit === 'Avocado' && h.is_rejected == 'Yes' && h.type === variety.value)
+                              .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
+                            ).toFixed(2)
+                          }} kg
+                        </span>
+                      </div>
+                    </template>
+                  </div>
+
                   <div class="d-flex gap-2 align-items-center flex-wrap">
-                    <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado')">
-                      <small class="text-muted me-2">Avocado Types:</small>
+                    <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && h.is_rejected != 'Yes')">
+                      <small class="text-muted me-2">Accepted Avocado:</small>
                       <div v-for="variety in avocadoVarieties.slice(1)" :key="variety.value" class="d-flex align-items-center gap-2">
                         <span :title="variety.label" class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
                           {{ variety.label }}:
                           {{
                             (filteredHarvests
-                              .filter(h => h.fruit === 'Avocado' && h.type === variety.value)
+                              .filter(h => h.fruit === 'Avocado' && h.is_rejected != 'Yes' && h.type === variety.value)
                               .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
                             ).toFixed(2)
                           }} kg
