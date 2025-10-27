@@ -465,15 +465,15 @@ watch(
               </template>
 
               <!-- Calculate stats for each unique fruit and Accepted Avocado-->
-              <template v-for="fruit in [...new Set(filteredSales.map(sale => sale.farm_harvest))]" :key="fruit">
-                <div v-if="fruit?.is_rejected != 'Yes'" class="p-3 border rounded" style="min-width: 200px;">
-                  <h6 class="mb-2">Rejected {{ fruit?.fruit }}</h6>
+              <template v-for="fruit in [...new Set(filteredSales.map(sale => sale.farm_harvest?.fruit))]" :key="fruit">
+                <div v-if="fruit" class="p-3 border rounded" style="min-width: 200px;">
+                  <h6 class="mb-2">{{ fruit }}</h6>
                   <div class="small">
                     <div class="d-flex justify-content-between mb-1">
                       <span>Total Quantity:</span>
                       <strong>{{ 
                         filteredSales
-                          .filter(sale => sale.farm_harvest?.fruit === fruit?.fruit && sale.farm_harvest?.is_rejected != 'Yes')
+                          .filter(sale => sale.farm_harvest?.fruit === fruit)
                           .reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0)
                       }} kg</strong>
                     </div>
@@ -481,7 +481,7 @@ watch(
                       <span>Total Revenue:</span>
                       <strong>{{ 
                         filteredSales
-                          .filter(sale => sale.farm_harvest?.fruit === fruit?.fruit && sale.farm_harvest?.is_rejected != 'Yes')
+                          .filter(sale => sale.farm_harvest?.fruit === fruit)
                           .reduce((sum, sale) => sum + ((Number(sale.quantity) || 0) * (Number(sale.price) || 0)), 0)
                           .toFixed(2)
                       }} Rwf</strong>
@@ -504,8 +504,7 @@ watch(
                                     .filter(
                                       sale =>
                                         sale.farm_harvest?.fruit === 'Avocado' &&
-                                        sale.farm_harvest?.type === type &&
-                                        sale.farm_harvest?.is_rejected != 'Yes'
+                                        sale.farm_harvest?.type === type
                                     )
                                     .reduce(
                                       (sum, sale) =>
@@ -526,9 +525,6 @@ watch(
                         </template>
                       </div>
                     </template>
-                  </div>
-                </div>
-              </template>
             </div>
           </div>
       <CCard class="mb-4">
