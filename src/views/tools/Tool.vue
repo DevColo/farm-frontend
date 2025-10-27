@@ -217,8 +217,6 @@ function openEdit(tool) {
   validated.value = false
   editingId.value = tool.id
   
-  const itemObj = itemTypes.find(i => i.value === tool.item)
-  
   currentTool.value = {
     name: tool.name,
     quantity: tool.quantity,
