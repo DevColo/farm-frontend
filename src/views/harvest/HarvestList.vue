@@ -564,8 +564,8 @@ watch(
                   
                   <!-- Avocado Type Breakdown -->
                    <div class="d-flex gap-2 align-items-center flex-wrap">
-                    <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && h.is_rejected == 'Yes')">
-                      <small class="text-muted me-2">Rejected Avocado:</small>
+                    <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && (h.is_rejected == 'Yes' || h.is_rejected == 'Average'))">
+                      <small class="text-muted me-2">Average Avocado:</small>
                       <div v-for="variety in avocadoVarieties.slice(1)" :key="variety.value" class="d-flex align-items-center gap-2">
                         <span :title="variety.label" class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
                           {{ variety.label }}:
@@ -581,8 +581,8 @@ watch(
                   </div>
 
                   <div class="d-flex gap-2 align-items-center flex-wrap">
-                    <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && h.is_rejected != 'Yes')">
-                      <small class="text-muted me-2">Accepted Avocado:</small>
+                    <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && (h.is_rejected != 'Yes' || h.is_rejected != 'Average'))">
+                      <small class="text-muted me-2">Premiun Avocado:</small>
                       <div v-for="variety in avocadoVarieties.slice(1)" :key="variety.value" class="d-flex align-items-center gap-2">
                         <span :title="variety.label" class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
                           {{ variety.label }}:
@@ -718,7 +718,7 @@ watch(
                   <CTableHeaderCell class="sortable" @click="sortBy('type')">
                     Type {{ getSortIcon('type') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell>Is Rejected</CTableHeaderCell>
+                  <CTableHeaderCell>Type</CTableHeaderCell>
                   <CTableHeaderCell class="sortable" @click="sortBy('quantity')">
                     Quantity (kg) {{ getSortIcon('quantity') }}
                   </CTableHeaderCell>
@@ -762,7 +762,7 @@ watch(
                     {{ harvest.type || '—' }}
                   </CTableDataCell>
                   <CTableDataCell>
-                    {{ harvest.is_rejected || 'No' }}
+                    {{ harvest.is_rejected != 'Yes' || harvest.is_rejected == 'Premium'? 'Premium' : 'Average' }}
                   </CTableDataCell>
                   <CTableDataCell>
                       {{ harvest.quantity }}
@@ -1034,14 +1034,14 @@ watch(
           </CCol>
 
           <CCol :md="12">
-  <CFormLabel for="is_rejected">Is Rejected</CFormLabel>
+  <CFormLabel for="is_rejected">Type</CFormLabel>
   <select
     id="is_rejected"
     v-model="currentHarvest.is_rejected"
     class="form-select"
   >
-    <option value="No">No</option>
-    <option value="Yes">Yes</option>
+    <option value="Average">Average</option>
+    <option value="Premuim">Premuim</option>
   </select>
   <CFormFeedback invalid v-if="!currentHarvest.is_rejected">
     Rejection status is required.

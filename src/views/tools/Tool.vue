@@ -316,7 +316,7 @@ const toolStats = computed(() => {
       <CBreadcrumbItem>
         <router-link to="#" class="text-decoration-none">Farm</router-link>
       </CBreadcrumbItem>
-      <CBreadcrumbItem active>Tools</CBreadcrumbItem>
+      <CBreadcrumbItem active>Equipments</CBreadcrumbItem>
     </CBreadcrumb>
 
     <!-- Main Table Card -->
@@ -327,10 +327,10 @@ const toolStats = computed(() => {
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h5 class="mb-1">
-                <i class="fas fa-dollar-sign me-2 text-danger"></i>tools
+                <i class="fas fa-dollar-sign me-2 text-danger"></i>Equipments
               </h5>
               <p class="text-muted small mb-0">
-                Total tools: {{ toolStats.totalTools }}
+                Total Equipments: {{ toolStats.totalTools }}
               </p>
             </div>
             <div class="d-flex gap-2">
@@ -348,7 +348,7 @@ const toolStats = computed(() => {
                 </CDropdownMenu>
               </CDropdown>
               <CButton color="dark" @click="openCreate">
-                <CIcon :icon="cilPlus" class="me-1" />Add New Tool
+                <CIcon :icon="cilPlus" class="me-1" />Add New Tool/Equipment
               </CButton>
             </div>
           </div>
@@ -460,7 +460,7 @@ const toolStats = computed(() => {
                         size="sm"
                         color="info"
                         variant="outline"
-                        title="Edit tool"
+                        title="Edit Equipment"
                         @click="openEdit(tool)"
                       >
                         <CIcon :icon="cilPencil" size="sm" />
@@ -469,7 +469,7 @@ const toolStats = computed(() => {
                         size="sm"
                         color="danger"
                         variant="outline"
-                        title="Delete tool"
+                        title="Delete Equipment"
                         @click="confirmDelete(tool.id, tool.name)"
                       >
                         <CIcon :icon="cilTrash" size="sm" />
@@ -481,10 +481,10 @@ const toolStats = computed(() => {
                   <CTableDataCell colspan="9" class="text-center py-5">
                     <div class="empty-state">
                       <i class="fas fa-dollar-sign fa-3x text-muted mb-3"></i>
-                      <h5 class="text-muted">No tool records found</h5>
-                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new tool record</p>
+                      <h5 class="text-muted">No Tool/Equipment records found</h5>
+                      <p class="text-muted mb-3">Try adjusting your search criteria or add a new Tool/Equipment record</p>
                       <CButton color="primary" @click="openCreate">
-                        <CIcon :icon="cilPlus" class="me-1" />Add Your First tool
+                        <CIcon :icon="cilPlus" class="me-1" />Add Your First Tool/Equipment
                       </CButton>
                     </div>
                   </CTableDataCell>
@@ -537,7 +537,7 @@ const toolStats = computed(() => {
     <CModalHeader class="border-bottom">
       <CModalTitle>
         <i class="fas fa-dollar-sign me-2 text-danger"></i>
-        {{ isEditing ? 'Edit Tool' : 'Add New Tool' }}
+        {{ isEditing ? 'Edit Tool/Equipment' : 'Add New Tool/Equipment' }}
       </CModalTitle>
     </CModalHeader>
     <CModalBody class="p-0">

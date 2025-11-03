@@ -59,7 +59,7 @@ export default [
       },
       {
         component: 'CNavItem',
-        name: 'Farm Tools',
+        name: 'Tools/Equipments',
         to: '/tools',
       },
       {

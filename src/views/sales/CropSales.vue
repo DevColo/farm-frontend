@@ -44,6 +44,21 @@ const isEditing = ref(false)
 const validated = ref(false)
 const editingId = ref(null)
 
+// Payment status options
+const paymentStatusOptions = [
+  { value: 'Pending', label: 'Pending' },
+  { value: 'Paid', label: 'Paid' },
+  { value: 'Due', label: 'Due' },
+  { value: 'Overdue', label: 'Overdue' },
+]
+
+// Payment method options
+const paymentMethodOptions = [
+  { value: 'Cash', label: 'Cash' },
+  { value: 'Momo', label: 'Momo' },
+  { value: 'Bank', label: 'Bank' },
+]
+
 // Crop Rejection status
 const rejectionStatus = [
   { value: 'No', label: 'No'},
@@ -59,6 +74,10 @@ const currentSales = ref({
   unit_price: '',
   sales_date: '',
   is_rejected: 'No',
+  payment_status: 'Pending',
+  due_date: '',
+  payment_method: '',
+  payment_date: '',
 })
 const farms = ref([])
 const harvests = ref([])
@@ -92,7 +111,7 @@ const filteredSales = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return cropSalesStore.cropSales
   return cropSalesStore.cropSales.filter((m) =>
-    [m.sales_date, m.quantity].some((f) => f?.toLowerCase().includes(q)),
+    [m.sales_date, m.quantity, m.payment_status].some((f) => f?.toLowerCase().includes(q)),
   )
 })
 
@@ -112,6 +131,20 @@ watch(
       currentSales.value.harvest_record_id = String(newValue)
     }
   },
+)
+
+// Watch payment status to clear fields when changed
+watch(
+  () => currentSales.value.payment_status,
+  (newStatus) => {
+    if (newStatus !== 'Pending') {
+      currentSales.value.due_date = ''
+    }
+    if (newStatus !== 'Paid') {
+      currentSales.value.payment_method = ''
+      currentSales.value.payment_date = ''
+    }
+  }
 )
 
 function nextPage() {
@@ -137,6 +170,10 @@ function openCreate() {
     unit_price: '',
     sales_date: '',
     is_rejected: 'No',
+    payment_status: 'Pending',
+    due_date: '',
+    payment_method: '',
+    payment_date: '',
   }
   showModal.value = true
 }
@@ -145,11 +182,10 @@ function openEdit(cropSales) {
   isEditing.value = true
   validated.value = false
   editingId.value = cropSales.id
-  currentSales.value = { ...cropSales }
   currentSales.value = {
     sales_date: cropSales.sale_date,
     customer_id: cropSales.customer_id
-      ? { value: cropSales.customer_id, label: `${cropSales.customer?.first_name  } ${cropSales.customer?.last_name}` }
+      ? { value: cropSales.customer_id, label: `${cropSales.customer?.first_name} ${cropSales.customer?.last_name}` }
       : '',
     harvest_record_id: cropSales.farm_harvest_id
       ? { value: cropSales.farm_harvest_id, label: `${cropSales.farm_harvest?.harvest_date} - ${cropSales.farm_harvest?.fruit}` }
@@ -160,6 +196,10 @@ function openEdit(cropSales) {
     farm_id: cropSales.farm_id
       ? { value: cropSales.farm_id, label: `${cropSales.farm?.farm_code} - ${cropSales.farm?.name}` }
       : '',
+    payment_status: cropSales.payment_status || 'Pending',
+    due_date: cropSales.due_date || '',
+    payment_method: cropSales.payment_method || '',
+    payment_date: cropSales.payment_date || '',
     id: cropSales.id, 
   }
   showModal.value = true
@@ -180,6 +220,7 @@ async function handleSubmit(e) {
     return
   }
   e.preventDefault()
+  
   const payload = {
     farm_id: currentSales.value.farm_id.value,
     farm_harvest_id: currentSales.value.harvest_record_id.value,
@@ -188,7 +229,19 @@ async function handleSubmit(e) {
     price: currentSales.value.unit_price,
     sale_date: currentSales.value.sales_date,
     is_rejected: currentSales.value.is_rejected,
+    payment_status: currentSales.value.payment_status,
   }
+
+  // Add conditional fields based on payment status
+  if (currentSales.value.payment_status === 'Pending' && currentSales.value.due_date) {
+    payload.due_date = currentSales.value.due_date
+  }
+  
+  if (currentSales.value.payment_status === 'Paid') {
+    payload.payment_method = currentSales.value.payment_method
+    payload.payment_date = currentSales.value.payment_date
+  }
+
   if (isEditing.value) {
     payload.id = editingId.value
     await cropSalesStore.editCropSale(payload)
@@ -196,7 +249,6 @@ async function handleSubmit(e) {
     await cropSalesStore.createCropSale(payload)
   }
   showModal.value = false
-  //resetPage()
 }
 
 // Export in PDF
@@ -205,33 +257,37 @@ async function exportPDF() {
   const autoTable = (await import('jspdf-autotable')).default
   const doc = new jsPDF()
   doc.setFontSize(18)
-  doc.text('feedings Feeding Records', 105, 15, { align: 'center' })
+  doc.text('Crop Sales Records', 105, 15, { align: 'center' })
   doc.setFontSize(12)
   doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 25, { align: 'center' })
   autoTable(doc, {
     startY: 35,
-    head: [['ID', 'Food', 'Quantity', 'Sales Date', 'Pasture']],
-    body: filteredSales.value.map((feeding) => [
-      feeding.id,
-      feeding.food,
-      feeding.quantity,
-      feeding.sales_date,
-      feeding.pasture?.pasture,
+    head: [['Harvest', 'Customer', 'Quantity', 'Unit Price', 'Total', 'Status', 'Sales Date']],
+    body: filteredSales.value.map((sale) => [
+      `${sale.farm_harvest?.fruit} - ${sale.farm_harvest?.harvest_date}`,
+      `${sale.customer?.first_name} ${sale.customer?.last_name}`,
+      sale.quantity,
+      sale.price,
+      (Number(sale.quantity) * Number(sale.price)).toFixed(2),
+      sale.payment_status || 'N/A',
+      sale.sale_date,
     ]),
   })
-  doc.save('feedings.pdf')
+  doc.save('crop-sales.pdf')
 }
 
 // Export in CSV
 function exportCSV() {
   const rows = [
-    ['ID', 'Food', 'Quantity', 'Sales Date', 'Pasture'],
-    ...filteredSales.value.map((feeding) => [
-      feeding.id,
-      feeding.food?.food,
-      feeding.quantity,
-      feeding.sales_date,
-      feeding.pasture?.pasture,
+    ['Harvest', 'Customer', 'Quantity', 'Unit Price', 'Total Price', 'Payment Status', 'Sales Date'],
+    ...filteredSales.value.map((sale) => [
+      `${sale.farm_harvest?.fruit} - ${sale.farm_harvest?.harvest_date}`,
+      `${sale.customer?.first_name} ${sale.customer?.last_name}`,
+      sale.quantity,
+      sale.price,
+      (Number(sale.quantity) * Number(sale.price)).toFixed(2),
+      sale.payment_status || 'N/A',
+      sale.sale_date,
     ]),
   ]
 
@@ -243,7 +299,7 @@ function exportCSV() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.setAttribute('href', url)
-  link.setAttribute('download', 'feedings.csv')
+  link.setAttribute('download', 'crop-sales.csv')
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -268,13 +324,6 @@ function getRevenue(milk) {
 const selectedFood = computed(() => {
   return cropStore.cropSales.find((milk) => milk.id === currentSales.harvest_record_id) || null
 })
-
-// watch(
-//   () => currentSales.value.harvest_record_id,
-//   (foodId) => {
-//     selectedFood.value = cropStore.cropSales.find((f) => f.id === foodId) || null
-//   },
-// )
 
 const availableQuantity = computed(() => {
   if (!selectedFood.value) return 0
@@ -311,9 +360,8 @@ function getMaxQuantity(qty) {
     maxQty.value = []
     return
   }
- 
 }
-//getMaxQuantity
+
 // Ensure function runs whenever farm changes
 watch(
   () => currentSales.value.farm_id,
@@ -325,10 +373,20 @@ watch(
 watch(
   () => currentSales.value.harvest_record_id,
   (newHarvestRecordId) => {
-    //handleHarvestByFarm(newFarmId)
     maxQty.value = newHarvestRecordId?.quantity
   }
 )
+
+// Get badge color for payment status
+function getStatusBadgeColor(status) {
+  const colors = {
+    'Pending': 'warning',
+    'Paid': 'success',
+    'Due': 'info',
+    'Overdue': 'danger'
+  }
+  return colors[status] || 'secondary'
+}
 </script>
 
 <template>
@@ -393,15 +451,37 @@ watch(
           }}
               </div>
             </div>
+
+            <div class="p-3 border rounded text-center" style="min-width: 150px;">
+              <div class="text-muted small">Paid Sales</div>
+              <div class="h5 mb-0">
+          {{
+            filteredSales.length
+              ? filteredSales.filter((it) => it.payment_status === 'Paid').length
+              : 0
+          }}
+              </div>
+            </div>
+
+            <div class="p-3 border rounded text-center" style="min-width: 150px;">
+              <div class="text-muted small">Pending Payment</div>
+              <div class="h5 mb-0">
+          {{
+            filteredSales.length
+              ? filteredSales.filter((it) => it.payment_status === 'Pending').length
+              : 0
+          }}
+              </div>
+            </div>
           </div>
           <!-- Fruit-specific stats -->
           <div class="mb-4">
             <h5>Sales by Fruit Type</h5>
             <div class="d-flex flex-wrap gap-3">
-              <!-- Rejected Only -->
+              <!-- Premium Only -->
               <template v-for="fruit in [...new Set(filteredSales.map(sale => sale.farm_harvest))]" :key="fruit">
-                <div v-if="fruit?.fruit.toLowerCase() == 'avocado' && fruit?.is_rejected == 'Yes'" class="p-3 border rounded" style="min-width: 200px;background: #ff8b8b;">
-                  <h6 class="mb-2">Rejected {{ fruit?.fruit }}</h6>
+                <div v-if="fruit?.fruit.toLowerCase() == 'avocado' && (fruit?.is_rejected == 'Premium' || fruit?.is_rejected != 'Yes')" class="p-3 border rounded" style="min-width: 200px;">
+                  <h6 class="mb-2">Premium {{ fruit?.fruit }}</h6>
                   <div class="small">
                     <div class="d-flex justify-content-between mb-1">
                       <span>Total Quantity:</span>
@@ -449,13 +529,6 @@ watch(
                                     .toFixed(2)
                                 }} Rwf 
                             </strong>
-                            <!-- <strong>
-
-                              {{ 
-                              filteredSales
-                                .filter(sale => sale.farm_harvest?.fruit === 'Avocado' && sale.farm_harvest?.type === type)
-                                .reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0)
-                            }} kg</strong> -->
                           </div>
                         </template>
                       </div>
@@ -514,13 +587,6 @@ watch(
                                     .toFixed(2)
                                 }} Rwf 
                             </strong>
-                            <!-- <strong>
-
-                              {{ 
-                              filteredSales
-                                .filter(sale => sale.farm_harvest?.fruit === 'Avocado' && sale.farm_harvest?.type === type)
-                                .reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0)
-                            }} kg</strong> -->
                           </div>
                         </template>
                       </div>
@@ -573,6 +639,7 @@ watch(
           <CTableHeaderCell>Sold Date</CTableHeaderCell>
           <CTableHeaderCell>Unit Price (RWF)</CTableHeaderCell>
           <CTableHeaderCell>Total Price (Rwf)</CTableHeaderCell>
+          <CTableHeaderCell>Payment Status</CTableHeaderCell>
           <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
             </CTableHead>
@@ -589,7 +656,12 @@ watch(
           <CTableDataCell>{{ cropSales?.price ?? '' }}</CTableDataCell>
           <CTableDataCell>{{ (Number(cropSales?.quantity) || 0) * (Number(cropSales?.price) || 0) }}</CTableDataCell>
           <CTableDataCell>
-            <!-- Edit Cow Button -->
+            <span :class="`badge bg-${getStatusBadgeColor(cropSales.payment_status || `Pending`)}`">
+              {{ cropSales.payment_status || 'Pending' }}
+            </span>
+          </CTableDataCell>
+          <CTableDataCell>
+            <!-- Edit Button -->
             <CButton
               size="sm"
               color="info"
@@ -600,7 +672,7 @@ watch(
               <CIcon :icon="cilPencil" />
             </CButton>
 
-            <!-- Delete Cow Button -->
+            <!-- Delete Button -->
             <CButton
               size="sm"
               color="danger"
@@ -613,7 +685,7 @@ watch(
           </CTableDataCell>
               </CTableRow>
               <CTableRow v-if="paginatedSales.length === 0">
-          <CTableDataCell colspan="8" class="text-center">
+          <CTableDataCell colspan="9" class="text-center">
             No sales record found.
           </CTableDataCell>
               </CTableRow>
@@ -644,7 +716,6 @@ watch(
   </CRow>
 
   <!-- Create/Edit Modal -->
-  <!-- <CModal :visible="showModal" size="lg" backdrop="static" @close="() => (visible = false)"> -->
   <CModal :visible="showModal" @close="showModal = false" backdrop="static" size="md">
     <CModalHeader>
       <CModalTitle>{{
@@ -706,23 +777,22 @@ watch(
           </CCol>
 
         <CCol :md="12">
-  <CFormLabel for="is_rejected">Is Rejected</CFormLabel>
-  <select
-    id="is_rejected"
-    v-model="currentSales.is_rejected"
-    class="form-select"
-  >
-    <option value="No">No</option>
-    <option value="Yes">Yes</option>
-  </select>
-  <CFormFeedback invalid v-if="!currentSales.is_rejected">
-    Rejection status is required.
-  </CFormFeedback>
-</CCol>
-
+          <CFormLabel for="is_rejected">Type</CFormLabel>
+          <select
+            id="is_rejected"
+            v-model="currentSales.is_rejected"
+            class="form-select"
+          >
+            <option value="Average">Average</option>
+            <option value="Premium">Premium</option>
+          </select>
+          <CFormFeedback invalid v-if="!currentSales.is_rejected">
+            Rejection status is required.
+          </CFormFeedback>
+        </CCol>
 
         <CCol :md="12">
-          <CFormLabel for="quantity">Quantity (kg)</CFormLabel>
+          <CFormLabel for="quantity">Quantity (kg) <span style="color: red;">*</span></CFormLabel>
           <CFormInput
             id="quantity"
             v-model="currentSales.quantity"
@@ -740,13 +810,13 @@ watch(
             }"
             required
           />
-          <CFormFeedback invalid v-if="!currentSales.quantity">
-            Quantity is quantity.
+          <CFormFeedback invalid>
+            Quantity is required.
           </CFormFeedback>
         </CCol>
 
         <CCol :md="12">
-          <CFormLabel for="unit_price">Unit Price (Rwf)</CFormLabel>
+          <CFormLabel for="unit_price">Unit Price (Rwf) <span style="color: red;">*</span></CFormLabel>
           <CFormInput
             id="unit_price"
             v-model="currentSales.unit_price"
@@ -754,13 +824,13 @@ watch(
             min="1"
             required
           />
-          <CFormFeedback invalid v-if="!currentSales.unit_price">
+          <CFormFeedback invalid>
             Unit Price is required.
           </CFormFeedback>
         </CCol>
 
         <CCol :md="12">
-          <CFormLabel for="customer">Customer</CFormLabel>
+          <CFormLabel for="customer">Customer <span style="color: red;">*</span></CFormLabel>
           <Multiselect
             id="customer"
             v-model="currentSales.customer_id"
@@ -780,15 +850,71 @@ watch(
             @input="validated.value = !!currentSales.customer_id"
             required
           />
-          <CFormFeedback invalid v-if="!currentSales.customer_id"
-            >Customer is required.</CFormFeedback
-          >
+          <CFormFeedback invalid v-if="!currentSales.customer_id">
+            Customer is required.
+          </CFormFeedback>
         </CCol>
 
         <CCol :md="12">
-          <CFormLabel for="salesDate">Sales Date</CFormLabel>
+          <CFormLabel for="salesDate">Sales Date <span style="color: red;">*</span></CFormLabel>
           <CFormInput id="salesDate" type="date" v-model="currentSales.sales_date" required />
           <CFormFeedback invalid>Sales Date is required.</CFormFeedback>
+        </CCol>
+
+        <CCol :md="12">
+          <CFormLabel for="payment_status">Payment Status <span style="color: red;">*</span></CFormLabel>
+          <select
+            id="payment_status"
+            v-model="currentSales.payment_status"
+            class="form-select"
+            required
+          >
+            <option v-for="status in paymentStatusOptions" :key="status.value" :value="status.value">
+              {{ status.label }}
+            </option>
+          </select>
+          <CFormFeedback invalid>
+            Payment Status is required.
+          </CFormFeedback>
+        </CCol>
+
+        <!-- Conditional: Due Date (only if Pending) -->
+        <CCol :md="12" v-if="currentSales.payment_status === 'Pending'">
+          <CFormLabel for="due_date">Due Date</CFormLabel>
+          <CFormInput id="due_date" type="date" v-model="currentSales.due_date" />
+        </CCol>
+
+        <!-- Conditional: Payment Method (only if Paid) -->
+        <CCol :md="12" v-if="currentSales.payment_status === 'Paid'">
+          <CFormLabel for="payment_method">Payment Method <span style="color: red;">*</span></CFormLabel>
+          <select
+            id="payment_method"
+            v-model="currentSales.payment_method"
+            class="form-select"
+            :required="currentSales.payment_status === 'Paid'"
+          >
+            <option value="">Select Payment Method</option>
+            <option v-for="method in paymentMethodOptions" :key="method.value" :value="method.value">
+              {{ method.label }}
+            </option>
+          </select>
+          <CFormFeedback invalid>
+            Payment Method is required when status is Paid.
+          </CFormFeedback>
+        </CCol>
+
+        <!-- Conditional: Payment Date (only if Paid) -->
+        <CCol :md="12" v-if="currentSales.payment_status === 'Paid'">
+          <CFormLabel for="payment_date">Payment Date <span style="color: red;">*</span></CFormLabel>
+          <CFormInput 
+            id="payment_date" 
+            type="date" 
+            v-model="currentSales.payment_date" 
+            :required="currentSales.payment_status === 'Paid'"
+          />
+          <CFormFeedback invalid>
+            Payment Date is required when status is Paid.
+          </CFormFeedback>
         </CCol>
 
         <CCol :xs="12" class="d-flex justify-content-end">

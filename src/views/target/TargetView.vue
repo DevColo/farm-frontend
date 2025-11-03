@@ -251,10 +251,10 @@ function formatNumber(num) {
 // Get status badge
 function getStatusBadge(status) {
   const badges = {
-    completed: { color: 'success', text: 'Completed', icon: '✓' },
-    'on-track': { color: 'info', text: 'On Track', icon: '↗' },
-    warning: { color: 'warning', text: 'Needs Attention', icon: '⚠' },
-    critical: { color: 'danger', text: 'Critical', icon: '!' }
+    completed: { color: 'success', text: 'Progress: Completed', icon: '✓' },
+    'on-track': { color: 'info', text: 'Progress: On Track', icon: '↗' },
+    warning: { color: 'warning', text: 'Progress: Needs Attention', icon: '⚠' },
+    critical: { color: 'danger', text: 'Progress: Critical', icon: '' }
   }
   return badges[status] || { color: 'secondary', text: 'Unknown', icon: '?' }
 }
@@ -398,7 +398,7 @@ function getStatusBadge(status) {
           <CCardHeader class="bg-white border-bottom">
             <h6 class="mb-0">
               <i class="fas fa-chart-pie me-2 text-success"></i>
-              Status Distribution
+              Progress Status 
             </h6>
           </CCardHeader>
           <CCardBody>
