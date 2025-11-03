@@ -591,9 +591,6 @@ function getStatusBadgeColor(status) {
                         </template>
                       </div>
                     </template>
-                  </div>
-                </div>
-              </template>
             </div>
           </div>
       <CCard class="mb-4">
