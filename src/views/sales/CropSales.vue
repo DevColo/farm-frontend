@@ -48,8 +48,8 @@ const editingId = ref(null)
 const paymentStatusOptions = [
   { value: 'Pending', label: 'Pending' },
   { value: 'Paid', label: 'Paid' },
-  { value: 'Due', label: 'Due' },
-  { value: 'Overdue', label: 'Overdue' },
+  //{ value: 'Due', label: 'Due' },
+  //{ value: 'Overdue', label: 'Overdue' },
 ]
 
 // Payment method options
@@ -378,7 +378,7 @@ watch(
 )
 
 // Get badge color for payment status
-function getStatusBadgeColor(status) {
+/*function getStatusBadgeColor(status) {
   const colors = {
     'Pending': 'warning',
     'Paid': 'success',
@@ -386,7 +386,46 @@ function getStatusBadgeColor(status) {
     'Overdue': 'danger'
   }
   return colors[status] || 'secondary'
+}*/
+
+function getPaymentDisplayStatus(cropSales) {
+  const status = cropSales.payment_status || 'Pending';
+  const dueDate = cropSales.due_date ? new Date(cropSales.due_date) : null;
+  const today = new Date();
+
+  // If already paid, just return "Paid"
+  if (status === 'Paid') {
+    return 'Paid';
+  }
+
+  // If due date is defined and payment is not paid
+  if (dueDate) {
+    // Normalize both to date-only (remove time)
+    const due = new Date(dueDate.toISOString().split('T')[0]);
+    const now = new Date(today.toISOString().split('T')[0]);
+
+    if (due.getTime() === now.getTime()) {
+      return 'Due';
+    } else if (due < now) {
+      return 'Overdue';
+    }
+  }
+
+  // Default fallback
+  return status;
 }
+
+// Keep your existing function as is
+function getStatusBadgeColor(status) {
+  const colors = {
+    'Pending': 'warning',
+    'Paid': 'success',
+    'Due': 'info',
+    'Overdue': 'danger'
+  };
+  return colors[status] || 'secondary';
+}
+
 </script>
 
 <template>
@@ -654,6 +693,8 @@ function getStatusBadgeColor(status) {
           <CTableHeaderCell>Sold Date</CTableHeaderCell>
           <CTableHeaderCell>Unit Price (RWF)</CTableHeaderCell>
           <CTableHeaderCell>Total Price (Rwf)</CTableHeaderCell>
+          <CTableHeaderCell>Due Date</CTableHeaderCell>
+          <CTableHeaderCell>Payment Date</CTableHeaderCell>
           <CTableHeaderCell>Payment Status</CTableHeaderCell>
           <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
@@ -670,11 +711,14 @@ function getStatusBadgeColor(status) {
           <CTableDataCell>{{ cropSales?.sale_date ?? '' }}</CTableDataCell>
           <CTableDataCell>{{ cropSales?.price ?? '' }}</CTableDataCell>
           <CTableDataCell>{{ (Number(cropSales?.quantity) || 0) * (Number(cropSales?.price) || 0) }}</CTableDataCell>
+      
+          <CTableDataCell>{{ cropSales?.due_date ?? '' }}</CTableDataCell>
+          <CTableDataCell>{{ cropSales?.payment_date ?? '' }}</CTableDataCell>
           <CTableDataCell>
-            <span :class="`badge bg-${getStatusBadgeColor(cropSales.payment_status || `Pending`)}`">
-              {{ cropSales.payment_status || 'Pending' }}
-            </span>
-          </CTableDataCell>
+  <span :class="`badge bg-${getStatusBadgeColor(getPaymentDisplayStatus(cropSales))}`">
+    {{ getPaymentDisplayStatus(cropSales) }}
+  </span>
+</CTableDataCell>
           <CTableDataCell>
             <!-- Edit Button -->
             <CButton
