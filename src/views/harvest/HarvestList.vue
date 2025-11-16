@@ -564,7 +564,7 @@ watch(
     <div class="d-flex gap-2 align-items-center flex-wrap">
       <small class="text-muted me-2">Premium Avocado:</small>
       <div v-for="variety in avocadoVarieties.slice(1)" :key="'premium-' + variety.value" class="d-flex align-items-center gap-2">
-        <span :title="variety.label" class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+        <span :title="variety.label" class="badge bg-success bg-opacity-10 text-dark border border-success-subtle">
           {{ variety.label }}:
           {{
             (filteredHarvests
@@ -582,7 +582,7 @@ watch(
     <div class="d-flex gap-2 align-items-center flex-wrap">
       <small class="text-muted me-2">Average Avocado:</small>
       <div v-for="variety in avocadoVarieties.slice(1)" :key="'average-' + variety.value" class="d-flex align-items-center gap-2">
-        <span :title="variety.label" class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
+        <span :title="variety.label" class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">
           {{ variety.label }}:
           {{
             (filteredHarvests
@@ -600,7 +600,7 @@ watch(
     <div class="d-flex gap-2 align-items-center flex-wrap">
       <small class="text-muted me-2">Rejected Avocado:</small>
       <div v-for="variety in avocadoVarieties.slice(1)" :key="'rejected-' + variety.value" class="d-flex align-items-center gap-2">
-        <span :title="variety.label" class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
+        <span :title="variety.label" class="badge bg-danger bg-opacity-10 text-dark border border-danger-subtle">
           {{ variety.label }}:
           {{
             (filteredHarvests
