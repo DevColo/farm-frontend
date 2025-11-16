@@ -48,8 +48,8 @@ const editingId = ref(null)
 const paymentStatusOptions = [
   { value: 'Pending', label: 'Pending' },
   { value: 'Paid', label: 'Paid' },
-  { value: 'Due', label: 'Due' },
-  { value: 'Overdue', label: 'Overdue' },
+  //{ value: 'Due', label: 'Due' },
+  //{ value: 'Overdue', label: 'Overdue' },
 ]
 
 // Payment method options
@@ -73,7 +73,6 @@ const currentSales = ref({
   quantity: '',
   unit_price: '',
   sales_date: '',
-  is_rejected: 'No',
   payment_status: 'Pending',
   due_date: '',
   payment_method: '',
@@ -169,7 +168,6 @@ function openCreate() {
     quantity: '',
     unit_price: '',
     sales_date: '',
-    is_rejected: 'No',
     payment_status: 'Pending',
     due_date: '',
     payment_method: '',
@@ -192,7 +190,6 @@ function openEdit(cropSales) {
       : '',
     quantity: cropSales.quantity,
     unit_price: cropSales.price,
-    is_rejected: cropSales.is_rejected ? { value: cropSales.is_rejected, label: cropSales.is_rejected } : 'No',
     farm_id: cropSales.farm_id
       ? { value: cropSales.farm_id, label: `${cropSales.farm?.farm_code} - ${cropSales.farm?.name}` }
       : '',
@@ -228,7 +225,6 @@ async function handleSubmit(e) {
     quantity: currentSales.value.quantity,
     price: currentSales.value.unit_price,
     sale_date: currentSales.value.sales_date,
-    is_rejected: currentSales.value.is_rejected,
     payment_status: currentSales.value.payment_status,
   }
 
@@ -378,7 +374,7 @@ watch(
 )
 
 // Get badge color for payment status
-function getStatusBadgeColor(status) {
+/*function getStatusBadgeColor(status) {
   const colors = {
     'Pending': 'warning',
     'Paid': 'success',
@@ -386,7 +382,46 @@ function getStatusBadgeColor(status) {
     'Overdue': 'danger'
   }
   return colors[status] || 'secondary'
+}*/
+
+function getPaymentDisplayStatus(cropSales) {
+  const status = cropSales.payment_status || 'Pending';
+  const dueDate = cropSales.due_date ? new Date(cropSales.due_date) : null;
+  const today = new Date();
+
+  // If already paid, just return "Paid"
+  if (status === 'Paid') {
+    return 'Paid';
+  }
+
+  // If due date is defined and payment is not paid
+  if (dueDate) {
+    // Normalize both to date-only (remove time)
+    const due = new Date(dueDate.toISOString().split('T')[0]);
+    const now = new Date(today.toISOString().split('T')[0]);
+
+    if (due.getTime() === now.getTime()) {
+      return 'Due';
+    } else if (due < now) {
+      return 'Overdue';
+    }
+  }
+
+  // Default fallback
+  return status;
 }
+
+// Keep your existing function as is
+function getStatusBadgeColor(status) {
+  const colors = {
+    'Pending': 'warning',
+    'Paid': 'success',
+    'Due': 'info',
+    'Overdue': 'danger'
+  };
+  return colors[status] || 'secondary';
+}
+
 </script>
 
 <template>
@@ -478,81 +513,213 @@ function getStatusBadgeColor(status) {
           <div class="mb-4">
             <h5>Sales by Fruit Type</h5>
             <div class="d-flex flex-wrap gap-3">
-              <!-- Premium Only -->
-              <template v-for="fruit in [...new Set(filteredSales.map(sale => sale.farm_harvest?.fruit))]" :key="fruit">
-  <div
-    v-if="fruit?.toLowerCase() === 'avocado'"
-    class="p-3 border rounded"
-    style="min-width: 200px;"
-  >
-    <h6 class="mb-2">Premium {{ fruit }}</h6>
+              <!-- <template v-for="harvest in [...new Set(filteredSales.map(sale => sale.farm_harvest))]" :key="harvest">
+                
+              </template> -->
+              <!-- Move this OUTSIDE and AFTER the v-for loop -->
 
-    <div class="small">
-      <div class="d-flex justify-content-between mb-1">
-        <span>Total Quantity:</span>
-        <strong>
-          {{
-            filteredSales
-              .filter(sale => sale.farm_harvest?.fruit === fruit && sale.farm_harvest?.is_rejected == 'Yes')
-              .reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0)
-          }} kg
-        </strong>
-      </div>
+<!-- Premium Avocado Only -->
+<div
+  v-if="filteredSales.some(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'premium')"
+  class="p-3 border rounded bg-success-subtle"
+  style="min-width: 200px;"
+>
+  <h6 class="mb-2">Premium Avocado</h6>
 
-      <div class="d-flex justify-content-between mb-1">
-        <span>Total Revenue:</span>
-        <strong>
-          {{
-            filteredSales
-              .filter(sale => sale.farm_harvest?.fruit === fruit && sale.farm_harvest?.is_rejected == 'Yes')
-              .reduce((sum, sale) => sum + ((Number(sale.quantity) || 0) * (Number(sale.price) || 0)), 0)
-              .toFixed(2)
-          }} Rwf
-        </strong>
-      </div>
+  <div class="small">
+    <div class="d-flex justify-content-between mb-1">
+      <span>Total Quantity:</span>
+      <strong>
+        {{
+          filteredSales
+            .filter(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'premium')
+            .reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0)
+        }} kg
+      </strong>
+    </div>
 
-      <!-- Avocado type breakdown -->
-      <template v-if="fruit === 'Avocado'">
-        <hr class="my-2" />
-        <div class="mt-2">
-          <h6 class="mb-2">By Type:</h6>
+    <div class="d-flex justify-content-between mb-1">
+      <span>Total Revenue:</span>
+      <strong>
+        {{
+          filteredSales
+            .filter(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'premium')
+            .reduce((sum, sale) => sum + ((Number(sale.quantity) || 0) * (Number(sale.price) || 0)), 0)
+            .toFixed(2)
+        }} Rwf
+      </strong>
+    </div>
 
-          <template
-            v-for="type in [...new Set(filteredSales
-              .filter(sale => sale.farm_harvest?.fruit === 'Avocado')
-              .map(sale => sale.farm_harvest?.type))]"
-            :key="type"
-          >
-            <div v-if="type" class="d-flex justify-content-between mb-1">
-              <span>{{ type }}:</span>
-              <strong>
-                {{
-                  filteredSales
-                    .filter(
-                      sale =>
-                        sale.farm_harvest?.fruit === 'Avocado' &&
-                        sale.farm_harvest?.type === type &&
-                        sale.farm_harvest?.is_rejected == 'Yes'
-                    )
-                    .reduce(
-                      (sum, sale) =>
-                        sum + (Number(sale.quantity) || 0) * (Number(sale.price) || 0),
-                      0
-                    )
-                    .toFixed(2)
-                }}
-                Rwf
-              </strong>
-            </div>
-          </template>
+    <hr class="my-2" />
+    <div class="mt-2">
+      <h6 class="mb-2">By Type:</h6>
+      <template
+        v-for="type in [...new Set(filteredSales
+          .filter(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'premium')
+          .map(sale => sale.farm_harvest?.type))]"
+        :key="'premium-' + type"
+      >
+        <div v-if="type" class="d-flex justify-content-between mb-1">
+          <span>{{ type }}:</span>
+          <strong>
+            {{
+              filteredSales
+                .filter(
+                  sale =>
+                    sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' &&
+                    sale.farm_harvest?.type === type &&
+                    sale.farm_harvest?.quality?.toLowerCase() === 'premium'
+                )
+                .reduce(
+                  (sum, sale) =>
+                    sum + (Number(sale.quantity) || 0) * (Number(sale.price) || 0),
+                  0
+                )
+                .toFixed(2)
+            }}
+            Rwf
+          </strong>
         </div>
       </template>
     </div>
   </div>
-</template>
+</div>
 
+<!-- Average Avocado Only -->
+<div
+  v-if="filteredSales.some(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'average')"
+  class="p-3 border rounded bg-warning-subtle"
+  style="min-width: 200px;"
+>
+  <h6 class="mb-2">Average Avocado</h6>
 
-              <!-- Calculate stats for each unique fruit and Accepted Avocado-->
+  <div class="small">
+    <div class="d-flex justify-content-between mb-1">
+      <span>Total Quantity:</span>
+      <strong>
+        {{
+          filteredSales
+            .filter(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'average')
+            .reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0)
+        }} kg
+      </strong>
+    </div>
+
+    <div class="d-flex justify-content-between mb-1">
+      <span>Total Revenue:</span>
+      <strong>
+        {{
+          filteredSales
+            .filter(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'average')
+            .reduce((sum, sale) => sum + ((Number(sale.quantity) || 0) * (Number(sale.price) || 0)), 0)
+            .toFixed(2)
+        }} Rwf
+      </strong>
+    </div>
+
+    <hr class="my-2" />
+    <div class="mt-2">
+      <h6 class="mb-2">By Type:</h6>
+      <template
+        v-for="type in [...new Set(filteredSales
+          .filter(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'average')
+          .map(sale => sale.farm_harvest?.type))]"
+        :key="'average-' + type"
+      >
+        <div v-if="type" class="d-flex justify-content-between mb-1">
+          <span>{{ type }}:</span>
+          <strong>
+            {{
+              filteredSales
+                .filter(
+                  sale =>
+                    sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' &&
+                    sale.farm_harvest?.type === type &&
+                    sale.farm_harvest?.quality?.toLowerCase() === 'average'
+                )
+                .reduce(
+                  (sum, sale) =>
+                    sum + (Number(sale.quantity) || 0) * (Number(sale.price) || 0),
+                  0
+                )
+                .toFixed(2)
+            }}
+            Rwf
+          </strong>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<!-- Rejected Avocado Only -->
+<div
+  v-if="filteredSales.some(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'rejected')"
+  class="p-3 border rounded bg-danger-subtle"
+  style="min-width: 200px;"
+>
+  <h6 class="mb-2">Rejected Avocado</h6>
+
+  <div class="small">
+    <div class="d-flex justify-content-between mb-1">
+      <span>Total Quantity:</span>
+      <strong>
+        {{
+          filteredSales
+            .filter(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'rejected')
+            .reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0)
+        }} kg
+      </strong>
+    </div>
+
+    <div class="d-flex justify-content-between mb-1">
+      <span>Total Revenue:</span>
+      <strong>
+        {{
+          filteredSales
+            .filter(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'rejected')
+            .reduce((sum, sale) => sum + ((Number(sale.quantity) || 0) * (Number(sale.price) || 0)), 0)
+            .toFixed(2)
+        }} Rwf
+      </strong>
+    </div>
+
+    <hr class="my-2" />
+    <div class="mt-2">
+      <h6 class="mb-2">By Type:</h6>
+      <template
+        v-for="type in [...new Set(filteredSales
+          .filter(sale => sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' && sale.farm_harvest?.quality?.toLowerCase() === 'rejected')
+          .map(sale => sale.farm_harvest?.type))]"
+        :key="'rejected-' + type"
+      >
+        <div v-if="type" class="d-flex justify-content-between mb-1">
+          <span>{{ type }}:</span>
+          <strong>
+            {{
+              filteredSales
+                .filter(
+                  sale =>
+                    sale.farm_harvest?.fruit?.toLowerCase() === 'avocado' &&
+                    sale.farm_harvest?.type === type &&
+                    sale.farm_harvest?.quality?.toLowerCase() === 'rejected'
+                )
+                .reduce(
+                  (sum, sale) =>
+                    sum + (Number(sale.quantity) || 0) * (Number(sale.price) || 0),
+                  0
+                )
+                .toFixed(2)
+            }}
+            Rwf
+          </strong>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+              <!-- Calculate stats for each unique fruit -->
               <template v-for="fruit in [...new Set(filteredSales.map(sale => sale.farm_harvest?.fruit))]" :key="fruit">
                 <div v-if="fruit" class="p-3 border rounded" style="min-width: 200px;">
                   <h6 class="mb-2">{{ fruit }}</h6>
@@ -654,6 +821,8 @@ function getStatusBadgeColor(status) {
           <CTableHeaderCell>Sold Date</CTableHeaderCell>
           <CTableHeaderCell>Unit Price (RWF)</CTableHeaderCell>
           <CTableHeaderCell>Total Price (Rwf)</CTableHeaderCell>
+          <CTableHeaderCell>Due Date</CTableHeaderCell>
+          <CTableHeaderCell>Payment Date</CTableHeaderCell>
           <CTableHeaderCell>Payment Status</CTableHeaderCell>
           <CTableHeaderCell>Action</CTableHeaderCell>
               </CTableRow>
@@ -670,11 +839,14 @@ function getStatusBadgeColor(status) {
           <CTableDataCell>{{ cropSales?.sale_date ?? '' }}</CTableDataCell>
           <CTableDataCell>{{ cropSales?.price ?? '' }}</CTableDataCell>
           <CTableDataCell>{{ (Number(cropSales?.quantity) || 0) * (Number(cropSales?.price) || 0) }}</CTableDataCell>
+      
+          <CTableDataCell>{{ cropSales?.due_date ?? '' }}</CTableDataCell>
+          <CTableDataCell>{{ cropSales?.payment_date ?? '' }}</CTableDataCell>
           <CTableDataCell>
-            <span :class="`badge bg-${getStatusBadgeColor(cropSales.payment_status || `Pending`)}`">
-              {{ cropSales.payment_status || 'Pending' }}
-            </span>
-          </CTableDataCell>
+  <span :class="`badge bg-${getStatusBadgeColor(getPaymentDisplayStatus(cropSales))}`">
+    {{ getPaymentDisplayStatus(cropSales) }}
+  </span>
+</CTableDataCell>
           <CTableDataCell>
             <!-- Edit Button -->
             <CButton
@@ -790,21 +962,6 @@ function getStatusBadgeColor(status) {
               Harvest is required.
             </div>
           </CCol>
-
-        <CCol :md="12">
-          <CFormLabel for="is_rejected">Type</CFormLabel>
-          <select
-            id="is_rejected"
-            v-model="currentSales.is_rejected"
-            class="form-select"
-          >
-            <option value="Average">Average</option>
-            <option value="Premium">Premium</option>
-          </select>
-          <CFormFeedback invalid v-if="!currentSales.is_rejected">
-            Rejection status is required.
-          </CFormFeedback>
-        </CCol>
 
         <CCol :md="12">
           <CFormLabel for="quantity">Quantity (kg) <span style="color: red;">*</span></CFormLabel>

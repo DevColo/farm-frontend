@@ -66,11 +66,6 @@ const avocadoVarieties = [
   { value: 'All', label: 'All Type' },
   { value: 'Hass', label: 'Hass' },
   { value: 'Fuerte', label: 'Fuerte' },
-  { value: 'Reed', label: 'Reed' },
-  { value: 'Pinkerton', label: 'Pinkerton' },
-  { value: 'Gwen', label: 'Gwen' },
-  { value: 'Bacon', label: 'Bacon' },
-  { value: 'Zutano', label: 'Zutano' },
   { value: 'Etinga', label: 'Etinga' },
 ]
 
@@ -90,7 +85,7 @@ const currentHarvest = ref({
   quantity: '',
   fruit: '',
   type: '',
-  is_rejected: 'No'
+  quality: 'Average'
 })
 
 // Check if Avocado is selected
@@ -294,7 +289,7 @@ function openCreate() {
     quantity: '',
     fruit: '',
     type: '',
-    is_rejected: 'No'
+    quality: 'No'
   }
   showModal.value = true
 }
@@ -327,7 +322,7 @@ function openEdit(harvest) {
     quantity: harvest.quantity,
     fruit: fruitObj || null,
     type: typeObj || '',
-    is_rejected: harvest.is_rejected ? { value: harvest.is_rejected, label: harvest.is_rejected } : 'No',
+    quality: harvest.quality ? { value: harvest.quality, label: harvest.quality } : 'No',
   }
   
   showModal.value = true
@@ -391,7 +386,7 @@ async function handleSubmit(e) {
       quantity: currentHarvest.value.quantity,
       fruit: currentHarvest.value.fruit.value,
       type: currentHarvest.value.type?.value || currentHarvest.value.type || '',
-      is_rejected: currentHarvest.value.is_rejected,
+      quality: currentHarvest.value.quality,
     }
     
     if (isEditing.value) {
@@ -563,39 +558,61 @@ watch(
                   </div>
                   
                   <!-- Avocado Type Breakdown -->
-                   <div class="d-flex gap-2 align-items-center flex-wrap">
-                    <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && (h.is_rejected == 'Yes' || h.is_rejected == 'Average'))">
-                      <small class="text-muted me-2">Average Avocado:</small>
-                      <div v-for="variety in avocadoVarieties.slice(1)" :key="variety.value" class="d-flex align-items-center gap-2">
-                        <span :title="variety.label" class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
-                          {{ variety.label }}:
-                          {{
-                            (filteredHarvests
-                              .filter(h => h.fruit === 'Avocado' && h.is_rejected == 'Yes' && h.type === variety.value)
-                              .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
-                            ).toFixed(2)
-                          }} kg
-                        </span>
-                      </div>
-                    </template>
-                  </div>
+<div class="d-flex flex-column gap-3">
+  <!-- Premium Avocado -->
+  <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && h.quality === 'Premium')">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <small class="text-muted me-2">Premium Avocado:</small>
+      <div v-for="variety in avocadoVarieties.slice(1)" :key="'premium-' + variety.value" class="d-flex align-items-center gap-2">
+        <span :title="variety.label" class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+          {{ variety.label }}:
+          {{
+            (filteredHarvests
+              .filter(h => h.fruit === 'Avocado' && h.quality === 'Premium' && h.type === variety.value)
+              .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
+            ).toFixed(2)
+          }} kg
+        </span>
+      </div>
+    </div>
+  </template>
 
-                  <div class="d-flex gap-2 align-items-center flex-wrap">
-                    <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && (h.is_rejected != 'Yes' || h.is_rejected != 'Average'))">
-                      <small class="text-muted me-2">Premiun Avocado:</small>
-                      <div v-for="variety in avocadoVarieties.slice(1)" :key="variety.value" class="d-flex align-items-center gap-2">
-                        <span :title="variety.label" class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
-                          {{ variety.label }}:
-                          {{
-                            (filteredHarvests
-                              .filter(h => h.fruit === 'Avocado' && h.is_rejected != 'Yes' && h.type === variety.value)
-                              .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
-                            ).toFixed(2)
-                          }} kg
-                        </span>
-                      </div>
-                    </template>
-                  </div>
+  <!-- Average Avocado -->
+  <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && h.quality === 'Average')">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <small class="text-muted me-2">Average Avocado:</small>
+      <div v-for="variety in avocadoVarieties.slice(1)" :key="'average-' + variety.value" class="d-flex align-items-center gap-2">
+        <span :title="variety.label" class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
+          {{ variety.label }}:
+          {{
+            (filteredHarvests
+              .filter(h => h.fruit === 'Avocado' && h.quality === 'Average' && h.type === variety.value)
+              .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
+            ).toFixed(2)
+          }} kg
+        </span>
+      </div>
+    </div>
+  </template>
+
+  <!-- Rejected Avocado -->
+  <template v-if="filteredHarvests.some(h => h.fruit === 'Avocado' && h.quality === 'Rejected')">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <small class="text-muted me-2">Rejected Avocado:</small>
+      <div v-for="variety in avocadoVarieties.slice(1)" :key="'rejected-' + variety.value" class="d-flex align-items-center gap-2">
+        <span :title="variety.label" class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
+          {{ variety.label }}:
+          {{
+            (filteredHarvests
+              .filter(h => h.fruit === 'Avocado' && h.quality === 'Rejected' && h.type === variety.value)
+              .reduce((s, h) => s + (Number(h.quantity) || 0), 0)
+            ).toFixed(2)
+          }} kg
+        </span>
+      </div>
+    </div>
+  </template>
+</div>
                 </div>
               </div>
             </CCardBody>
@@ -718,7 +735,7 @@ watch(
                   <CTableHeaderCell class="sortable" @click="sortBy('type')">
                     Type {{ getSortIcon('type') }}
                   </CTableHeaderCell>
-                  <CTableHeaderCell>Type</CTableHeaderCell>
+                  <CTableHeaderCell>Quality</CTableHeaderCell>
                   <CTableHeaderCell class="sortable" @click="sortBy('quantity')">
                     Quantity (kg) {{ getSortIcon('quantity') }}
                   </CTableHeaderCell>
@@ -762,7 +779,7 @@ watch(
                     {{ harvest.type || '—' }}
                   </CTableDataCell>
                   <CTableDataCell>
-                    {{ harvest.is_rejected != 'Yes' || harvest.is_rejected == 'Premium'? 'Premium' : 'Average' }}
+                    {{ harvest.quality|| '' }}
                   </CTableDataCell>
                   <CTableDataCell>
                       {{ harvest.quantity }}
@@ -1034,16 +1051,17 @@ watch(
           </CCol>
 
           <CCol :md="12">
-  <CFormLabel for="is_rejected">Type</CFormLabel>
+  <CFormLabel for="quality">Quality</CFormLabel>
   <select
-    id="is_rejected"
-    v-model="currentHarvest.is_rejected"
+    id="quality"
+    v-model="currentHarvest.quality"
     class="form-select"
   >
     <option value="Average">Average</option>
-    <option value="Premuim">Premuim</option>
+    <option value="Premium">Premium</option>
+    <option value="Rejected">Rejected</option>
   </select>
-  <CFormFeedback invalid v-if="!currentHarvest.is_rejected">
+  <CFormFeedback invalid v-if="!currentHarvest.quality">
     Rejection status is required.
   </CFormFeedback>
 </CCol>
